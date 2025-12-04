@@ -4,19 +4,23 @@ import uvicorn
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from contextlib import asynccontextmanager
 
 # Import your existing core service
 from blocker_service import BlockerService
 
-app = FastAPI()
-
 BASE_DIR = Path(__file__).resolve().parent
 service = BlockerService(config_path=str(BASE_DIR / "config.json"))
 
-# Start the background thread on launch
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
     service.start()
+    yield
+    # Shutdown logic (Happens when you press Ctrl+C)
+    service.stop()
+
+app = FastAPI(lifespan=lifespan)
 
 # --- API Routes ---
 
