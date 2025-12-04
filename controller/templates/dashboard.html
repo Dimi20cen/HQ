@@ -2,25 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Universal Controller</title>
+    <title>Utility Controller</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 40px; background-color: #f4f4f9; }
         h1 { color: #333; margin-bottom: 20px; }
         
-        /* The Grid Layout */
+        /* Grid Layout */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
         }
 
+        /* The Card */
         .card {
             background: white;
-            padding: 20px;
-            border-top: 4px solid #ccc; /* Default grey */
+            border-top: 5px solid #ccc; /* Default grey */
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden; /* Contains the iframe */
         }
         .card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 
@@ -28,14 +29,17 @@
         .card.status-running { border-top-color: #28a745; }
         .card.status-stopped { border-top-color: #dc3545; }
 
-        .tool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .tool-name { font-size: 1.2em; font-weight: bold; color: #333; text-transform: capitalize; }
-        .tool-port { font-size: 0.8em; color: #888; background: #eee; padding: 2px 6px; border-radius: 4px; }
+        /* Card Content */
+        .card-body { padding: 20px; }
 
-        .status-text { font-size: 0.9em; margin-bottom: 15px; font-weight: 500; }
+        .tool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .tool-name { font-size: 1.2em; font-weight: bold; color: #333; text-transform: capitalize; }
+        .tool-port { font-size: 0.8em; color: #666; background: #eee; padding: 2px 6px; border-radius: 4px; }
         
-        /* Action Buttons */
-        .actions { display: flex; gap: 10px; }
+        .status-text { font-size: 0.9em; margin-bottom: 15px; font-weight: 500; height: 20px; }
+
+        /* Standard Controls */
+        .actions { display: flex; gap: 10px; margin-bottom: 10px; }
         button {
             flex: 1;
             padding: 8px;
@@ -44,20 +48,25 @@
             cursor: pointer;
             font-weight: bold;
             color: white;
+            transition: opacity 0.2s;
         }
+        button:hover { opacity: 0.9; }
         .btn-launch { background-color: #28a745; }
         .btn-kill   { background-color: #dc3545; }
-        .btn-disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* Specific Tool Controls area (expandable later) */
-        .custom-controls {
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dashed #eee;
-            font-size: 0.85em;
+        /* The "Micro-Frontend" Widget Area */
+        .widget-container {
+            border-top: 1px dashed #ddd;
+            background-color: #fafafa;
+            height: 160px; /* Fixed height for consistency */
+            display: none; /* Hidden by default */
         }
-        .btn-cmd { background-color: #007bff; font-size: 0.8em; padding: 5px; width: 100%; margin-top: 5px;}
-
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -67,6 +76,8 @@
     </div>
 
 <script>
+    const REFRESH_RATE = 2000; // Check status every 2 seconds
+
     // 1. Master Loop: Fetch all tools and render
     async function loadDashboard() {
         const container = document.getElementById('tools-container');
@@ -78,15 +89,21 @@
 
             container.innerHTML = ''; // Clear current
 
+            if (tools.length === 0) {
+                container.innerHTML = '<p>No tools found in database.</p>';
+                return;
+            }
+
             for (const tool of tools) {
                 const card = createToolCard(tool);
                 container.appendChild(card);
                 
-                // Check actual liveliness for each
+                // Check actual liveliness immediately
                 checkAlive(tool.name);
             }
         } catch (e) {
-            container.innerHTML = '<p>Error loading tools. Is Controller running?</p>';
+            container.innerHTML = '<p style="color:red">Error loading tools. Is Controller running?</p>';
+            console.error(e);
         }
     }
 
@@ -95,33 +112,30 @@
         const div = document.createElement('div');
         div.className = `card status-${tool.status}`;
         div.id = `card-${tool.name}`;
-
-        // If it's the Blocker, we can add special buttons. 
-        // Later, we can make this generic via a "manifest", but for now hardcoding specific buttons is safer.
-        let customHtml = '';
-        if (tool.name === 'blocker') {
-            customHtml = `
-                <div class="custom-controls">
-                    <strong>Internal Service:</strong>
-                    <button class="btn-cmd" onclick="proxyCmd('${tool.name}', 'start')">▶ Start Logic</button>
-                    <button class="btn-cmd" style="background:#6c757d" onclick="proxyCmd('${tool.name}', 'stop')">⏸ Stop Logic</button>
-                </div>
-            `;
-        }
+        
+        // IMPORTANT: We store the port here so we can find it later for the widget
+        div.dataset.port = tool.port; 
 
         div.innerHTML = `
-            <div class="tool-header">
-                <span class="tool-name">${tool.name}</span>
-                <span class="tool-port">:${tool.port}</span>
+            <div class="card-body">
+                <div class="tool-header">
+                    <span class="tool-name">${tool.name}</span>
+                    <span class="tool-port">:${tool.port}</span>
+                </div>
+                
+                <div class="status-text" id="status-${tool.name}">
+                    Checking...
+                </div>
+                
+                <div class="actions">
+                    <button class="btn-launch" onclick="controlProcess('${tool.name}', 'launch')">🚀 Launch</button>
+                    <button class="btn-kill" onclick="controlProcess('${tool.name}', 'kill')">💀 Kill</button>
+                </div>
             </div>
-            <div class="status-text" id="status-${tool.name}">
-                Status: ${tool.status.toUpperCase()}
+
+            <div class="widget-container" id="widget-box-${tool.name}">
+                <iframe id="iframe-${tool.name}"></iframe>
             </div>
-            <div class="actions">
-                <button class="btn-launch" onclick="controlProcess('${tool.name}', 'launch')">🚀 Launch</button>
-                <button class="btn-kill" onclick="controlProcess('${tool.name}', 'kill')">💀 Kill</button>
-            </div>
-            ${customHtml}
         `;
         return div;
     }
@@ -131,46 +145,89 @@
         const btn = document.querySelector(`#card-${name} .btn-${action}`);
         const originalText = btn.innerText;
         btn.innerText = "...";
+        btn.disabled = true;
         
-        await fetch(`/tools/${name}/${action}`, { method: 'POST' });
+        try {
+            await fetch(`/tools/${name}/${action}`, { method: 'POST' });
+        } catch (e) {
+            alert("Command failed");
+        }
         
         // Brief delay to let process settle, then refresh status
-        setTimeout(() => checkAlive(name), 1000);
-        btn.innerText = originalText;
+        setTimeout(() => {
+            checkAlive(name);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }, 1000);
     }
 
-    // 4. Actions: Proxy Commands (e.g. Blocker start/stop)
-    async function proxyCmd(name, action) {
-        try {
-            const res = await fetch(`/api/tools/${name}/${action}`, { method: 'POST' });
-            const data = await res.json();
-            alert(`${name} says: ${JSON.stringify(data)}`);
-        } catch(e) {
-            alert(`Error contacting ${name}. Is the process running?`);
-        }
-    }
-
-    // 5. Polling: Check status
+    // 4. Polling: Check status & Load Widget
     async function checkAlive(name) {
-        const resp = await fetch(`/tools/${name}/alive`);
-        const data = await resp.json();
-        
         const card = document.getElementById(`card-${name}`);
-        const statusText = document.getElementById(`status-${name}`);
-        
-        if (data.alive) {
-            card.classList.remove('status-stopped');
-            card.classList.add('status-running');
-            statusText.innerHTML = `<span style="color:green">● PID: ${data.pid}</span>`;
-        } else {
-            card.classList.remove('status-running');
-            card.classList.add('status-stopped');
-            statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
+        if (!card) return; // Card might not exist yet
+
+        try {
+            const resp = await fetch(`/tools/${name}/alive`);
+            const data = await resp.json();
+            
+            const statusText = document.getElementById(`status-${name}`);
+            const widgetBox = document.getElementById(`widget-box-${name}`);
+            const iframe = document.getElementById(`iframe-${name}`);
+            const port = card.dataset.port;
+
+            if (data.alive) {
+                // UPDATE VISUALS: RUNNING
+                card.classList.remove('status-stopped');
+                card.classList.add('status-running');
+                statusText.innerHTML = `<span style="color:green">● Running (PID: ${data.pid})</span>`;
+
+                // WIDGET LOGIC:
+                // Only try to load the widget if it's currently hidden
+                if (widgetBox.style.display === 'none') {
+                    // 1. Construct the URL
+                    const widgetUrl = `http://127.0.0.1:${port}/widget`;
+
+                    // 2. Ping it first to see if it exists (avoids 404 boxes)
+                    // Note: This relies on the tool having CORS enabled or being on same origin.
+                    // Since we are proxying, we can't easily fetch localhost:port from browser due to CORS mixed ports.
+                    // SAFE BET: Just set the src and let it fail silently or load.
+                    
+                    iframe.src = widgetUrl;
+                    
+                    // 3. Show the box. If 404, it will show the tool's 404 page. 
+                    // Optimization: We could wrap this in a try/catch if we had a backend proxy for checking /widget existence.
+                    // For now, we assume if it's running, we show the widget area.
+                    widgetBox.style.display = 'block';
+                }
+
+            } else {
+                // UPDATE VISUALS: STOPPED
+                card.classList.remove('status-running');
+                card.classList.add('status-stopped');
+                statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
+                
+                // Hide widget and unload iframe to save resources
+                widgetBox.style.display = 'none';
+                iframe.src = 'about:blank'; 
+            }
+        } catch (e) {
+            console.error("Poll error", e);
         }
     }
 
-    // Initial Load
+    // 5. Auto-Refresh Loop
     loadDashboard();
+    
+    // Periodically refresh just the status (not the whole card list)
+    setInterval(() => {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(c => {
+            // Extract name from id="card-NAME"
+            const name = c.id.replace('card-', '');
+            checkAlive(name);
+        });
+    }, REFRESH_RATE);
+
 </script>
 
 </body>

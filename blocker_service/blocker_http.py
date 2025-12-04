@@ -15,6 +15,26 @@ service.start()
 # -------------------------------------------------------------
 # Routes
 # -------------------------------------------------------------
+@app.route("/widget")
+def widget():
+    # This HTML is what will appear INSIDE the card on the dashboard
+    return """
+    <style>
+        body { font-family: sans-serif; padding: 10px; margin: 0; background: #fff; }
+        button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; }
+        .row { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
+    </style>
+    
+    <div class="row">
+        <span>Status: <strong>Active</strong></span>
+        <span>Next check: 3s</span>
+    </div>
+    
+    <button onclick="fetch('/start', {method:'POST'})">▶ Start Blocking</button>
+    <button onclick="fetch('/stop', {method:'POST'})">⏸ Stop Blocking</button>
+    <button onclick="fetch('/reload', {method:'POST'})">🔄 Reload Config</button>
+    """
+
 @app.get("/status")
 def status():
     """Return current service status."""
