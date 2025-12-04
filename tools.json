@@ -1,0 +1,7 @@
+[
+  {
+    "name": "blocker",
+    "process_path": "blocker_service/blocker_http.py",
+    "port": 9001
+  }
+]

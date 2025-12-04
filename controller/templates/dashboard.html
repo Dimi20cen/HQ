@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Utility Controller Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }
+        h1 { color: #333; }
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 { margin-top: 0; font-size: 1.2em; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        /* Color coding buttons */
+        .btn-launch { background-color: #28a745; color: white; } /* Green */
+        .btn-kill   { background-color: #dc3545; color: white; } /* Red */
+        .btn-cmd    { background-color: #007bff; color: white; } /* Blue */
+        
+        button:hover { opacity: 0.9; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        textarea {
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Utility Controller Dashboard</h1>
+
+<div class="card">
+    <h2>1. Process Management (OS Level)</h2>
+    <p>Is the python script actually running?</p>
+    <div id="processStatus">Checking...</div>
+    <br>
+    <button class="btn-launch" onclick="launchProcess()">🚀 Launch Process</button>
+    <button class="btn-kill" onclick="killProcess()">💀 Kill Process</button>
+</div>
+
+<div class="card">
+    <h2>2. Blocker Service Status</h2>
+    <p>Controls for the internal logic (Start/Stop blocking without killing the app).</p>
+    <div id="serviceStatus">Waiting for process...</div>
+    <br>
+    <button class="btn-cmd" onclick="sendCmd('start')">▶ Start Blocking</button>
+    <button class="btn-cmd" onclick="sendCmd('stop')">⏸ Stop Blocking</button>
+    <button class="btn-cmd" onclick="sendCmd('reload')">Undefined Reload Config</button>
+</div>
+
+<div class="card">
+    <h2>Update Blocker Config</h2>
+    <textarea id="configBox" rows="12">
+{
+    "check_interval_seconds": 3,
+    "blocked_windows": [
+        {
+            "start": "05:00",
+            "end": "19:00",
+            "processes": [
+                "newmt2.exe",
+                "riotclientservices.exe",
+                "notepad.exe"
+            ]
+        }
+    ]
+}
+    </textarea>
+    <br><br>
+    <button class="btn-cmd" onclick="updateConfig()">💾 Push Config Update</button>
+</div>
+
+<script>
+const TOOL_NAME = "blocker";
+
+// --- 1. Process Management (ProcessManager) ---
+async function checkAlive() {
+    try {
+        const resp = await fetch(`/tools/${TOOL_NAME}/alive`);
+        const data = await resp.json();
+        const el = document.getElementById('processStatus');
+        
+        if (data.alive) {
+            el.innerHTML = `<span style="color:green">● Running (PID: ${data.pid})</span>`;
+            return true;
+        } else {
+            el.innerHTML = `<span style="color:red">● Stopped</span>`;
+            document.getElementById('serviceStatus').innerText = "Process is down. Launch it first.";
+            return false;
+        }
+    } catch (e) {
+        document.getElementById('processStatus').innerText = "Error contacting controller.";
+        return false;
+    }
+}
+
+async function launchProcess() {
+    const resp = await fetch(`/tools/${TOOL_NAME}/launch`, { method: 'POST' });
+    const data = await resp.json();
+    alert(JSON.stringify(data));
+    checkAlive();
+}
+
+async function killProcess() {
+    const resp = await fetch(`/tools/${TOOL_NAME}/kill`, { method: 'POST' });
+    const data = await resp.json();
+    alert(JSON.stringify(data));
+    checkAlive();
+}
+
+// --- 2. Service Management (Generic Proxy) ---
+async function fetchServiceStatus() {
+    // Only check service status if process is alive
+    const isAlive = await checkAlive();
+    if (!isAlive) return;
+
+    const resp = await fetch(`/api/tools/${TOOL_NAME}/status`);
+    if (!resp.ok) {
+        document.getElementById('serviceStatus').innerText = "Process running, but API unreachable (Starting up?)";
+        return;
+    }
+    const data = await resp.json();
+    document.getElementById('serviceStatus').innerHTML = "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
+}
+
+async function sendCmd(action) {
+    await fetch(`/api/tools/${TOOL_NAME}/${action}`, { method: 'POST' });
+    fetchServiceStatus();
+}
+
+async function updateConfig() {
+    try {
+        const newConfig = JSON.parse(document.getElementById('configBox').value);
+        const resp = await fetch(`/api/tools/${TOOL_NAME}/update-config`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(newConfig)
+        });
+        const res = await resp.json();
+        alert("Update response: " + JSON.stringify(res));
+        fetchServiceStatus();
+    } catch (e) {
+        alert("Invalid JSON format");
+    }
+}
+
+// Auto-refresh loop
+fetchServiceStatus();
+setInterval(fetchServiceStatus, 5000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+flask
+psutil
+sqlalchemy
+jinja2

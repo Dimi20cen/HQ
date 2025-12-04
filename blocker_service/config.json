@@ -1,0 +1,14 @@
+{
+    "check_interval_seconds": 3,
+    "blocked_windows": [
+        {
+            "start": "05:00",
+            "end": "19:00",
+            "processes": [
+                "newmt2.exe",
+                "riotclientservices.exe",
+                "notepad.exe"
+            ]
+        }
+    ]
+}

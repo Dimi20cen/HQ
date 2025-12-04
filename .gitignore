@@ -1,0 +1,26 @@
+# --- Python & Environment ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- Database (The State) ---
+# You don't want to commit your running database
+*.db
+*.sqlite3
+tools.db
+
+# --- Logs (The History) ---
+*.log
+logs/
+blocker_service/logs/
+
+# --- OS / Editor Junk ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Large/Temporary Files ---
+repomix-output.xml
