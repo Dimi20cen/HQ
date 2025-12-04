@@ -40,6 +40,7 @@ def startup_event():
     # 1. Sync tools.json to Database
     # ---------------------------------------------------------
     tools_file = BASE_DIR.parent / "tools.json"
+    tools_config = []
     
     if tools_file.exists():
         with open(tools_file, "r") as f:
@@ -97,6 +98,20 @@ def startup_event():
                 print(f"[Dead] '{name}' PID {pid} not found in OS. Marking stopped.")
                 update_tool_pid(name, None)
                 update_tool_status(name, "stopped")
+
+    # 3. Auto-Start Logic (The "Hands-Off" Feature)
+    # ---------------------------------------------------------
+    print("[Auto-Start] Checking for tools to launch...")
+    for t in tools_config:
+        if t.get("auto_start", False):
+            # Check if it's already running (from step 2)
+            db_tool = get_tool_by_name(t["name"])
+            if db_tool and db_tool.pid:
+                # Already running, skip
+                continue
+            
+            print(f"[Auto-Start] Launching {t['name']}...")
+            ProcessManager.launch_tool(t["name"])
 
     print("--- Startup Complete ---\n")
 

@@ -2,6 +2,7 @@ requests
 fastapi
 uvicorn
 flask
+flask-cors
 psutil
 sqlalchemy
 jinja2

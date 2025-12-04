@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Job JSONifier",
+  "version": "1.0",
+  "description": "Extracts job details and sends them to the Kolibri Job Collector.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
