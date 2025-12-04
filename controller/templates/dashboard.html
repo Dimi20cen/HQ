@@ -2,181 +2,175 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Utility Controller Dashboard</title>
+    <title>Universal Controller</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }
-        h1 { color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 40px; background-color: #f4f4f9; }
+        h1 { color: #333; margin-bottom: 20px; }
+        
+        /* The Grid Layout */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
         .card {
             background: white;
             padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
+            border-top: 4px solid #ccc; /* Default grey */
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
         }
-        h2 { margin-top: 0; font-size: 1.2em; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+        /* Dynamic Status Colors */
+        .card.status-running { border-top-color: #28a745; }
+        .card.status-stopped { border-top-color: #dc3545; }
+
+        .tool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .tool-name { font-size: 1.2em; font-weight: bold; color: #333; text-transform: capitalize; }
+        .tool-port { font-size: 0.8em; color: #888; background: #eee; padding: 2px 6px; border-radius: 4px; }
+
+        .status-text { font-size: 0.9em; margin-bottom: 15px; font-weight: 500; }
+        
+        /* Action Buttons */
+        .actions { display: flex; gap: 10px; }
         button {
-            padding: 10px 15px;
-            margin-right: 10px;
-            cursor: pointer;
+            flex: 1;
+            padding: 8px;
             border: none;
             border-radius: 4px;
+            cursor: pointer;
             font-weight: bold;
-            transition: background 0.2s;
+            color: white;
         }
-        /* Color coding buttons */
-        .btn-launch { background-color: #28a745; color: white; } /* Green */
-        .btn-kill   { background-color: #dc3545; color: white; } /* Red */
-        .btn-cmd    { background-color: #007bff; color: white; } /* Blue */
-        
-        button:hover { opacity: 0.9; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-launch { background-color: #28a745; }
+        .btn-kill   { background-color: #dc3545; }
+        .btn-disabled { background-color: #ccc; cursor: not-allowed; }
 
-        pre {
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
+        /* Specific Tool Controls area (expandable later) */
+        .custom-controls {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #eee;
+            font-size: 0.85em;
         }
-        textarea {
-            width: 100%;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 10px;
-            font-family: monospace;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.9em;
-            font-weight: bold;
-        }
+        .btn-cmd { background-color: #007bff; font-size: 0.8em; padding: 5px; width: 100%; margin-top: 5px;}
+
     </style>
 </head>
 <body>
 
-<h1>Utility Controller Dashboard</h1>
-
-<div class="card">
-    <h2>1. Process Management (OS Level)</h2>
-    <p>Is the python script actually running?</p>
-    <div id="processStatus">Checking...</div>
-    <br>
-    <button class="btn-launch" onclick="launchProcess()">🚀 Launch Process</button>
-    <button class="btn-kill" onclick="killProcess()">💀 Kill Process</button>
-</div>
-
-<div class="card">
-    <h2>2. Blocker Service Status</h2>
-    <p>Controls for the internal logic (Start/Stop blocking without killing the app).</p>
-    <div id="serviceStatus">Waiting for process...</div>
-    <br>
-    <button class="btn-cmd" onclick="sendCmd('start')">▶ Start Blocking</button>
-    <button class="btn-cmd" onclick="sendCmd('stop')">⏸ Stop Blocking</button>
-    <button class="btn-cmd" onclick="sendCmd('reload')">Undefined Reload Config</button>
-</div>
-
-<div class="card">
-    <h2>Update Blocker Config</h2>
-    <textarea id="configBox" rows="12">
-{
-    "check_interval_seconds": 3,
-    "blocked_windows": [
-        {
-            "start": "05:00",
-            "end": "19:00",
-            "processes": [
-                "newmt2.exe",
-                "riotclientservices.exe",
-                "notepad.exe"
-            ]
-        }
-    ]
-}
-    </textarea>
-    <br><br>
-    <button class="btn-cmd" onclick="updateConfig()">💾 Push Config Update</button>
-</div>
+<h1>🎛️ Utility Controller</h1>
+<div id="tools-container" class="grid-container">
+    </div>
 
 <script>
-const TOOL_NAME = "blocker";
+    // 1. Master Loop: Fetch all tools and render
+    async function loadDashboard() {
+        const container = document.getElementById('tools-container');
+        
+        try {
+            const resp = await fetch('/tools');
+            const data = await resp.json();
+            const tools = data.tools;
 
-// --- 1. Process Management (ProcessManager) ---
-async function checkAlive() {
-    try {
-        const resp = await fetch(`/tools/${TOOL_NAME}/alive`);
+            container.innerHTML = ''; // Clear current
+
+            for (const tool of tools) {
+                const card = createToolCard(tool);
+                container.appendChild(card);
+                
+                // Check actual liveliness for each
+                checkAlive(tool.name);
+            }
+        } catch (e) {
+            container.innerHTML = '<p>Error loading tools. Is Controller running?</p>';
+        }
+    }
+
+    // 2. Component: Build the HTML for a single card
+    function createToolCard(tool) {
+        const div = document.createElement('div');
+        div.className = `card status-${tool.status}`;
+        div.id = `card-${tool.name}`;
+
+        // If it's the Blocker, we can add special buttons. 
+        // Later, we can make this generic via a "manifest", but for now hardcoding specific buttons is safer.
+        let customHtml = '';
+        if (tool.name === 'blocker') {
+            customHtml = `
+                <div class="custom-controls">
+                    <strong>Internal Service:</strong>
+                    <button class="btn-cmd" onclick="proxyCmd('${tool.name}', 'start')">▶ Start Logic</button>
+                    <button class="btn-cmd" style="background:#6c757d" onclick="proxyCmd('${tool.name}', 'stop')">⏸ Stop Logic</button>
+                </div>
+            `;
+        }
+
+        div.innerHTML = `
+            <div class="tool-header">
+                <span class="tool-name">${tool.name}</span>
+                <span class="tool-port">:${tool.port}</span>
+            </div>
+            <div class="status-text" id="status-${tool.name}">
+                Status: ${tool.status.toUpperCase()}
+            </div>
+            <div class="actions">
+                <button class="btn-launch" onclick="controlProcess('${tool.name}', 'launch')">🚀 Launch</button>
+                <button class="btn-kill" onclick="controlProcess('${tool.name}', 'kill')">💀 Kill</button>
+            </div>
+            ${customHtml}
+        `;
+        return div;
+    }
+
+    // 3. Actions: Launch / Kill Process
+    async function controlProcess(name, action) {
+        const btn = document.querySelector(`#card-${name} .btn-${action}`);
+        const originalText = btn.innerText;
+        btn.innerText = "...";
+        
+        await fetch(`/tools/${name}/${action}`, { method: 'POST' });
+        
+        // Brief delay to let process settle, then refresh status
+        setTimeout(() => checkAlive(name), 1000);
+        btn.innerText = originalText;
+    }
+
+    // 4. Actions: Proxy Commands (e.g. Blocker start/stop)
+    async function proxyCmd(name, action) {
+        try {
+            const res = await fetch(`/api/tools/${name}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            alert(`${name} says: ${JSON.stringify(data)}`);
+        } catch(e) {
+            alert(`Error contacting ${name}. Is the process running?`);
+        }
+    }
+
+    // 5. Polling: Check status
+    async function checkAlive(name) {
+        const resp = await fetch(`/tools/${name}/alive`);
         const data = await resp.json();
-        const el = document.getElementById('processStatus');
+        
+        const card = document.getElementById(`card-${name}`);
+        const statusText = document.getElementById(`status-${name}`);
         
         if (data.alive) {
-            el.innerHTML = `<span style="color:green">● Running (PID: ${data.pid})</span>`;
-            return true;
+            card.classList.remove('status-stopped');
+            card.classList.add('status-running');
+            statusText.innerHTML = `<span style="color:green">● PID: ${data.pid}</span>`;
         } else {
-            el.innerHTML = `<span style="color:red">● Stopped</span>`;
-            document.getElementById('serviceStatus').innerText = "Process is down. Launch it first.";
-            return false;
+            card.classList.remove('status-running');
+            card.classList.add('status-stopped');
+            statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
         }
-    } catch (e) {
-        document.getElementById('processStatus').innerText = "Error contacting controller.";
-        return false;
     }
-}
 
-async function launchProcess() {
-    const resp = await fetch(`/tools/${TOOL_NAME}/launch`, { method: 'POST' });
-    const data = await resp.json();
-    alert(JSON.stringify(data));
-    checkAlive();
-}
-
-async function killProcess() {
-    const resp = await fetch(`/tools/${TOOL_NAME}/kill`, { method: 'POST' });
-    const data = await resp.json();
-    alert(JSON.stringify(data));
-    checkAlive();
-}
-
-// --- 2. Service Management (Generic Proxy) ---
-async function fetchServiceStatus() {
-    // Only check service status if process is alive
-    const isAlive = await checkAlive();
-    if (!isAlive) return;
-
-    const resp = await fetch(`/api/tools/${TOOL_NAME}/status`);
-    if (!resp.ok) {
-        document.getElementById('serviceStatus').innerText = "Process running, but API unreachable (Starting up?)";
-        return;
-    }
-    const data = await resp.json();
-    document.getElementById('serviceStatus').innerHTML = "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
-}
-
-async function sendCmd(action) {
-    await fetch(`/api/tools/${TOOL_NAME}/${action}`, { method: 'POST' });
-    fetchServiceStatus();
-}
-
-async function updateConfig() {
-    try {
-        const newConfig = JSON.parse(document.getElementById('configBox').value);
-        const resp = await fetch(`/api/tools/${TOOL_NAME}/update-config`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(newConfig)
-        });
-        const res = await resp.json();
-        alert("Update response: " + JSON.stringify(res));
-        fetchServiceStatus();
-    } catch (e) {
-        alert("Invalid JSON format");
-    }
-}
-
-// Auto-refresh loop
-fetchServiceStatus();
-setInterval(fetchServiceStatus, 5000);
+    // Initial Load
+    loadDashboard();
 </script>
 
 </body>
