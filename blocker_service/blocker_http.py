@@ -1,140 +1,98 @@
+import sys
 import json
+import uvicorn
 from pathlib import Path
-from flask import Flask, request, jsonify, render_template_string
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+
+# Import your existing core service
 from blocker_service import BlockerService
 
-app = Flask(__name__)
+app = FastAPI()
 
-# Initialize the service
 BASE_DIR = Path(__file__).resolve().parent
 service = BlockerService(config_path=str(BASE_DIR / "config.json"))
 
-# Start worker thread immediately
-service.start()
+# Start the background thread on launch
+@app.on_event("startup")
+def startup_event():
+    service.start()
 
-# -------------------------------------------------------------
-# Routes
-# -------------------------------------------------------------
+# --- API Routes ---
+
 @app.get("/status")
 def status():
-    """Return current service status."""
-    return jsonify(service.get_status())
+    return service.get_status()
 
 @app.post("/start")
 def start():
     service.start()
-    return jsonify({"started": True})
+    return {"started": True}
 
 @app.post("/stop")
 def stop():
     service.stop()
-    return jsonify({"stopped": True})
+    return {"stopped": True}
 
 @app.post("/reload")
 def reload_config():
     service.reload_config()
-    return jsonify({"reloaded": True})
+    return {"reloaded": True}
 
 @app.post("/update-config")
-def update_config():
-    data = request.get_json(silent=True)
-    if data is None:
-        return jsonify({"error": "Invalid JSON"}), 400
+async def update_config(request: Request):
     try:
+        data = await request.json()
         service.update_config(data)
+        return {"updated": True}
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
-    return jsonify({"updated": True})
+        return JSONResponse({"error": str(e)}, status_code=400)
 
-# -------------------------------------------------------------
-# THE WIDGET UI (New Addition)
-# -------------------------------------------------------------
-@app.route("/widget")
+# --- Widget UI ---
+
+@app.get("/widget", response_class=HTMLResponse)
 def widget():
-    # 1. Read the current config to pre-fill the form
+    # Load current config for the UI
     try:
         with open(service.core.config_path, "r") as f:
             config = json.load(f)
-            # Default to the first window for the simple UI
             first_window = config.get("blocked_windows", [{}])[0]
             current_start = first_window.get("start", "09:00")
             current_end = first_window.get("end", "17:00")
-            # Join processes with newlines for the text area
             current_procs = "\n".join(first_window.get("processes", []))
     except Exception:
         current_start, current_end, current_procs = "09:00", "17:00", ""
 
-    # 2. Render the HTML Form
-    html = """
+    # Note: Double curly braces {{ }} needed for CSS/JS to escape Python f-strings
+    html = f"""
     <!DOCTYPE html>
     <style>
-        /* --- FIX START: Global Reset --- */
-        * {
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: sans-serif;
-            padding: 10px;   /* It is safe to keep padding now */
-            margin: 0;       /* Remove default browser margin */
-            font-size: 12px;
-            background: #fff;
-            color: #222;
-            overflow-x: hidden; /* Force hide horizontal scrollbar */
-        }
-        /* --- FIX END --- */
-
-        .row {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 6px;
-            width: 100%;
-        }
-
-        input, textarea, button {
-            font-size: 12px;
-            border: 1px solid #ccc;
-            border-radius: 2px;
-            background: #fafafa;
-            padding: 4px;
-            /* box-sizing is now handled globally */
-        }
-
-        .time-input {
-            flex: 1;
-            min-width: 0; /* Prevents flex items from overflowing if too small */
-        }
-
-        button {
-            padding: 4px 10px;
-            cursor: pointer;
-            white-space: nowrap;
-            background: #f2f2f2;
-        }
-        button:hover {
-            background: #e6e6e6;
-        }
-
-        textarea {
-            width: 100%;
-            height: 70px;
-            resize: vertical;
-            font-family: monospace;
-        }
+        * {{ box-sizing: border-box; }}
+        body {{
+            font-family: sans-serif; padding: 10px; margin: 0;
+            font-size: 12px; background: #fff; color: #222;
+            overflow-x: hidden;
+        }}
+        .row {{ display: flex; gap: 6px; margin-bottom: 6px; width: 100%; }}
+        input, textarea, button {{
+            font-size: 12px; border: 1px solid #ccc;
+            border-radius: 2px; background: #fafafa; padding: 4px;
+        }}
+        .time-input {{ flex: 1; min-width: 0; }}
+        button {{ padding: 4px 10px; cursor: pointer; background: #f2f2f2; }}
+        button:hover {{ background: #e6e6e6; }}
+        textarea {{ width: 100%; height: 70px; resize: vertical; font-family: monospace; }}
     </style>
 
-    <!-- Top row: Start | End | Save -->
     <div class="row">
-        <input class="time-input" id="start" value="{{ start }}" placeholder="Start (HH:MM)">
-        <input class="time-input" id="end" value="{{ end }}" placeholder="End (HH:MM)">
-        <button onclick="saveConfig()">Save</button>
+        <input class="time-input" id="start" value="{current_start}" placeholder="Start">
+        <input class="time-input" id="end" value="{current_end}" placeholder="End">
+        <button onclick="saveConfig(event)">Save</button>
     </div>
-
-    <!-- Full-width processes textarea -->
-    <textarea id="procs" placeholder="blocked.exe\nother.exe">{{ procs }}</textarea>
+    <textarea id="procs" placeholder="blocked.exe">{current_procs}</textarea>
 
     <script>
-        async function saveConfig() {
+        async function saveConfig(event) {{
             const start = document.getElementById('start').value.trim();
             const end = document.getElementById('end').value.trim();
             const rawProcs = document.getElementById('procs').value;
@@ -143,42 +101,40 @@ def widget():
                 .map(p => p.trim())
                 .filter(Boolean);
 
-            const newConfig = {
+            const newConfig = {{
                 "check_interval_seconds": 3,
-                "blocked_windows": [{
+                "blocked_windows": [{{
                     "start": start,
                     "end": end,
                     "processes": processes
-                }]
-            };
+                }}]
+            }};
 
             const btn = event.target;
             const original = btn.innerText;
-            btn.innerText = "Saving…";
+            btn.innerText = "Saving...";
 
-            try {
-                const res = await fetch('/update-config', {
+            try {{
+                const res = await fetch('/update-config', {{
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify(newConfig)
-                });
-
+                }});
                 btn.innerText = res.ok ? "Saved" : "Error";
-                setTimeout(() => btn.innerText = original, 800);
-            } catch {
-                alert("Connection error");
-                btn.innerText = original;
-            }
-        }
+            }} catch {{
+                btn.innerText = "Error";
+            }}
+            setTimeout(() => btn.innerText = original, 1000);
+        }}
     </script>
     """
+    return html
 
-    return render_template_string(html, start=current_start, end=current_end, procs=current_procs)
-
-
-# -------------------------------------------------------------
-# Server entrypoint
-# -------------------------------------------------------------
 if __name__ == "__main__":
-    print("Blocker service running on http://127.0.0.1:9001")
-    app.run(host="127.0.0.1", port=9001)
+    PORT = 9001
+    print(f"Blocker service running on http://127.0.0.1:{PORT}")
+    try:
+        uvicorn.run(app, host="127.0.0.1", port=PORT)
+    except OSError:
+        print(f"CRITICAL: Port {PORT} is already in use!")
+        sys.exit(1)
