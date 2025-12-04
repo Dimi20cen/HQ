@@ -116,6 +116,15 @@
         // IMPORTANT: We store the port here so we can find it later for the widget
         div.dataset.port = tool.port; 
 
+        // Only create the widget container HTML if the tool supports it
+        let widgetHtml = '';
+        if (tool.has_widget) {
+            widgetHtml = `
+            <div class="widget-container" id="widget-box-${tool.name}" style="display:none">
+                <iframe id="iframe-${tool.name}"></iframe>
+            </div>`;
+        }
+
         div.innerHTML = `
             <div class="card-body">
                 <div class="tool-header">
@@ -161,10 +170,10 @@
         }, 1000);
     }
 
-    // 4. Polling: Check status & Load Widget
+// 4. Polling: Check status & Load Widget
     async function checkAlive(name) {
         const card = document.getElementById(`card-${name}`);
-        if (!card) return; // Card might not exist yet
+        if (!card) return; 
 
         try {
             const resp = await fetch(`/tools/${name}/alive`);
@@ -173,8 +182,7 @@
             const statusText = document.getElementById(`status-${name}`);
             const widgetBox = document.getElementById(`widget-box-${name}`);
             const iframe = document.getElementById(`iframe-${name}`);
-            const port = card.dataset.port;
-
+            
             if (data.alive) {
                 // UPDATE VISUALS: RUNNING
                 card.classList.remove('status-stopped');
@@ -182,22 +190,20 @@
                 statusText.innerHTML = `<span style="color:green">● Running (PID: ${data.pid})</span>`;
 
                 // WIDGET LOGIC:
-                // Only try to load the widget if it's currently hidden
-                if (widgetBox.style.display === 'none') {
-                    // 1. Construct the URL
-                    const widgetUrl = `http://127.0.0.1:${port}/widget`;
-
-                    // 2. Ping it first to see if it exists (avoids 404 boxes)
-                    // Note: This relies on the tool having CORS enabled or being on same origin.
-                    // Since we are proxying, we can't easily fetch localhost:port from browser due to CORS mixed ports.
-                    // SAFE BET: Just set the src and let it fail silently or load.
-                    
-                    iframe.src = widgetUrl;
-                    
-                    // 3. Show the box. If 404, it will show the tool's 404 page. 
-                    // Optimization: We could wrap this in a try/catch if we had a backend proxy for checking /widget existence.
-                    // For now, we assume if it's running, we show the widget area.
-                    widgetBox.style.display = 'block';
+                // 1. Check if this tool actually HAS a widget box (from our previous step)
+                if (widgetBox) {
+                    // 2. If the box is hidden OR the iframe is empty, we need to initialize it.
+                    //    We check !iframe.getAttribute('src') to verify it hasn't been loaded yet.
+                    if (widgetBox.style.display !== 'block' || !iframe.getAttribute('src')) {
+                        const port = card.dataset.port;
+                        
+                        // Only set the Source if it's currently empty (prevents refreshing every 2 seconds)
+                        if (!iframe.getAttribute('src')) {
+                            iframe.src = `http://127.0.0.1:${port}/widget`;
+                        }
+                        
+                        widgetBox.style.display = 'block';
+                    }
                 }
 
             } else {
@@ -207,8 +213,11 @@
                 statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
                 
                 // Hide widget and unload iframe to save resources
-                widgetBox.style.display = 'none';
-                iframe.src = 'about:blank'; 
+                if (widgetBox) {
+                    widgetBox.style.display = 'none';
+                    // Clear the src so it reloads fresh next time it starts
+                    iframe.removeAttribute('src'); 
+                }
             }
         } catch (e) {
             console.error("Poll error", e);

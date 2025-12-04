@@ -49,11 +49,12 @@ def startup_event():
             name = t["name"]
             process_path = t["process_path"]
             port = t["port"]
+            has_widget = t.get("has_widget", False)
 
             db_tool = get_tool_by_name(name)
             if not db_tool:
                 # New tool found in JSON
-                add_tool(name, process_path, port)
+                add_tool(name, process_path, port, has_widget)
                 print(f"[Sync] Registered new tool: {name}")
             else:
                 # Existing tool: Ensure port/path match JSON (in case you edited JSON)
