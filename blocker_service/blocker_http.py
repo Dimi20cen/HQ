@@ -68,14 +68,21 @@ def widget():
     html = """
     <!DOCTYPE html>
     <style>
+        /* --- FIX START: Global Reset --- */
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: sans-serif;
-            padding: 8px;
-            margin: 0;
+            padding: 10px;   /* It is safe to keep padding now */
+            margin: 0;       /* Remove default browser margin */
             font-size: 12px;
             background: #fff;
             color: #222;
+            overflow-x: hidden; /* Force hide horizontal scrollbar */
         }
+        /* --- FIX END --- */
 
         .row {
             display: flex;
@@ -90,11 +97,12 @@ def widget():
             border-radius: 2px;
             background: #fafafa;
             padding: 4px;
-            box-sizing: border-box;
+            /* box-sizing is now handled globally */
         }
 
         .time-input {
             flex: 1;
+            min-width: 0; /* Prevents flex items from overflowing if too small */
         }
 
         button {
@@ -165,7 +173,6 @@ def widget():
     </script>
     """
 
-    
     return render_template_string(html, start=current_start, end=current_end, procs=current_procs)
 
 
