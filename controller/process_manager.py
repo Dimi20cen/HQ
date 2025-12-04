@@ -1,3 +1,4 @@
+import os
 import subprocess
 import psutil
 import sys
@@ -32,12 +33,20 @@ class ProcessManager:
         if not path.exists():
             return {"error": f"Process path does not exist: {path}"}
 
+        # 1. Create a logs directory in the project root
+        log_dir = BASE_DIR / "logs"
+        log_dir.mkdir(exist_ok=True)
+
+        # 2. Open log files for this specific tool
+        stdout_f = open(log_dir / f"{name}.out.log", "a") 
+        stderr_f = open(log_dir / f"{name}.err.log", "a")
+
         try:
             proc = subprocess.Popen(
                 [sys.executable, str(path)],   # always launch using venv python
                 cwd=str(path.parent),          # so tool finds config.json, logs, etc.
-                stdout=None,
-                stderr=None
+                stdout=stdout_f,
+                stderr=stderr_f
             )
         except Exception as e:
             return {"error": f"Failed to launch: {str(e)}"}
