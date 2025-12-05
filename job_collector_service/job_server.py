@@ -28,7 +28,7 @@ def init_db():
                 title TEXT,
                 company TEXT,
                 location TEXT,
-                url TEXT,
+                url TEXT UNIQUE,
                 date_scraped TEXT
             )
         """)
@@ -48,7 +48,7 @@ async def save_job(request: Request):
     try:
         with sqlite3.connect(DB_FILE) as conn:
             conn.execute("""
-                INSERT INTO jobs (title, company, location, url, date_scraped)
+                INSERT OR IGNORE INTO jobs (title, company, location, url, date_scraped)
                 VALUES (?, ?, ?, ?, ?)
             """, (
                 data.get('title', 'Unknown'), 
@@ -57,6 +57,7 @@ async def save_job(request: Request):
                 data.get('url', ''), 
                 data.get('date_scraped', '')
             ))
+            count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
         print(f"Saved job: {data.get('title')}")
         return {"status": "saved"}
     except Exception as e:

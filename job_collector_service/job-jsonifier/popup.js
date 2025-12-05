@@ -39,7 +39,9 @@ async function sendToKolibri(jobData) {
 
         if (response.ok) {
             const resData = await response.json();
-            statusDiv.innerText = `✅ Saved! (Total: ${resData.total_count})`;
+            // Fallback to "Saved!" if total_count isn't sent by server
+            const countMsg = resData.total_count ? ` (Total: ${resData.total_count})` : "";
+            statusDiv.innerText = `✅ Saved!${countMsg}`;
             statusDiv.style.color = "green";
         } else {
             statusDiv.innerText = "❌ Server Error. Is Kolibri running?";
@@ -54,28 +56,62 @@ async function sendToKolibri(jobData) {
 
 // This function runs INSIDE the web page
 function scrapeJobData() {
-    const getText = (selector) => {
-        const el = document.querySelector(selector);
-        return el ? el.innerText.trim() : "";
-    };
+    const clean = (text) => text ? text.trim() : "";
 
-    // Attempt to handle LinkedIn, Indeed, and generic sites
-    let title = getText("h1") || getText(".job-title") || "Unknown Title";
-    
-    // LinkedIn specific selectors
-    let company = getText(".job-details-jobs-unified-top-card__company-name") || 
-                  getText(".topcard__org-name-link") || 
-                  getText(".company-name") || "Unknown Company";
-                  
-    let location = getText(".job-details-jobs-unified-top-card__bullet") || 
-                   getText(".topcard__flavor--bullet") || 
-                   getText(".location") || "Unknown Location";
-
-    return {
-        title: title,
-        company: company,
-        location: location,
+    let data = {
+        title: "Unknown Title",
+        company: "Unknown Company",
+        location: "Unknown Location",
         url: window.location.href,
         date_scraped: new Date().toISOString()
     };
+
+    // --- STRATEGY 1: JSON-LD (The Gold Standard) ---
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of jsonLdScripts) {
+        try {
+            const json = JSON.parse(script.innerText);
+            const graph = json['@graph'] || (Array.isArray(json) ? json : [json]);
+            const jobPost = graph.find(item => item['@type'] === 'JobPosting');
+            
+            if (jobPost) {
+                data.title = clean(jobPost.title);
+                data.company = clean(jobPost.hiringOrganization?.name);
+                data.location = clean(jobPost.jobLocation?.address?.addressLocality || jobPost.jobLocation?.address?.region || "Remote");
+                return data; // Trust JSON-LD and exit
+            }
+        } catch (e) { console.log("JSON-LD parse error", e); }
+    }
+
+    // --- STRATEGY 2: Meta Tags (The Backup) ---
+    const getMeta = (name) => document.querySelector(`meta[property="${name}"]`)?.content;
+    const ogTitle = getMeta("og:title");
+    
+    if (ogTitle) {
+        // Clean up title: Remove " | LinkedIn", " | Indeed", etc.
+        data.title = ogTitle.split('|')[0].trim(); 
+        // Sometimes title is "Role at Company", try to extract company if missing
+        if (data.title.includes(" at ")) {
+             const parts = data.title.split(" at ");
+             // If we still don't have a company, guess it from the title
+             if (data.company === "Unknown Company" && parts.length > 1) {
+                 data.company = parts[parts.length - 1];
+             }
+        }
+    }
+
+    // --- STRATEGY 3: CSS Selectors (The Last Resort) ---
+    const getText = (s) => document.querySelector(s)?.innerText;
+    
+    if (data.title === "Unknown Title") {
+        data.title = clean(getText("h1") || getText(".job-title"));
+    }
+    if (data.company === "Unknown Company") {
+        data.company = clean(getText(".job-details-jobs-unified-top-card__company-name") || getText(".company-name"));
+    }
+    if (data.location === "Unknown Location") {
+        data.location = clean(getText(".job-details-jobs-unified-top-card__bullet") || getText(".location"));
+    }
+
+    return data;
 }
