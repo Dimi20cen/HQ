@@ -63,7 +63,8 @@ function scrapeJobData() {
         company: "Unknown Company",
         location: "Unknown Location",
         url: window.location.href,
-        date_scraped: new Date().toISOString()
+        date_scraped: new Date().toISOString(),
+        description: "Unknown Description"
     };
 
     // --- STRATEGY 1: JSON-LD (The Gold Standard) ---
@@ -78,6 +79,7 @@ function scrapeJobData() {
                 data.title = clean(jobPost.title);
                 data.company = clean(jobPost.hiringOrganization?.name);
                 data.location = clean(jobPost.jobLocation?.address?.addressLocality || jobPost.jobLocation?.address?.region || "Remote");
+                data.description = clean(jobPost.description?.replace(/<[^>]*>/g, ""));  // strip HTML
                 return data; // Trust JSON-LD and exit
             }
         } catch (e) { console.log("JSON-LD parse error", e); }
@@ -102,6 +104,9 @@ function scrapeJobData() {
 
     // --- STRATEGY 3: CSS Selectors (The Last Resort) ---
     const getText = (s) => document.querySelector(s)?.innerText;
+    const possibleDesc = document.querySelector(
+        ".description, .job-description, .show-more-less-html__markup"
+    )?.innerText;
     
     if (data.title === "Unknown Title") {
         data.title = clean(getText("h1") || getText(".job-title"));
@@ -111,6 +116,9 @@ function scrapeJobData() {
     }
     if (data.location === "Unknown Location") {
         data.location = clean(getText(".job-details-jobs-unified-top-card__bullet") || getText(".location"));
+    }
+    if (possibleDesc) {
+    data.description = clean(possibleDesc);
     }
 
     return data;

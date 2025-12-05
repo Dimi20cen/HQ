@@ -29,7 +29,8 @@ def init_db():
                 company TEXT,
                 location TEXT,
                 url TEXT UNIQUE,
-                date_scraped TEXT
+                date_scraped TEXT,
+                description TEXT
             )
         """)
 
@@ -48,14 +49,15 @@ async def save_job(request: Request):
     try:
         with sqlite3.connect(DB_FILE) as conn:
             conn.execute("""
-                INSERT OR IGNORE INTO jobs (title, company, location, url, date_scraped)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO jobs (title, company, location, url, date_scraped, description)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                data.get('title', 'Unknown'), 
-                data.get('company', 'Unknown'), 
-                data.get('location', 'Unknown'), 
-                data.get('url', ''), 
-                data.get('date_scraped', '')
+                data.get('title', 'Unknown'),
+                data.get('company', 'Unknown'),
+                data.get('location', 'Unknown'),
+                data.get('url', ''),
+                data.get('date_scraped', ''),
+                data.get('description', '')
             ))
             count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
         print(f"Saved job: {data.get('title')}")
@@ -87,6 +89,7 @@ def widget():
             </div>
             <div class="company">{job['company']}</div> 
             <div class="location">{job['location']}</div>
+            <div class="description">{job['description'][:300]}...</div>
         </div>
         """
 
