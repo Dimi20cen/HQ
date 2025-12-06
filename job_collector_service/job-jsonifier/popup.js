@@ -1,35 +1,72 @@
-document.getElementById("scrapeBtn").addEventListener("click", async () => {
+// --- EVENT LISTENERS ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Automatically try to scrape when popup opens
+    runScraper();
+});
+
+document.getElementById("extractBtn").addEventListener("click", runScraper);
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
     const statusDiv = document.getElementById("statusMsg");
-    statusDiv.innerText = "Analyzing page...";
+    
+    // 1. Gather data from the form (Manual Overrides allowed!)
+    const jobData = {
+        title: document.getElementById("jobTitle").value,
+        company: document.getElementById("jobCompany").value,
+        location: document.getElementById("jobLocation").value,
+        url: document.getElementById("jobUrl").value,
+        date_scraped: document.getElementById("jobDate").value || new Date().toISOString(),
+        description: document.getElementById("jobDesc").value
+    };
+
+    if (!jobData.title) {
+        statusDiv.innerText = "⚠️ Title is required";
+        statusDiv.style.color = "orange";
+        return;
+    }
+
+    // 2. Send to Kolibri
+    statusDiv.innerText = "Sending...";
+    await sendToKolibri(jobData);
+});
+
+// --- MAIN SCRAPER ORCHESTRATOR ---
+
+async function runScraper() {
+    const statusDiv = document.getElementById("statusMsg");
+    statusDiv.innerText = "Scanning page...";
     statusDiv.style.color = "#666";
 
-    // 1. Get current tab
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // 2. Inject script
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
         function: scrapeJobData,
-    }, async (results) => {
+    }, (results) => {
         if (results && results[0]) {
             const data = results[0].result;
             
-            // Show JSON in box
-            document.getElementById("result").value = JSON.stringify(data, null, 2);
+            // Populate Form
+            document.getElementById("jobTitle").value = data.title;
+            document.getElementById("jobCompany").value = data.company;
+            document.getElementById("jobLocation").value = data.location;
+            document.getElementById("jobDesc").value = data.description;
             
-            // 3. Send to Python Backend
-            statusDiv.innerText = "Sending to Kolibri...";
-            await sendToKolibri(data);
+            // Hidden fields
+            document.getElementById("jobUrl").value = data.url;
+            document.getElementById("jobDate").value = data.date_scraped;
+
+            statusDiv.innerText = ""; // Clear status
         } else {
-            statusDiv.innerText = "Failed to extract data.";
+            statusDiv.innerText = "Could not extract data";
             statusDiv.style.color = "red";
         }
     });
-});
+}
 
 async function sendToKolibri(jobData) {
     const statusDiv = document.getElementById("statusMsg");
-    
     try {
         const response = await fetch("http://127.0.0.1:30001/save", {
             method: "POST",
@@ -38,88 +75,110 @@ async function sendToKolibri(jobData) {
         });
 
         if (response.ok) {
-            const resData = await response.json();
-            const countMsg = resData.total_count ? ` (Total: ${resData.total_count})` : "";
-            statusDiv.innerText = `✅ Saved!${countMsg}`;
+            statusDiv.innerText = "✅ Saved to Database!";
             statusDiv.style.color = "green";
+            setTimeout(() => window.close(), 1200); // Close popup after success
         } else {
-            statusDiv.innerText = "❌ Server Error. Is Kolibri running?";
+            statusDiv.innerText = "❌ Server Error";
             statusDiv.style.color = "red";
         }
     } catch (error) {
-        statusDiv.innerText = "❌ Connection Refused. Check Kolibri.";
+        statusDiv.innerText = "❌ Kolibri is offline";
         statusDiv.style.color = "red";
-        console.error(error);
     }
 }
 
-// --- CORE LOGIC: RUNS INSIDE THE PAGE ---
+// --- INJECTED SCRIPT (The Scraper Logic) ---
 function scrapeJobData() {
-    const clean = (text) => text ? text.trim() : "";
+    const clean = (text) => text ? text.replace(/\s+/g, ' ').trim() : "";
 
-    let data = {
-        title: "Unknown Title",
-        company: "Unknown Company",
-        location: "Unknown Location",
-        url: window.location.href,
-        date_scraped: new Date().toISOString(),
-        description: "" 
-    };
-
-    // --- HELPER: Lightweight HTML to Markdown Converter ---
+    // --- HELPER: HTML to Markdown Converter ---
     function htmlToMarkdown(element) {
         if (!element) return "";
         
         let node = element.cloneNode(true);
         
-        // 1. CLEANUP: Added 'noscript' to the list to kill the "Enable JS" message
-        const junk = node.querySelectorAll('script, style, noscript, iframe, svg, nav, footer, .ad, button, [aria-hidden="true"], .assistive-text');
-        junk.forEach(el => el.remove());
+        // 1. ADVANCED CLEANUP
+        // Remove interactive bits, hidden a11y text, and common footer/nav noise
+        const junkSelectors = [
+            'script', 'style', 'noscript', 'iframe', 'svg', 
+            'nav', 'footer', 'header', 'aside', 
+            'button', 'input', 'select', 'textarea',
+            '.ad', '.share-buttons', '.social-media',
+            '[role="alert"]', '[role="banner"]', '[role="navigation"]',
+            '.visually-hidden', '.sr-only', '.screen-reader-text', // Fixes "Page is loaded"
+            '[aria-hidden="true"]'
+        ];
+        
+        node.querySelectorAll(junkSelectors.join(',')).forEach(el => el.remove());
 
         function walk(n) {
             let out = "";
             n.childNodes.forEach(child => {
                 if (child.nodeType === 3) { 
-                    // Normalize whitespace 
+                    // TEXT NODE: Normalize whitespace
                     let text = child.nodeValue.replace(/[\n\r\t]+/g, " ");
                     out += text;
-                } else if (child.nodeType === 1) { 
+                } 
+                else if (child.nodeType === 1) { 
+                    // ELEMENT NODE
                     const tag = child.tagName.toLowerCase();
                     const childText = walk(child);
-                    
+                    const cleanText = childText.trim();
+
+                    // SKIP EMPTY ELEMENTS (Fixes empty ## headers)
+                    if (cleanText === "" && !['br', 'img', 'hr'].includes(tag)) {
+                        return;
+                    }
+
                     if (tag === 'br') {
                         out += "\n"; 
                     }
-                    else if (['div', 'p', 'section', 'article', 'dt', 'dd', 'tr'].includes(tag)) {
+                    else if (['div', 'p', 'section', 'article', 'main'].includes(tag)) {
                         out += "\n" + childText + "\n";
                     }
-                    else if (['h1','h2','h3','h4'].includes(tag)) {
-                        out += "\n\n## " + childText.trim() + "\n";
+                    else if (['h1','h2','h3','h4','h5','h6'].includes(tag)) {
+                        // Only add header markings if there is actual text
+                        if (cleanText.length > 0) {
+                            out += "\n\n## " + cleanText + "\n";
+                        }
                     }
                     else if (tag === 'li') {
-                        const trimmed = childText.trim();
-                        if (trimmed) {
-                            out += "\n- " + trimmed;
-                        }
+                        out += "\n- " + cleanText;
                     }
                     else if (tag === 'ul' || tag === 'ol') {
                         out += "\n" + childText + "\n";
                     }
+                    else if (tag === 'dt') {
+                        out += "\n**" + cleanText + "**\n";
+                    }
+                    else if (tag === 'dd') {
+                        out += "> " + cleanText + "\n";
+                    }
                     else if (tag === 'b' || tag === 'strong') {
                         out += "**" + childText + "**";
                     }
+                    else if (tag === 'em' || tag === 'i') {
+                        out += "_" + childText + "_";
+                    }
                     else if (tag === 'a') {
                         const href = child.href;
-                        const txt = childText.trim();
-                        if (txt.toLowerCase().includes('skip to main')) return;
+                        // NOISE FILTER: specific link text to ignore
+                        const ignoreList = ['apply', 'apply now', 'privacy policy', 'terms', 'sign in', 'skip to main'];
+                        
+                        if (ignoreList.includes(cleanText.toLowerCase())) {
+                            return; // Skip this link entirely
+                        }
 
-                        if (href && txt.length > 0 && !href.startsWith('javascript') && !href.startsWith('#')) {
-                            out += `[${txt}](${href})`;
+                        if (href && cleanText && !href.startsWith('javascript') && !href.startsWith('#')) {
+                            out += `[${cleanText}](${href})`;
                         } else {
                             out += childText;
                         }
                     }
                     else if (tag === 'span' || tag === 'label') {
+                        // Avoid adding spaces if the span is just a container, 
+                        // but add them if it's text like "Location: New York"
                         out += " " + childText + " "; 
                     }
                     else {
@@ -133,64 +192,116 @@ function scrapeJobData() {
         const rawMarkdown = walk(node);
         
         return rawMarkdown
-            .replace(/[ \t]+/g, ' ')      
-            .replace(/\n\s/g, '\n')       
-            .replace(/\n{3,}/g, '\n\n')   
+            // 2. POST-PROCESSING REGEX
+            .replace(/[ \t]+/g, ' ')       // Collapse multiple spaces
+            .replace(/\n\s/g, '\n')        // Remove leading space on new lines
+            .replace(/\n{3,}/g, '\n\n')    // Max 2 empty lines
+            .replace(/ \*\*/g, ' **')      // Fix bold spacing
+            .replace(/\*\* /g, '** ')      // Fix bold spacing
             .trim();
     }
 
-    // --- 1. METADATA EXTRACTION (Keep existing logic) ---
+    // --- INITIALIZE DATA ---
+    let data = {
+        title: "",
+        company: "",
+        location: "",
+        url: window.location.href,
+        date_scraped: new Date().toISOString(),
+        description: "" 
+    };
+
+    // --- 1. JSON-LD (Structured Data) - Highest Priority ---
     const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of jsonLdScripts) {
         try {
             const json = JSON.parse(script.innerText);
             const graph = json['@graph'] || (Array.isArray(json) ? json : [json]);
             const jobPost = graph.find(item => item['@type'] === 'JobPosting');
+            
             if (jobPost) {
-                data.title = clean(jobPost.title) || data.title;
-                data.company = clean(jobPost.hiringOrganization?.name) || data.company;
-                data.location = clean(jobPost.jobLocation?.address?.addressLocality) || data.location;
+                data.title = clean(jobPost.title);
+                data.company = clean(jobPost.hiringOrganization?.name);
+                
+                // Smart Location Handling
+                if (jobPost.jobLocation) {
+                    const addr = jobPost.jobLocation.address;
+                    if (typeof addr === 'string') {
+                        data.location = clean(addr);
+                    } else if (addr) {
+                        const parts = [addr.addressLocality, addr.addressRegion].filter(Boolean);
+                        data.location = parts.join(", ");
+                    }
+                }
             }
         } catch (e) {}
     }
-    
-    // Meta tag fallbacks
-    const getMeta = (name) => document.querySelector(`meta[property="${name}"]`)?.content;
-    const ogTitle = getMeta("og:title");
-    if (data.title === "Unknown Title" && ogTitle) data.title = ogTitle.split('|')[0].trim();
-    if (data.title === "Unknown Title") data.title = clean(document.querySelector('h1')?.innerText) || "Saved Job Page";
 
-    // --- 2. DESCRIPTION EXTRACTION (The Prioritized List) ---
-    
-    // We list selectors in order of preference. 
-    // The script will try the first one; if it fails, it tries the next.
-    const selectors = [
-        "#jobDescriptionText",           // Indeed (Main Body) - HIGHEST PRIORITY
-        ".show-more-less-html__markup",  // LinkedIn (Main Body)
-        ".job-description",              // Generic
-        "[class*='job-description']",    // Generic fuzzy match
-        "article",                       // Semantic HTML
-    ];
+    // --- 2. FALLBACKS (If JSON-LD was empty) ---
 
-    let contentNode = null;
-    
-    // Loop through our list and take the FIRST one that actually exists
-    for (const sel of selectors) {
-        const found = document.querySelector(sel);
-        if (found) {
-            contentNode = found;
-            break; // We found the best one, stop looking!
+    // A. Title
+    if (!data.title) {
+        const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
+        if (ogTitle) data.title = ogTitle.split('|')[0].trim();
+        else {
+            const h1 = document.querySelector('h1');
+            data.title = clean(h1?.innerText) || "Unknown Title";
         }
     }
 
-    // Fallback: If absolutely nothing matched, grab the main page
-    if (!contentNode) {
-        contentNode = document.querySelector('main') || document.body;
-        data.description = "⚠️ [Auto-Scraped Full Page]\n\n";
+    // B. Company (Heuristic Selectors)
+    if (!data.company) {
+        const companySelectors = [
+            '.job-details-jobs-header__company-url', // LinkedIn
+            '[data-company-name="true"]', 
+            '.topcard__org-name-link',    
+            '[data-testid="inlineHeader-companyName"]', // Indeed
+            '.c-job-header__company',     
+            'a[href*="/company/"]'        
+        ];
+        for (let sel of companySelectors) {
+            const el = document.querySelector(sel);
+            if (el) { data.company = clean(el.innerText); break; }
+        }
     }
 
-    // Run the markdown converter on whatever we found
-    data.description += htmlToMarkdown(contentNode);
+    // C. Location (Heuristic Selectors)
+    if (!data.location) {
+        const locationSelectors = [
+            '.job-details-jobs-header__company-location', 
+            '.topcard__flavor--bullet',   
+            '[data-testid="inlineHeader-companyLocation"]', 
+            '.location', 
+            '.job-location',
+            '[class*="location"]'
+        ];
+        for (let sel of locationSelectors) {
+            const el = document.querySelector(sel);
+            if (el) { data.location = clean(el.innerText); break; }
+        }
+    }
+
+    // --- 3. DESCRIPTION ---
+    const descSelectors = [
+        "#jobDescriptionText",           // Indeed
+        ".show-more-less-html__markup",  // LinkedIn
+        ".job-description",              
+        "[class*='job-description']",
+        "article"
+    ];
+
+    let contentNode = null;
+    for (const sel of descSelectors) {
+        const found = document.querySelector(sel);
+        if (found) { contentNode = found; break; }
+    }
+    
+    // Default to body if specific container not found
+    if (!contentNode) {
+        contentNode = document.querySelector('main') || document.body;
+    }
+
+    data.description = htmlToMarkdown(contentNode);
 
     return data;
 }
