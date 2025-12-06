@@ -5,6 +5,38 @@ document.addEventListener('DOMContentLoaded', () => {
     checkDbOrScrape();
 });
 
+document.getElementById("deleteBtn").addEventListener("click", async () => {
+    const url = document.getElementById("jobUrl").value;
+    const statusDiv = document.getElementById("statusMsg");
+
+    if (!confirm("Are you sure you want to DELETE this job from your database?")) {
+        return;
+    }
+
+    statusDiv.innerText = "Deleting...";
+    
+    try {
+        const response = await fetch("http://127.0.0.1:30001/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url })
+        });
+
+        if (response.ok) {
+            statusDiv.innerText = "🗑️ Job Deleted!";
+            statusDiv.style.color = "red";
+            
+            // Optional: Close popup or clear form after delay
+            setTimeout(() => window.close(), 1000);
+        } else {
+            statusDiv.innerText = "Error deleting";
+        }
+    } catch (error) {
+        console.error(error);
+        statusDiv.innerText = "Server Error";
+    }
+});
+
 document.getElementById("extractBtn").addEventListener("click", runScraper);
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
@@ -343,11 +375,13 @@ async function checkDbOrScrape() {
 
             statusDiv.innerText = "✅ Loaded from Database";
             statusDiv.style.color = "blue";
+            document.getElementById("deleteBtn").style.display = "block";
             
         } else {
             // --- SCENARIO B: NOT FOUND, RUN SCRAPER ---
             console.log("Job not in DB, scraping...");
             runScraper();
+            document.getElementById("deleteBtn").style.display = "none";
         }
 
     } catch (error) {

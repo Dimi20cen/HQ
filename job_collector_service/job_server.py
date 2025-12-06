@@ -109,6 +109,24 @@ async def save_job(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/delete")
+async def delete_job(request: Request):
+    data = await request.json()
+    url_to_delete = data.get("url")
+
+    if not url_to_delete:
+        return JSONResponse({"error": "No URL provided"}, status_code=400)
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            # Delete the row where the URL matches
+            conn.execute("DELETE FROM jobs WHERE url = ?", (url_to_delete,))
+            
+        print(f"Deleted job: {url_to_delete}")
+        return {"status": "deleted"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.get("/widget", response_class=HTMLResponse)
 def widget():
     """Displays jobs in a clean, truncated list with hover-reveal"""
