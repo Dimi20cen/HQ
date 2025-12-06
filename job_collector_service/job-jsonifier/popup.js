@@ -1,8 +1,8 @@
 // --- EVENT LISTENERS ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Automatically try to scrape when popup opens
-    runScraper();
+    // Check DB first, then scrape if unknown
+    checkDbOrScrape();
 });
 
 document.getElementById("extractBtn").addEventListener("click", runScraper);
@@ -304,4 +304,55 @@ function scrapeJobData() {
     data.description = htmlToMarkdown(contentNode);
 
     return data;
+}
+
+async function checkDbOrScrape() {
+    const statusDiv = document.getElementById("statusMsg");
+    statusDiv.innerText = "Checking database...";
+    
+    // 1. Get the current Tab URL first
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab || !tab.url) {
+        statusDiv.innerText = "Error: No URL found";
+        return;
+    }
+
+    try {
+        // 2. Ask the backend if we have this URL
+        const response = await fetch("http://127.0.0.1:30001/check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: tab.url })
+        });
+
+        const result = await response.json();
+
+        if (result.found && result.data) {
+            // --- SCENARIO A: LOAD FROM DB ---
+            console.log("Job found in DB!");
+            const data = result.data;
+            
+            document.getElementById("jobTitle").value = data.title || "";
+            document.getElementById("jobCompany").value = data.company || "";
+            document.getElementById("jobLocation").value = data.location || "";
+            document.getElementById("jobDesc").value = data.description || "";
+            
+            document.getElementById("jobUrl").value = data.url;
+            document.getElementById("jobDate").value = data.date_scraped;
+
+            statusDiv.innerText = "✅ Loaded from Database";
+            statusDiv.style.color = "blue";
+            
+        } else {
+            // --- SCENARIO B: NOT FOUND, RUN SCRAPER ---
+            console.log("Job not in DB, scraping...");
+            runScraper();
+        }
+
+    } catch (error) {
+        // If Backend is offline, fail gracefully back to scraping
+        console.warn("Backend unavailable, falling back to scrape", error);
+        runScraper();
+    }
 }

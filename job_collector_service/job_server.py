@@ -37,10 +37,43 @@ def init_db():
 init_db()
 
 # --- Routes ---
+@app.post("/check")
+async def check_job(request: Request):
+    """Checks if a URL exists in the DB and returns the data."""
+    data = await request.json()
+    url_to_check = data.get("url")
+
+    if not url_to_check:
+        return JSONResponse({"found": False})
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row  # This allows accessing columns by name
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM jobs WHERE url = ?", (url_to_check,))
+            row = cursor.fetchone()
+
+            if row:
+                # Convert the DB row to a standard dictionary
+                return {
+                    "found": True,
+                    "data": {
+                        "title": row["title"],
+                        "company": row["company"],
+                        "location": row["location"],
+                        "url": row["url"],
+                        "date_scraped": row["date_scraped"],
+                        "description": row["description"]
+                    }
+                }
+            else:
+                return {"found": False}
+    except Exception as e:
+        print(f"Error checking job: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.post("/save")
 async def save_job(request: Request):
-    # in FastAPI, we await the json body
     data = await request.json()
     
     if not data:
@@ -48,9 +81,16 @@ async def save_job(request: Request):
 
     try:
         with sqlite3.connect(DB_FILE) as conn:
+            # CHANGED: Replaced "INSERT OR IGNORE" with "INSERT ... ON CONFLICT ... DO UPDATE"
             conn.execute("""
-                INSERT OR IGNORE INTO jobs (title, company, location, url, date_scraped, description)
+                INSERT INTO jobs (title, company, location, url, date_scraped, description)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(url) DO UPDATE SET
+                    title=excluded.title,
+                    company=excluded.company,
+                    location=excluded.location,
+                    date_scraped=excluded.date_scraped,
+                    description=excluded.description
             """, (
                 data.get('title', 'Unknown'),
                 data.get('company', 'Unknown'),
@@ -59,67 +99,169 @@ async def save_job(request: Request):
                 data.get('date_scraped', ''),
                 data.get('description', '')
             ))
+            
+            # Note: We can't rely on rowcount for upserts in the same way, 
+            # but we can grab the total count still.
             count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-        print(f"Saved job: {data.get('title')}")
-        return {"status": "saved"}
+            
+        print(f"Saved/Updated job: {data.get('title')}")
+        return {"status": "saved", "total_count": count}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/widget", response_class=HTMLResponse)
 def widget():
-    """Displays the list of saved jobs in the Kolibri Dashboard"""
+    """Displays jobs in a clean, truncated list with hover-reveal"""
     
-    # Fetch data
     jobs = []
     with sqlite3.connect(DB_FILE) as conn:
         conn.row_factory = sqlite3.Row
-        jobs = conn.execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 20").fetchall()
+        jobs = conn.execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 50").fetchall()
 
-    # Generate HTML (Simple f-string method to avoid Jinja dependency for just one file)
-    cards_html = ""
+    list_html = ""
+    
     if not jobs:
-        cards_html = "<div class='empty'>No jobs collected yet.<br>Use the Extension!</div>"
+        list_html = """
+        <div class="empty-state">
+            No jobs saved yet.
+        </div>
+        """
     
     for job in jobs:
-        cards_html += f"""
-        <div class="job-card">
-            <div class="header">
-                <a class="title" href="{job['url']}" target="_blank">{job['title']}</a>
-                <span class="date">{job['date_scraped'][:10]}</span>
-            </div>
-            <div class="company">{job['company']}</div> 
-            <div class="location">{job['location']}</div>
-            <div class="description">{job['description'][:300]}...</div>
-        </div>
+        date_str = job['date_scraped'][:10] if job['date_scraped'] else "-"
+        
+        # We add title="..." to the HTML elements so hovering reveals the full text
+        list_html += f"""
+        <a class="row" href="{job['url']}" target="_blank">
+            <div class="col-title" title="{job['title']}">{job['title']}</div>
+            <div class="col-company" title="{job['company']}">{job['company']}</div>
+            <div class="col-loc" title="{job['location']}">{job['location']}</div>
+            <div class="col-date">{date_str}</div>
+        </a>
         """
 
     html = f"""
     <!DOCTYPE html>
-    <style>
-        * {{ box-sizing: border-box; }}
-        body {{ 
-            font-family: 'Segoe UI', sans-serif; 
-            padding: 10px; margin: 0; 
-            font-size: 12px; color: #333;
-        }}
-        .empty {{ color: #999; font-style: italic; text-align: center; margin-top: 40px; }}
-        .job-card {{ 
-            background: #fff;
-            border: 1px solid #e0e0e0; 
-            border-left: 4px solid #007bff; 
-            padding: 8px 10px; margin-bottom: 6px; 
-            border-radius: 2px;
-        }}
-        .job-card:hover {{ background: #f9f9f9; }}
-        .header {{ display: flex; justify-content: space-between; margin-bottom: 2px; }}
-        .title {{ font-weight: 600; font-size: 13px; color: #007bff; text-decoration: none; }}
-        .company {{ color: #555; font-size: 11px; font-weight: 500;}}
-        .location {{ color: #777; font-size: 11px; }}
-        .date {{ font-size: 10px; color: #999; }}
-    </style>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            :root {{
+                --bg: #ffffff;
+                --text-main: #222;
+                --text-sub: #666;
+                --border: #f0f0f0;
+                --hover-bg: #f8f9fa;
+                --accent-bar: #333;
+            }}
+            
+            * {{ box-sizing: border-box; }}
+            
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                background-color: var(--bg);
+                padding: 10px 30px; 
+                margin: 0 auto;
+                max-width: 1200px;
+                color: var(--text-main);
+            }}
+
+            h4 {{
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                color: #aaa;
+                margin-bottom: 15px;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 10px;
+            }}
+
+            /* THE ROW CONTAINER */
+            .row {{
+                display: flex;
+                align-items: center;
+                padding: 12px 0;
+                text-decoration: none;
+                border-bottom: 1px solid var(--border);
+                transition: all 0.15s ease;
+                color: inherit;
+                gap: 20px; /* Space between columns */
+            }}
+
+            .row:hover {{
+                background-color: var(--hover-bg);
+                padding-left: 10px;
+                padding-right: 10px;
+                margin-left: -10px;
+                margin-right: -10px;
+                border-radius: 4px;
+            }}
+
+            /* --- COLUMNS --- */
+
+            /* 1. Title: Takes all remaining space, truncates if needed */
+            .col-title {{
+                flex: 1; 
+                font-weight: 600;
+                font-size: 14px;
+                color: var(--text-main);
+                
+                /* Truncation Magic */
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0; /* Critical for flex truncation */
+            }}
+
+            /* 2. Company: Fixed visual weight, truncates */
+            .col-company {{
+                width: 180px;
+                font-size: 13px;
+                color: var(--text-sub);
+                
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                flex-shrink: 0; /* Don't shrink below 180px */
+            }}
+
+            /* 3. Location: Fixed visual weight, truncates */
+            .col-loc {{
+                width: 140px;
+                font-size: 12px;
+                color: #999;
+                
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                flex-shrink: 0; 
+            }}
+            
+            /* 4. Date: Fixed width, never truncates */
+            .col-date {{
+                width: 85px;
+                font-size: 11px;
+                color: #bbb;
+                font-family: monospace;
+                text-align: right;
+                flex-shrink: 0;
+            }}
+
+            /* RESPONSIVE: Hide Location on small screens */
+            @media (max-width: 700px) {{
+                .col-loc {{ display: none; }}
+                .col-company {{ width: 120px; }}
+            }}
+            
+            .empty-state {{ padding: 40px; text-align: center; color: #ccc; }}
+        </style>
+    </head>
     <body>
-        {cards_html}
+        <div>
+            {list_html}
+        </div>
     </body>
+    </html>
     """
     return html
 
