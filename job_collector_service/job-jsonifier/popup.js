@@ -39,7 +39,6 @@ async function sendToKolibri(jobData) {
 
         if (response.ok) {
             const resData = await response.json();
-            // Fallback to "Saved!" if total_count isn't sent by server
             const countMsg = resData.total_count ? ` (Total: ${resData.total_count})` : "";
             statusDiv.innerText = `✅ Saved!${countMsg}`;
             statusDiv.style.color = "green";
@@ -54,7 +53,7 @@ async function sendToKolibri(jobData) {
     }
 }
 
-// This function runs INSIDE the web page
+// --- CORE LOGIC: RUNS INSIDE THE PAGE ---
 function scrapeJobData() {
     const clean = (text) => text ? text.trim() : "";
 
@@ -64,62 +63,134 @@ function scrapeJobData() {
         location: "Unknown Location",
         url: window.location.href,
         date_scraped: new Date().toISOString(),
-        description: "Unknown Description"
+        description: "" 
     };
 
-    // --- STRATEGY 1: JSON-LD (The Gold Standard) ---
+    // --- HELPER: Lightweight HTML to Markdown Converter ---
+    function htmlToMarkdown(element) {
+        if (!element) return "";
+        
+        let node = element.cloneNode(true);
+        
+        // 1. CLEANUP: Added 'noscript' to the list to kill the "Enable JS" message
+        const junk = node.querySelectorAll('script, style, noscript, iframe, svg, nav, footer, .ad, button, [aria-hidden="true"], .assistive-text');
+        junk.forEach(el => el.remove());
+
+        function walk(n) {
+            let out = "";
+            n.childNodes.forEach(child => {
+                if (child.nodeType === 3) { 
+                    // Normalize whitespace 
+                    let text = child.nodeValue.replace(/[\n\r\t]+/g, " ");
+                    out += text;
+                } else if (child.nodeType === 1) { 
+                    const tag = child.tagName.toLowerCase();
+                    const childText = walk(child);
+                    
+                    if (tag === 'br') {
+                        out += "\n"; 
+                    }
+                    else if (['div', 'p', 'section', 'article', 'dt', 'dd', 'tr'].includes(tag)) {
+                        out += "\n" + childText + "\n";
+                    }
+                    else if (['h1','h2','h3','h4'].includes(tag)) {
+                        out += "\n\n## " + childText.trim() + "\n";
+                    }
+                    else if (tag === 'li') {
+                        const trimmed = childText.trim();
+                        if (trimmed) {
+                            out += "\n- " + trimmed;
+                        }
+                    }
+                    else if (tag === 'ul' || tag === 'ol') {
+                        out += "\n" + childText + "\n";
+                    }
+                    else if (tag === 'b' || tag === 'strong') {
+                        out += "**" + childText + "**";
+                    }
+                    else if (tag === 'a') {
+                        const href = child.href;
+                        const txt = childText.trim();
+                        if (txt.toLowerCase().includes('skip to main')) return;
+
+                        if (href && txt.length > 0 && !href.startsWith('javascript') && !href.startsWith('#')) {
+                            out += `[${txt}](${href})`;
+                        } else {
+                            out += childText;
+                        }
+                    }
+                    else if (tag === 'span' || tag === 'label') {
+                        out += " " + childText + " "; 
+                    }
+                    else {
+                        out += childText; 
+                    }
+                }
+            });
+            return out;
+        }
+
+        const rawMarkdown = walk(node);
+        
+        return rawMarkdown
+            .replace(/[ \t]+/g, ' ')      
+            .replace(/\n\s/g, '\n')       
+            .replace(/\n{3,}/g, '\n\n')   
+            .trim();
+    }
+
+    // --- 1. METADATA EXTRACTION (Keep existing logic) ---
     const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of jsonLdScripts) {
         try {
             const json = JSON.parse(script.innerText);
             const graph = json['@graph'] || (Array.isArray(json) ? json : [json]);
             const jobPost = graph.find(item => item['@type'] === 'JobPosting');
-            
             if (jobPost) {
-                data.title = clean(jobPost.title);
-                data.company = clean(jobPost.hiringOrganization?.name);
-                data.location = clean(jobPost.jobLocation?.address?.addressLocality || jobPost.jobLocation?.address?.region || "Remote");
-                data.description = clean(jobPost.description?.replace(/<[^>]*>/g, ""));  // strip HTML
-                return data; // Trust JSON-LD and exit
+                data.title = clean(jobPost.title) || data.title;
+                data.company = clean(jobPost.hiringOrganization?.name) || data.company;
+                data.location = clean(jobPost.jobLocation?.address?.addressLocality) || data.location;
             }
-        } catch (e) { console.log("JSON-LD parse error", e); }
+        } catch (e) {}
     }
-
-    // --- STRATEGY 2: Meta Tags (The Backup) ---
+    
+    // Meta tag fallbacks
     const getMeta = (name) => document.querySelector(`meta[property="${name}"]`)?.content;
     const ogTitle = getMeta("og:title");
+    if (data.title === "Unknown Title" && ogTitle) data.title = ogTitle.split('|')[0].trim();
+    if (data.title === "Unknown Title") data.title = clean(document.querySelector('h1')?.innerText) || "Saved Job Page";
+
+    // --- 2. DESCRIPTION EXTRACTION (The Prioritized List) ---
     
-    if (ogTitle) {
-        // Clean up title: Remove " | LinkedIn", " | Indeed", etc.
-        data.title = ogTitle.split('|')[0].trim(); 
-        // Sometimes title is "Role at Company", try to extract company if missing
-        if (data.title.includes(" at ")) {
-             const parts = data.title.split(" at ");
-             // If we still don't have a company, guess it from the title
-             if (data.company === "Unknown Company" && parts.length > 1) {
-                 data.company = parts[parts.length - 1];
-             }
+    // We list selectors in order of preference. 
+    // The script will try the first one; if it fails, it tries the next.
+    const selectors = [
+        "#jobDescriptionText",           // Indeed (Main Body) - HIGHEST PRIORITY
+        ".show-more-less-html__markup",  // LinkedIn (Main Body)
+        ".job-description",              // Generic
+        "[class*='job-description']",    // Generic fuzzy match
+        "article",                       // Semantic HTML
+    ];
+
+    let contentNode = null;
+    
+    // Loop through our list and take the FIRST one that actually exists
+    for (const sel of selectors) {
+        const found = document.querySelector(sel);
+        if (found) {
+            contentNode = found;
+            break; // We found the best one, stop looking!
         }
     }
 
-    // --- STRATEGY 3: CSS Selectors (The Last Resort) ---
-    const getText = (s) => document.querySelector(s)?.innerText;
-    const possibleDesc = document.querySelector(
-        ".description, .job-description, .show-more-less-html__markup"
-    )?.innerText;
-    
-    if (data.title === "Unknown Title") {
-        data.title = clean(getText("h1") || getText(".job-title"));
+    // Fallback: If absolutely nothing matched, grab the main page
+    if (!contentNode) {
+        contentNode = document.querySelector('main') || document.body;
+        data.description = "⚠️ [Auto-Scraped Full Page]\n\n";
     }
-    if (data.company === "Unknown Company") {
-        data.company = clean(getText(".job-details-jobs-unified-top-card__company-name") || getText(".company-name"));
-    }
-    if (data.location === "Unknown Location") {
-        data.location = clean(getText(".job-details-jobs-unified-top-card__bullet") || getText(".location"));
-    }
-    if (possibleDesc) {
-    data.description = clean(possibleDesc);
-    }
+
+    // Run the markdown converter on whatever we found
+    data.description += htmlToMarkdown(contentNode);
 
     return data;
 }
