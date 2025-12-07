@@ -74,8 +74,9 @@ async function runScraper() {
 
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        function: scrapeJobData,
+        func: scrapeJobData,
     }, (results) => {
+
         if (results && results[0]) {
             const data = results[0].result;
             
