@@ -24,3 +24,6 @@ Thumbs.db
 
 # --- Large/Temporary Files ---
 repomix-output.xml
+updated.xml
+codebase.xml
+repomix.config.json

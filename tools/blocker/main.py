@@ -1,49 +1,56 @@
 import sys
 import json
-import uvicorn
 from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from contextlib import asynccontextmanager
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
-# Import your existing core service
+# 1. SETUP PATHS
+# We need to add the project root to sys.path so we can import 'tools.sdk'
+# Current file: tools/blocker/main.py -> Root is 3 levels up
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+# We also ensure the current folder is in path so we can import sibling files
+sys.path.append(str(Path(__file__).parent))
+
+# 2. IMPORTS
+from tools.sdk.base_tool import BaseTool
 from blocker_service import BlockerService
 
-BASE_DIR = Path(__file__).resolve().parent
-service = BlockerService(config_path=str(BASE_DIR / "config.json"))
+# 3. INITIALIZE TOOL
+# This loads tool.json automatically to get name, port, etc.
+tool = BaseTool(__file__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic
-    service.start()
-    yield
-    # Shutdown logic (Happens when you press Ctrl+C)
-    service.stop()
+# 4. INITIALIZE SERVICE
+# We use tool.root_dir to guarantee we find config.json inside tools/blocker/
+service = BlockerService(config_path=str(tool.root_dir / "config.json"))
 
-app = FastAPI(lifespan=lifespan)
+# 5. LIFECYCLE HOOKS
+tool.set_startup_hook(service.start)
+tool.set_shutdown_hook(service.stop)
 
 # --- API Routes ---
 
-@app.get("/status")
+@tool.app.get("/status")
 def status():
     return service.get_status()
 
-@app.post("/start")
+@tool.app.post("/start")
 def start():
     service.start()
     return {"started": True}
 
-@app.post("/stop")
+@tool.app.post("/stop")
 def stop():
     service.stop()
     return {"stopped": True}
 
-@app.post("/reload")
+@tool.app.post("/reload")
 def reload_config():
     service.reload_config()
     return {"reloaded": True}
 
-@app.post("/update-config")
+@tool.app.post("/update-config")
 async def update_config(request: Request):
     try:
         data = await request.json()
@@ -54,9 +61,9 @@ async def update_config(request: Request):
 
 # --- Widget UI ---
 
-@app.get("/widget", response_class=HTMLResponse)
-def widget():
-    # Load current config for the UI
+def widget_generator():
+    """Generates the HTML for the dashboard widget."""
+    # Load current config for the UI state
     try:
         with open(service.core.config_path, "r") as f:
             config = json.load(f)
@@ -67,7 +74,6 @@ def widget():
     except Exception:
         current_start, current_end, current_procs = "09:00", "17:00", ""
 
-    # Note: Double curly braces {{ }} needed for CSS/JS to escape Python f-strings
     html = f"""
     <!DOCTYPE html>
     <style>
@@ -134,11 +140,9 @@ def widget():
     """
     return html
 
+# Register the widget using the SDK helper
+tool.add_widget_route(widget_generator)
+
+# 6. RUN
 if __name__ == "__main__":
-    PORT = 9001
-    print(f"Blocker service running on http://127.0.0.1:{PORT}")
-    try:
-        uvicorn.run(app, host="127.0.0.1", port=PORT)
-    except OSError:
-        print(f"CRITICAL: Port {PORT} is already in use!")
-        sys.exit(1)
+    tool.run()

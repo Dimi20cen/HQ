@@ -23,6 +23,39 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+def scan_tools():
+    """
+    Scans tools/ directory for folders with a valid tool.json.
+    Returns a list of config dictionaries.
+    """
+    tools_path = BASE_DIR.parent / "tools"
+    discovered = []
+
+    if not tools_path.exists():
+        print("Warning: 'tools' directory not found.")
+        return []
+
+    for folder in tools_path.iterdir():
+        manifest = folder / "tool.json"
+        main_py = folder / "main.py"
+
+        if folder.is_dir() and manifest.exists() and main_py.exists():
+            try:
+                with open(manifest, "r") as f:
+                    config = json.load(f)
+                
+                # Critical: Add the path for ProcessManager
+                # ProcessManager runs from Root, so path is tools/name/main.py
+                config["process_path"] = f"tools/{folder.name}/main.py"
+                
+                discovered.append(config)
+                print(f"[Discovery] Found tool: {config.get('title')} ({config.get('port')})")
+            except Exception as e:
+                print(f"[Discovery] Error loading {folder.name}: {e}")
+    
+    return discovered
+
+
 # -------------------------------------------------------------
 # LIFESPAN
 # -------------------------------------------------------------
@@ -32,30 +65,24 @@ async def lifespan(app: FastAPI):
     init_db()
     print("--- Controller Startup ---")
 
-    # 1. Sync tools.json to Database
-    tools_file = BASE_DIR.parent / "tools.json"
-    tools_config = []
-    
-    if tools_file.exists():
-        with open(tools_file, "r") as f:
-            tools_config = json.load(f)
+    # 1. DYNAMIC DISCOVERY
+    tools_config = scan_tools()
 
-        for t in tools_config:
-            name = t["name"]
-            process_path = t["process_path"]
-            port = t["port"]
-            has_widget = t.get("has_widget", False)
+    # 2. Sync to Database
+    for t in tools_config:
+        name = t["name"]
+        process_path = t["process_path"]
+        port = t["port"]
+        has_widget = t.get("has_widget", False)
 
-            db_tool = get_tool_by_name(name)
-            if not db_tool:
-                # New tool found in JSON
-                add_tool(name, process_path, port, has_widget)
-                print(f"[Sync] Registered new tool: {name}")
-            else:
-                # OPTIONAL: You can update existing tools here if JSON changed
-                pass
+        db_tool = get_tool_by_name(name)
+        if not db_tool:
+            add_tool(name, process_path, port, has_widget)
+        else:
+            # Optional: Update port/path if changed in tool.json
+            pass
 
-    # 2. Reconcile DB with Reality (The Orphan Check)
+    # --- 2.5 Reconcile DB with Reality (The Orphan Check) ---
     all_tools = list_tools()
     print(f"[Check] Verifying {len(all_tools)} tools in database...")
 
@@ -67,16 +94,14 @@ async def lifespan(app: FastAPI):
             if psutil.pid_exists(pid):
                 try:
                     proc = psutil.Process(pid)
-                    proc_name = proc.name().lower()
-                    
-                    if "python" in proc_name or "exe" in proc_name:
-                        print(f"[Alive] Re-adopted '{name}' on PID {pid}.")
+                    # Optional: Check if the process name looks python-ish
+                    if "python" in proc.name().lower() or "exe" in proc.name().lower():
+                         print(f"[Alive] Re-adopted '{name}' on PID {pid}.")
                     else:
-                        print(f"[Warn] PID {pid} exists but mismatches. Marking stopped.")
+                        # PID exists but it's not our tool (PID reuse)
                         update_tool_pid(name, None)
                         update_tool_status(name, "stopped")
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    print(f"[Dead] '{name}' PID {pid} is gone. Marking stopped.")
                     update_tool_pid(name, None)
                     update_tool_status(name, "stopped")
             else:
@@ -140,6 +165,24 @@ def register_tool(payload: dict):
 
     tool = add_tool(name, process_path, port)
     return {"registered": tool.as_dict()}
+
+@app.get("/tools/status-all")
+def get_all_tool_statuses():
+    """Checks the status of all tools in one go."""
+    all_tools = list_tools()
+    results = []
+    
+    for tool in all_tools:
+        # Re-use the logic from ProcessManager without the HTTP overhead
+        alive_check = ProcessManager.is_alive(tool["name"])
+        results.append({
+            "name": tool["name"],
+            "alive": alive_check["alive"],
+            "pid": alive_check.get("pid"),
+            "port": tool["port"] # Include port so UI doesn't need to look it up
+        })
+        
+    return {"tools": results}
 
 # -------------------------------------------------------------
 # Process Management Routes

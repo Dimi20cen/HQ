@@ -1,0 +1,11 @@
+{
+  "key": "job_collector",
+  "name": "Job Collector",
+  "title": "Job Board",
+  "description": "Collects job postings via Chrome Extension",
+  "version": "1.0.0",
+  "port": 30001,
+  "entry_point": "main.py",
+  "auto_start": true,
+  "has_widget": true
+}

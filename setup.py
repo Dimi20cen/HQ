@@ -25,6 +25,16 @@ def venv_pip():
     else:
         return VENV_DIR / "bin" / "pip"
 
+def install_tool_deps():
+    tools_dir = BASE_DIR / "tools"
+    if not tools_dir.exists(): return
+
+    for tool_folder in tools_dir.iterdir():
+        req_file = tool_folder / "requirements.txt"
+        if req_file.exists():
+            print(f"Installing dependencies for {tool_folder.name}...")
+            run([str(venv_pip()), "install", "-r", str(req_file)])
+
 def main():
     # 1. Create the virtual environment if it doesn't exist
     if not VENV_DIR.exists():
@@ -33,9 +43,11 @@ def main():
     else:
         print("Virtual environment already exists.")
 
-    # 2. Install dependencies
+    # 2.1 Install Root Deps
     print("Installing dependencies...")
     run([str(venv_pip()), "install", "-r", "requirements.txt"])
+    # 2.2 Install Tool Deps
+    install_tool_deps()
 
     print("Setup complete! You can now run the controller with: python run.py")
 
