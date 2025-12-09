@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <title>Utility Controller</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 40px; background-color: #f4f4f9; }
-        h1 { color: #333; margin-bottom: 20px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 40px; 
+            background-color: #f4f4f9; 
+        }
+        h1 { 
+            color: #333; 
+            margin-bottom: 20px; 
+        }
         
         /* Grid Layout */
         .grid-container {
@@ -17,72 +24,113 @@
         /* The Card */
         .card {
             background: white;
-            border-top: 5px solid #ccc; /* Default grey */
+            border-top: 5px solid #ccc;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             transition: transform 0.2s, box-shadow 0.2s;
-            overflow: hidden; /* Contains the iframe */
+            overflow: hidden;
         }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+        }
 
-        /* Dynamic Status Colors */
         .card.status-running { border-top-color: #28a745; }
         .card.status-stopped { border-top-color: #dc3545; }
 
         /* Card Content */
-        .card-body { padding: 20px; }
+        .card-body { 
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
-        .tool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .tool-name { font-size: 1.2em; font-weight: bold; color: #333; text-transform: capitalize; }
-        .tool-port { font-size: 0.8em; color: #666; background: #eee; padding: 2px 6px; border-radius: 4px; }
-        
-        .status-text { font-size: 0.9em; margin-bottom: 15px; font-weight: 500; height: 20px; }
+        /* Header */
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-        /* Standard Controls */
-        .actions { display: flex; gap: 10px; margin-bottom: 10px; }
-        button {
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+        .tool-header-left {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tool-name { 
+            font-size: 1.1em; 
             font-weight: bold;
-            color: white;
-            transition: opacity 0.2s;
+            color: #333; 
+            text-transform: capitalize; 
         }
-        button:hover { opacity: 0.9; }
-        .btn-launch { background-color: #28a745; }
-        .btn-kill   { background-color: #dc3545; }
 
-        /* The "Micro-Frontend" Widget Area */
-        .widget-container {
-            border-top: 1px dashed #ddd;
-            background-color: #fafafa;
-            height: 160px; /* Fixed height for consistency */
-            display: none; /* Hidden by default */
+        .status-line {
+            font-size: 0.85em;
+            font-weight: 500;
+            color: #666;
         }
-        iframe {
-            width: 100%;
-            height: 100%;
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1px; /* space between port and power icon */
+        }
+
+        .port-badge {
+            font-size: 0.75em; 
+            color: #666; 
+            background: #eee;
+            padding: 3px 8px; 
+            border-radius: 4px;
+        }
+
+        /* The POWER button (icon only, color-coded) */
+        .btn-status {
+            background: transparent;
             border: none;
-            display: block;
+            cursor: pointer;
+            font-size: 28px;
+            font-weight: bold;
+            padding: 4px;
+            line-height: 1;
+            transition: opacity .2s;
+        }
+
+        .btn-status:hover { opacity: 0.65; }
+
+        .btn-green  { color: #28a745; } /* running */
+        .btn-red    { color: #dc3545; } /* stopped */
+        .btn-yellow { color: #d4a017; cursor: wait !important; } /* loading */
+
+        /* Widget Area */
+        .widget-container {
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background-color: #fafafa;
+            height: 160px;
+            display: none;
+        }
+        iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            display: block; 
         }
     </style>
 </head>
 <body>
 
 <h1>🎛️ Utility Controller</h1>
-<div id="tools-container" class="grid-container">
-</div>
+<div id="tools-container" class="grid-container"></div>
 
 <script>
-    const REFRESH_RATE = 2000; // Check status every 2 seconds
+    const REFRESH_RATE = 2000;
 
     function safeId(name) {
         return name.replace(/\s+/g, '_');
     }
 
-    // 1. Master Loop: Fetch all tools and render
+    // 1. Load tools
     async function loadDashboard() {
         const container = document.getElementById('tools-container');
         
@@ -94,87 +142,86 @@
             container.innerHTML = ''; 
 
             if (tools.length === 0) {
-                container.innerHTML = '<p>No tools found in database.</p>';
+                container.innerHTML = '<p>No tools found.</p>';
                 return;
             }
 
             for (const tool of tools) {
-                const card = createToolCard(tool);
-                container.appendChild(card);
+                container.appendChild(createToolCard(tool));
             }
 
-            // Update statuses immediately after building the cards
             refreshAllStatuses(); 
 
         } catch (e) {
-            container.innerHTML = '<p style="color:red">Error loading tools. Is Controller running?</p>';
             console.error(e);
         }
     }
 
-    // 2. Component: Build the HTML for a single card
+    // 2. Build card
     function createToolCard(tool) {
         const div = document.createElement('div');
         const sId = safeId(tool.name);
 
         div.className = `card status-${tool.status}`;
         div.id = `card-${sId}`;
-        div.dataset.port = tool.port; 
+        div.dataset.port = tool.port;
 
-        // Only create the widget container HTML if the tool supports it
         let widgetHtml = '';
         if (tool.has_widget) {
             widgetHtml = `
-            <div class="widget-container" id="widget-box-${sId}" style="display:none">
+            <div class="widget-container" id="widget-box-${sId}">
                 <iframe id="iframe-${sId}"></iframe>
             </div>`;
         }
 
         div.innerHTML = `
             <div class="card-body">
+
                 <div class="tool-header">
-                    <span class="tool-name">${tool.name}</span>
-                    <span class="tool-port">:${tool.port}</span>
-                </div>
-                
-                <div class="status-text" id="status-${sId}">
-                    Checking...
-                </div>
-                
-                <div class="actions">
-                    <button class="btn-launch" onclick="controlProcess('${tool.name}', 'launch')">🚀 Launch</button>
-                    <button class="btn-kill" onclick="controlProcess('${tool.name}', 'kill')">💀 Kill</button>
+                    <div class="tool-header-left">
+                        <span class="tool-name">${tool.name}</span>
+                        <span id="status-${sId}" class="status-line">Checking...</span>
+                    </div>
+
+                    <div class="header-right">
+                        <button 
+                            id="btn-${sId}" 
+                            class="btn-status btn-yellow"
+                            onclick="statusButtonAction('${tool.name}')"
+                            disabled
+                        >⏻</button>
+                        <span class="port-badge">:${tool.port}</span>
+                    </div>
                 </div>
             </div>
 
-            ${widgetHtml} 
+            ${widgetHtml}
         `;
+
         return div;
     }
 
-    // 3. Actions: Launch / Kill Process
-    async function controlProcess(name, action) {
+    // 3. Power button behavior
+    async function statusButtonAction(name) {
         const sId = safeId(name);
-        const btn = document.querySelector(`#card-${sId} .btn-${action}`);
-        const originalText = btn.innerText;
-        btn.innerText = "...";
+        const btn = document.getElementById(`btn-${sId}`);
+        const action = btn.dataset.action; // launch or kill
+
+        if (!action) return;
+
+        btn.className = "btn-status btn-yellow";
         btn.disabled = true;
-        
+
         try {
             await fetch(`/tools/${name}/${action}`, { method: 'POST' });
-        } catch (e) {
+        } catch {
             alert("Command failed");
         }
 
-        // Brief delay to let process settle, then refresh EVERYONE
-        setTimeout(() => {
-            refreshAllStatuses(); 
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }, 1000);
+        setTimeout(refreshAllStatuses, 1000);
     }
 
-    // 4. Bulk Refresh (Unified Status Checker)
+    // 4. Refresh statuses
     async function refreshAllStatuses() {
         try {
             const resp = await fetch('/tools/status-all');
@@ -184,47 +231,49 @@
                 const sId = safeId(tool.name);
                 const card = document.getElementById(`card-${sId}`);
                 const statusText = document.getElementById(`status-${sId}`);
-                
-                if (!card) return; 
+                const btn = document.getElementById(`btn-${sId}`);
 
-                // Get widget elements safely
                 const widgetBox = document.getElementById(`widget-box-${sId}`);
                 const iframe = document.getElementById(`iframe-${sId}`);
 
                 if (tool.alive) {
-                    card.classList.remove('status-stopped');
                     card.classList.add('status-running');
+                    card.classList.remove('status-stopped');
+
                     statusText.innerHTML = `<span style="color:green">● Running (PID: ${tool.pid})</span>`;
-                    
-                    // Widget Logic: Show it if not already shown
+
+                    btn.disabled = false;
+                    btn.dataset.action = "kill";
+                    btn.className = "btn-status btn-green";
+
                     if (widgetBox && iframe) {
-                        if (widgetBox.style.display !== 'block' || !iframe.getAttribute('src')) {
-                            const port = card.dataset.port;
-                            if (!iframe.getAttribute('src')) {
-                                iframe.src = `http://127.0.0.1:${tool.port}/widget`;
-                            }
-                            widgetBox.style.display = 'block';
-                        }
+                        if (!iframe.src) iframe.src = `http://127.0.0.1:${tool.port}/widget`;
+                        widgetBox.style.display = 'block';
                     }
+
                 } else {
                     card.classList.remove('status-running');
                     card.classList.add('status-stopped');
+
                     statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
 
-                    // Widget Logic: Hide AND Clear Source
+                    btn.disabled = false;
+                    btn.dataset.action = "launch";
+                    btn.className = "btn-status btn-red";
+
                     if (widgetBox) widgetBox.style.display = 'none';
-                    if (iframe) iframe.removeAttribute('src'); 
+                    if (iframe) iframe.removeAttribute('src');
                 }
             });
+
         } catch (e) {
-            console.error("Bulk refresh failed", e);
+            console.error("Refresh failed", e);
         }
     }
 
-    // 5. Init
+    // Init
     loadDashboard();
     setInterval(refreshAllStatuses, REFRESH_RATE);
-
 </script>
 
 </body>
