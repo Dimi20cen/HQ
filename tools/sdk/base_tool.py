@@ -1,6 +1,7 @@
 import json
 import uvicorn
 import sys
+import os
 from pathlib import Path
 from typing import Callable, Optional
 from contextlib import asynccontextmanager
@@ -8,12 +9,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from dotenv import load_dotenv, find_dotenv
+
 class BaseTool:
     def __init__(self, file_path: str):
         """
         :param file_path: Pass __file__ from your main.py so we can find tool.json
         """
         self.root_dir = Path(file_path).parent.resolve()
+
+        # LOAD SECRETS
+        # find_dotenv() searches up the directory tree until it finds .env
+        # This means tools/calendar/main.py will find the .env in the project root!
+        load_dotenv(find_dotenv())
+
         self.config_path = self.root_dir / "tool.json"
 
         if not self.config_path.exists():

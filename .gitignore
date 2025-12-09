@@ -27,3 +27,6 @@ repomix-output.xml
 updated.xml
 codebase.xml
 repomix.config.json
+
+# --- Secrets ---
+.env

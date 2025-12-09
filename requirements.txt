@@ -4,3 +4,4 @@ uvicorn
 psutil
 sqlalchemy
 jinja2
+python-dotenv
