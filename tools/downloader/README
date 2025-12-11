@@ -1,0 +1,18 @@
+todo
+
+Engine
+- be able to download mutliple files at simultaneoulsy
+- be able to download videos in various qualities (given that they are available)
+- able to download
+  - from normal websites
+    - from website that you'd need to be logged in to access the video
+  - from youtube
+  - from webpages that have embedded youtubue videos
+
+UI/UX
+- make it as tidy as possible (minimalistic design)
+- be able to cancel downloads
+
+Considerations
+- be safe to not ban me (either ip or account)
+- 

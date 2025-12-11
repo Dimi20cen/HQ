@@ -1,0 +1,10 @@
+{
+    "key": "downloader",
+    "name": "downloader",
+    "title": "downloader",
+    "version": "1.0.0",
+    "port": 9020,
+    "entry_point": "main.py",
+    "auto_start": true,
+    "has_widget": true
+}
