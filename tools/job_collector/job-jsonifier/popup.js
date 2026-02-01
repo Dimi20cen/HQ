@@ -330,12 +330,35 @@ function scrapeJobData() {
 
     // A. Title
     if (!data.title) {
-        const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
-        if (ogTitle) data.title = ogTitle.split('|')[0].trim();
-        else {
-            const h1 = document.querySelector('h1');
-            data.title = clean(h1?.innerText) || "Unknown Title";
+        const titleCandidates = [
+            document.querySelector('meta[property="og:title"]')?.content,
+            document.querySelector('meta[name="twitter:title"]')?.content,
+            document.querySelector('meta[name="title"]')?.content
+        ].filter(Boolean);
+
+        const rawTitle = titleCandidates[0] || document.title || "";
+        const splitTitle = rawTitle.split(/\\s[\\-|\\|—–]\\s/)[0];
+
+        const titleSelectors = [
+            'h1',
+            '[data-test="jobTitle"]',
+            '[data-testid="jobTitle"]',
+            '.topcard__title',
+            '.jobs-unified-top-card__job-title',
+            '.jobsearch-JobInfoHeader-title',
+            '.job-details-jobs-header__title'
+        ];
+
+        let selectorTitle = "";
+        for (const sel of titleSelectors) {
+            const el = document.querySelector(sel);
+            if (el && clean(el.innerText)) {
+                selectorTitle = clean(el.innerText);
+                break;
+            }
         }
+
+        data.title = selectorTitle || clean(splitTitle) || "Unknown Title";
     }
 
     // B. Company (Heuristic Selectors)
