@@ -180,6 +180,114 @@ async function sendToKolibri(jobData) {
 // --- INJECTED SCRIPT (The Scraper Logic) ---
 function scrapeJobData() {
     const clean = (text) => text ? text.replace(/\s+/g, ' ').trim() : "";
+    const hostname = window.location.hostname;
+
+    function cleanupJobDescription(rawText) {
+        if (!rawText) return "";
+        let lines = rawText.split("\n").map((line) => line.trim());
+
+        const startMarkers = [
+            /^##\s*about the job/i,
+            /^about the job/i,
+            /^##\s*job description/i,
+            /^job description/i,
+            /^##\s*role/i
+        ];
+        const endMarkers = [
+            /^##\s*about the company/i,
+            /^about the company/i,
+            /^##\s*company photos/i,
+            /^company photos/i,
+            /^##\s*more jobs/i,
+            /^more jobs/i,
+            /^##\s*set alert/i,
+            /^set alert/i,
+            /^##\s*see more jobs/i,
+            /^see more jobs/i,
+            /^##\s*job search/i,
+            /^job search/i,
+            /^looking for talent\?/i
+        ];
+
+        let startIdx = 0;
+        for (let i = 0; i < lines.length; i++) {
+            if (startMarkers.some((rx) => rx.test(lines[i]))) {
+                startIdx = i;
+                break;
+            }
+        }
+
+        let endIdx = lines.length;
+        for (let i = startIdx + 1; i < lines.length; i++) {
+            if (endMarkers.some((rx) => rx.test(lines[i]))) {
+                endIdx = i;
+                break;
+            }
+        }
+
+        lines = lines.slice(startIdx, endIdx);
+
+        const noisePatterns = [
+            /reactivate premium/i,
+            /premium/i,
+            /easy apply/i,
+            /over \d+ applicants/i,
+            /applicants\b/i,
+            /actively reviewing applicants/i,
+            /promoted by hirer/i,
+            /people you can reach out to/i,
+            /meet the hiring team/i,
+            /^message$/i,
+            /set alert/i,
+            /see more jobs/i,
+            /job search faster/i,
+            /job search smarter/i,
+            /looking for talent/i
+        ];
+
+        const cleaned = [];
+        let lastLine = "";
+        for (const line of lines) {
+            if (!line) {
+                if (cleaned.length && cleaned[cleaned.length - 1] !== "") {
+                    cleaned.push("");
+                }
+                continue;
+            }
+            if (noisePatterns.some((rx) => rx.test(line))) {
+                continue;
+            }
+
+            const mdLinkMatch = line.match(/^\[.*\]\((https?:\/\/[^)]+)\)$/);
+            if (mdLinkMatch) {
+                const url = mdLinkMatch[1].toLowerCase();
+                if (
+                    url.includes("linkedin.com/premium") ||
+                    url.includes("/jobs/collections") ||
+                    url.includes("/messaging/compose") ||
+                    url.includes("/help/linkedin/answer")
+                ) {
+                    continue;
+                }
+            }
+
+            if (line === lastLine) {
+                continue;
+            }
+            cleaned.push(line);
+            lastLine = line;
+        }
+
+        while (cleaned[0] === "") cleaned.shift();
+        while (cleaned[cleaned.length - 1] === "") cleaned.pop();
+
+        let result = cleaned.join("\n");
+        const maxChars = 8000;
+        if (result.length > maxChars) {
+            result = result.slice(0, maxChars).trim();
+        }
+        return result;
+    }
 
     // --- HELPER: HTML to Markdown Converter ---
     function htmlToMarkdown(element) {
@@ -395,9 +503,10 @@ function scrapeJobData() {
 
     // --- 3. DESCRIPTION ---
     const descSelectors = [
-        "#jobDescriptionText",           // Indeed
-        ".show-more-less-html__markup",  // LinkedIn
-        ".job-description",              
+        ".jobs-description-content__text", // LinkedIn
+        ".show-more-less-html__markup",    // LinkedIn
+        "#jobDescriptionText",             // Indeed
+        ".job-description",
         "[class*='job-description']",
         "article"
     ];
@@ -413,7 +522,7 @@ function scrapeJobData() {
         contentNode = document.querySelector('main') || document.body;
     }
 
-    data.description = htmlToMarkdown(contentNode);
+    data.description = cleanupJobDescription(htmlToMarkdown(contentNode));
 
     return data;
 }
