@@ -108,6 +108,20 @@ def update_tool_status(name, status):
     session.close()
 
 
+def update_tool_metadata(name, process_path=None, port=None, has_widget=None):
+    session = get_session()
+    tool = session.query(Tool).filter(Tool.name == name).first()
+    if tool:
+        if process_path is not None:
+            tool.process_path = process_path
+        if port is not None:
+            tool.port = port
+        if has_widget is not None:
+            tool.has_widget = has_widget
+        session.commit()
+    session.close()
+
+
 def list_tools():
     session = get_session()
     tools = session.query(Tool).all()

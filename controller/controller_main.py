@@ -11,6 +11,7 @@ from controller.db import (
     get_tool_by_name,
     update_tool_pid,
     update_tool_status,
+    update_tool_metadata,
 )
 
 from controller.process_manager import ProcessManager
@@ -37,16 +38,22 @@ def scan_tools():
 
     for folder in tools_path.iterdir():
         manifest = folder / "tool.json"
-        main_py = folder / "main.py"
 
-        if folder.is_dir() and manifest.exists() and main_py.exists():
+        if folder.is_dir() and manifest.exists():
             try:
                 with open(manifest, "r") as f:
                     config = json.load(f)
+
+                entry_point = config.get("entry_point") or "main.py"
+                entry_path = folder / entry_point
+
+                if not entry_path.exists():
+                    print(f"[Discovery] Skipping {folder.name}: missing entry_point {entry_point}")
+                    continue
                 
                 # Critical: Add the path for ProcessManager
-                # ProcessManager runs from Root, so path is tools/name/main.py
-                config["process_path"] = f"tools/{folder.name}/main.py"
+                # ProcessManager runs from Root, so path is tools/name/<entry_point>
+                config["process_path"] = f"tools/{folder.name}/{entry_point}"
                 
                 discovered.append(config)
                 print(f"[Discovery] Found tool: {config.get('title')} ({config.get('port')})")
@@ -79,8 +86,17 @@ async def lifespan(app: FastAPI):
         if not db_tool:
             add_tool(name, process_path, port, has_widget)
         else:
-            # Optional: Update port/path if changed in tool.json
-            pass
+            if (
+                db_tool.process_path != process_path
+                or db_tool.port != port
+                or db_tool.has_widget != has_widget
+            ):
+                update_tool_metadata(
+                    name,
+                    process_path=process_path,
+                    port=port,
+                    has_widget=has_widget,
+                )
 
     # --- 2.5 Reconcile DB with Reality (The Orphan Check) ---
     all_tools = list_tools()

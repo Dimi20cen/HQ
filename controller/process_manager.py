@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import psutil
@@ -15,6 +16,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class ProcessManager:
+    @staticmethod
+    def _load_manifest(process_path: Path):
+        for parent in [process_path.parent, *process_path.parents]:
+            manifest_path = parent / "tool.json"
+            if manifest_path.exists():
+                try:
+                    with open(manifest_path, "r") as f:
+                        return json.load(f)
+                except Exception:
+                    return {}
+            if parent == BASE_DIR:
+                break
+        return {}
+
+    @staticmethod
+    def _normalize_args(value):
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [str(v) for v in value]
+        return [str(value)]
 
     @staticmethod
     def launch_tool(name: str):
@@ -33,6 +55,20 @@ class ProcessManager:
         if not path.exists():
             return {"error": f"Process path does not exist: {path}"}
 
+        manifest = ProcessManager._load_manifest(path)
+        runtime = str(manifest.get("runtime") or "python").lower()
+        runtime_args = ProcessManager._normalize_args(manifest.get("runtime_args"))
+        entry_args = ProcessManager._normalize_args(manifest.get("args"))
+
+        if runtime in ("python", "py"):
+            cmd = [sys.executable]
+        else:
+            cmd = [runtime]
+
+        cmd += runtime_args
+        cmd.append(str(path))
+        cmd += entry_args
+
         # 1. Create a logs directory in the project root
         log_dir = BASE_DIR / "logs"
         log_dir.mkdir(exist_ok=True)
@@ -43,7 +79,7 @@ class ProcessManager:
 
         try:
             proc = subprocess.Popen(
-                [sys.executable, str(path)],   # always launch using venv python
+                cmd,
                 cwd=str(path.parent),          # so tool finds config.json, logs, etc.
                 stdout=stdout_f,
                 stderr=stderr_f

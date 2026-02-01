@@ -61,6 +61,7 @@ def create_tool(name, port):
         "version": "1.0.0",
         "port": int(port),
         "entry_point": "main.py",
+        "runtime": "python",
         "auto_start": True,
         "has_widget": True
     }
