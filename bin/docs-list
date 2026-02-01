@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOCS_DIR="$ROOT/docs"
+
+if [ ! -d "$DOCS_DIR" ]; then
+  echo "docs/ missing"
+  exit 0
+fi
+
+while IFS= read -r file; do
+  if command -v rg >/dev/null 2>&1; then
+    hint=$(rg -m 1 '^read_when:' "$file" 2>/dev/null | sed 's/^read_when: //')
+  else
+    hint=$(grep -m 1 '^read_when:' "$file" 2>/dev/null | sed 's/^read_when: //')
+  fi
+
+  rel="${file#"$ROOT"/}"
+  if [ -n "$hint" ]; then
+    printf "%s - %s\n" "$rel" "$hint"
+  else
+    printf "%s\n" "$rel"
+  fi
+done < <(find "$DOCS_DIR" -type f -name "*.md" | sort)
