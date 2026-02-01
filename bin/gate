@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON="python"
+
+if [ -x "$ROOT/.venv/bin/python" ]; then
+  PYTHON="$ROOT/.venv/bin/python"
+elif [ -x "$ROOT/.venv/Scripts/python.exe" ]; then
+  PYTHON="$ROOT/.venv/Scripts/python.exe"
+fi
+
+echo "[gate] compileall"
+"$PYTHON" -m compileall controller tools
+
+has_tests=0
+if find "$ROOT" -path "$ROOT/.venv" -prune -o -path "$ROOT/.git" -prune -o -type f \( -name "test_*.py" -o -name "*_test.py" \) -print -quit | grep -q .; then
+  has_tests=1
+fi
+
+if [ "$has_tests" -eq 1 ]; then
+  if "$PYTHON" - <<'PY'
+import importlib.util
+raise SystemExit(0 if importlib.util.find_spec("pytest") else 1)
+PY
+  then
+    echo "[gate] pytest"
+    "$PYTHON" -m pytest
+  else
+    echo "[gate] pytest not installed; skipping"
+  fi
+else
+  echo "[gate] no tests found; skipping pytest"
+fi

@@ -21,3 +21,6 @@ Logs
 Ports
 - Controller default: 8000
 - Tool ports: set per `tool.json`
+
+Gate
+- `./bin/gate` (compileall; pytest only if tests exist + installed)
