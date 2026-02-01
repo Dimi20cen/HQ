@@ -31,3 +31,6 @@ shared/
 
 # --- Secrets ---
 .env
+
+# --- Local covlet info (personal data) ---
+tools/covlet/info.md
