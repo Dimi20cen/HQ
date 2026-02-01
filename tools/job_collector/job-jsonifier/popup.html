@@ -17,10 +17,10 @@
     /* Make description scrollable but small */
     textarea { height: 80px; resize: vertical; font-family: monospace; }
 
-    .btn-container { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
     
     button { 
-      flex: 1; padding: 10px; 
+      flex: 1 1 45%; padding: 10px; 
       border: none; border-radius: 4px; 
       cursor: pointer; font-size: 13px; font-weight: bold;
       transition: background 0.2s;
@@ -31,6 +31,9 @@
 
     #saveBtn { background-color: #007bff; color: white; }
     #saveBtn:hover { background-color: #0056b3; }
+
+    #generateBtn { background-color: #28a745; color: white; }
+    #generateBtn:hover { background-color: #1e7e34; }
 
     .status { margin-top: 10px; font-size: 12px; text-align: center; height: 16px; }
   </style>
@@ -64,6 +67,7 @@
     <button id="extractBtn">Refill</button>
     <button id="deleteBtn" style="background-color: #dc3545; color: white; display: none;">Delete</button>
     <button id="saveBtn">Save Job</button>
+    <button id="generateBtn">Generate Letter</button>
   </div>
 
   <div id="statusMsg" class="status"></div>

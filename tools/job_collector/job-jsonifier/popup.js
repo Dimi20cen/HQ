@@ -42,15 +42,7 @@ document.getElementById("extractBtn").addEventListener("click", runScraper);
 document.getElementById("saveBtn").addEventListener("click", async () => {
     const statusDiv = document.getElementById("statusMsg");
     
-    // 1. Gather data from the form (Manual Overrides allowed!)
-    const jobData = {
-        title: document.getElementById("jobTitle").value,
-        company: document.getElementById("jobCompany").value,
-        location: document.getElementById("jobLocation").value,
-        url: document.getElementById("jobUrl").value,
-        date_scraped: document.getElementById("jobDate").value || new Date().toISOString(),
-        description: document.getElementById("jobDesc").value
-    };
+    const jobData = collectJobData();
 
     if (!jobData.title) {
         statusDiv.innerText = "⚠️ Title is required";
@@ -62,6 +54,70 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     statusDiv.innerText = "Sending...";
     await sendToKolibri(jobData);
 });
+
+document.getElementById("generateBtn").addEventListener("click", async () => {
+    const statusDiv = document.getElementById("statusMsg");
+    const jobData = collectJobData();
+
+    if (!jobData.title || !jobData.description) {
+        statusDiv.innerText = "⚠️ Title and description are required";
+        statusDiv.style.color = "orange";
+        return;
+    }
+
+    statusDiv.innerText = "Generating letter...";
+    statusDiv.style.color = "#666";
+
+    try {
+        const response = await fetch("http://127.0.0.1:5055/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                jobTitle: jobData.title,
+                company: jobData.company,
+                jobDescription: jobData.description,
+                jobUrl: jobData.url
+            })
+        });
+
+        const data = await response.json();
+        if (!data.ok) {
+            statusDiv.innerText = `❌ ${data.error}`;
+            statusDiv.style.color = "red";
+            return;
+        }
+
+        const totalMs = data.timingsMs?.total;
+        const codexMs = data.timingsMs?.codex;
+        const promptLog = data.promptLogPath;
+        const timingLine =
+            typeof totalMs === "number"
+                ? ` (${Math.round(totalMs / 1000)}s total` +
+                  (typeof codexMs === "number"
+                      ? `, ${Math.round(codexMs / 1000)}s codex`
+                      : "") +
+                  ")"
+                : "";
+        const promptLine = promptLog ? `\nPrompt: ${promptLog}` : "";
+
+        statusDiv.innerText = `✅ Saved: ${data.outputPath}${timingLine}${promptLine}`;
+        statusDiv.style.color = "green";
+    } catch (error) {
+        statusDiv.innerText = "❌ Covlet server is offline";
+        statusDiv.style.color = "red";
+    }
+});
+
+function collectJobData() {
+    return {
+        title: document.getElementById("jobTitle").value,
+        company: document.getElementById("jobCompany").value,
+        location: document.getElementById("jobLocation").value,
+        url: document.getElementById("jobUrl").value,
+        date_scraped: document.getElementById("jobDate").value || new Date().toISOString(),
+        description: document.getElementById("jobDesc").value
+    };
+}
 
 // --- MAIN SCRAPER ORCHESTRATOR ---
 
