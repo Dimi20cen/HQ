@@ -4,93 +4,187 @@
     <meta charset="UTF-8">
     <title>Utility Controller</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            margin: 40px; 
-            background-color: #f4f4f9; 
+        :root {
+            --bg: #f6f7fb;
+            --bg-accent: #eef1f7;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: rgba(0, 0, 0, 0.06);
+            --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            --green: #16a34a;
+            --red: #dc2626;
+            --yellow: #d97706;
+            --blue: #2563eb;
         }
-        h1 { 
-            color: #333; 
-            margin-bottom: 20px; 
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+            margin: 36px;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 600px at 20% -10%, #e7ecf9 0%, transparent 55%),
+                radial-gradient(900px 500px at 90% 0%, #f0f3ff 0%, transparent 50%),
+                var(--bg);
         }
-        
-        /* Grid Layout */
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .app-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #111827, #3b82f6);
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-size: 18px;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .app-name {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .app-subtitle {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .toolbar-actions button {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        .toolbar-actions button:hover { border-color: rgba(37, 99, 235, 0.4); }
+
+        .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
-            grid-auto-rows: 8px; /* for masonry-style row spans */
+            grid-auto-rows: 8px;
         }
 
-        /* The Card */
         .card {
-            background: white;
-            border-top: 5px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            background: var(--card);
+            border-top: 5px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
             transition: transform 0.2s, box-shadow 0.2s;
             overflow: hidden;
         }
-        .card:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
         }
 
-        .card.status-running { border-top-color: #28a745; }
-        .card.status-stopped { border-top-color: #dc3545; }
-        .card.status-stopped .card-body { padding: 10px; gap: 8px; }
-        .card.status-stopped .tool-name { font-size: 1em; }
-        .card.status-stopped .status-line { font-size: 0.8em; }
-        .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
+        .card.is-hidden { display: none; }
+        .card.status-running { border-top-color: var(--green); }
+        .card.status-stopped { border-top-color: var(--red); }
 
-        /* Card Content */
-        .card-body { 
-            padding: 15px;
+        .card-body {
+            padding: 16px;
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
-        /* Header */
+        .card.status-stopped .card-body { padding: 10px; gap: 8px; }
+        .card.status-stopped .tool-name { font-size: 1em; }
+        .card.status-stopped .status-line { font-size: 0.8em; }
+        .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
+
         .tool-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
         }
 
         .tool-header-left {
             display: flex;
             flex-direction: column;
+            gap: 4px;
         }
 
-        .tool-name { 
-            font-size: 1.1em; 
-            font-weight: bold;
-            color: #333; 
-            text-transform: capitalize; 
+        .tool-name {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: capitalize;
         }
 
         .status-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             font-size: 0.85em;
             font-weight: 500;
-            color: #666;
+            color: var(--muted);
         }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        .status-dot.running { background: var(--green); }
+        .status-dot.stopped { background: var(--red); }
 
         .header-right {
             display: flex;
             align-items: center;
-            gap: 1px; /* space between port and power icon */
+            gap: 6px;
         }
 
         .port-badge {
-            font-size: 0.75em; 
-            color: #666; 
-            background: #eee;
-            padding: 3px 8px; 
-            border-radius: 4px;
+            font-size: 0.75em;
+            color: var(--muted);
+            background: var(--bg-accent);
+            padding: 3px 8px;
+            border-radius: 6px;
         }
 
-        /* The POWER button (icon only, color-coded) */
         .btn-status {
             background: transparent;
             border: none;
@@ -102,30 +196,52 @@
             transition: opacity .2s;
         }
 
-        .btn-status:hover { opacity: 0.65; }
+        .btn-status:hover { opacity: 0.7; }
 
-        .btn-green  { color: #28a745; } /* running */
-        .btn-red    { color: #dc3545; } /* stopped */
-        .btn-yellow { color: #d4a017; cursor: wait !important; } /* loading */
+        .btn-green { color: var(--green); }
+        .btn-red { color: var(--red); }
+        .btn-yellow { color: var(--yellow); cursor: wait !important; }
 
-        /* Widget Area */
         .widget-container {
-            border-top: 1px solid rgba(0,0,0,0.06);
+            border-top: 1px solid var(--border);
             background-color: #fafafa;
             height: 160px;
             display: none;
         }
-        iframe { 
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            display: block; 
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .empty-state {
+            padding: 28px;
+            color: var(--muted);
+            background: var(--card);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
         }
     </style>
 </head>
 <body>
 
-<h1>🎛️ Utility Controller</h1>
+<header class="toolbar">
+    <div class="title">
+        <div class="app-icon">&#x1F39B;</div>
+        <div>
+            <div class="app-name">Utility Controller</div>
+            <div class="app-subtitle">Local tools dashboard</div>
+        </div>
+    </div>
+
+    <label class="toggle">
+        <input id="toggle-stopped" type="checkbox" checked />
+        <span>Show stopped</span>
+    </label>
+</header>
+
 <div id="tools-container" class="grid-container"></div>
 
 <script>
@@ -133,85 +249,109 @@
     const GRID_ROW_HEIGHT = 8;
     const GRID_ROW_GAP = 20;
 
-    function safeId(name) {
-        return name.replace(/\s+/g, '_');
+    const state = {
+        showStopped: true,
+        toolMap: new Map()
+    };
+
+    const els = {
+        container: document.getElementById('tools-container'),
+        toggleStopped: document.getElementById('toggle-stopped')
+    };
+
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = text;
+        return node;
     }
 
-    // 1. Load tools
+    function safeId(name) {
+        return name.replace(/[^a-zA-Z0-9_-]+/g, '_');
+    }
+
     async function loadDashboard() {
-        const container = document.getElementById('tools-container');
-        
         try {
             const resp = await fetch('/tools');
             const data = await resp.json();
-            const tools = data.tools;
+            const tools = data.tools || [];
 
-            container.innerHTML = ''; 
+            els.container.innerHTML = '';
+            state.toolMap.clear();
 
             if (tools.length === 0) {
-                container.innerHTML = '<p>No tools found.</p>';
+                const empty = el('div', 'empty-state', 'No tools found.');
+                els.container.appendChild(empty);
                 return;
             }
 
-            for (const tool of tools) {
+            tools.forEach(tool => {
                 const card = createToolCard(tool);
-                container.appendChild(card);
-            }
+                els.container.appendChild(card);
+            });
 
             requestAnimationFrame(resizeAllCards);
-            refreshAllStatuses(); 
+            refreshAllStatuses();
 
         } catch (e) {
             console.error(e);
         }
     }
 
-    // 2. Build card
     function createToolCard(tool) {
-        const div = document.createElement('div');
+        const card = el('div', `card status-${tool.status || 'stopped'}`);
         const sId = safeId(tool.name);
 
-        div.className = `card status-${tool.status}`;
-        div.id = `card-${sId}`;
-        div.dataset.port = tool.port;
+        card.id = `card-${sId}`;
+        card.dataset.name = tool.name;
 
-        let widgetHtml = '';
+        const cardBody = el('div', 'card-body');
+        const header = el('div', 'tool-header');
+        const left = el('div', 'tool-header-left');
+        const right = el('div', 'header-right');
+
+        const name = el('span', 'tool-name', tool.name);
+        const statusLine = el('div', 'status-line');
+        const statusDot = el('span', 'status-dot');
+        const statusText = el('span', 'status-text', 'Checking...');
+
+        statusLine.appendChild(statusDot);
+        statusLine.appendChild(statusText);
+        left.appendChild(name);
+        left.appendChild(statusLine);
+
+        const btn = el('button', 'btn-status btn-yellow');
+        btn.id = `btn-${sId}`;
+        btn.disabled = true;
+        btn.setAttribute('aria-label', `Toggle ${tool.name}`);
+        btn.textContent = '⏻';
+        btn.addEventListener('click', () => statusButtonAction(tool.name));
+
+        const port = el('span', 'port-badge', `:${tool.port}`);
+
+        right.appendChild(btn);
+        right.appendChild(port);
+
+        header.appendChild(left);
+        header.appendChild(right);
+        cardBody.appendChild(header);
+        card.appendChild(cardBody);
+
         if (tool.has_widget) {
-            widgetHtml = `
-            <div class="widget-container" id="widget-box-${sId}">
-                <iframe id="iframe-${sId}"></iframe>
-            </div>`;
+            const widgetBox = el('div', 'widget-container');
+            widgetBox.id = `widget-box-${sId}`;
+            const iframe = el('iframe');
+            iframe.id = `iframe-${sId}`;
+            widgetBox.appendChild(iframe);
+            card.appendChild(widgetBox);
         }
 
-        div.innerHTML = `
-            <div class="card-body">
-
-                <div class="tool-header">
-                    <div class="tool-header-left">
-                        <span class="tool-name">${tool.name}</span>
-                        <span id="status-${sId}" class="status-line">Checking...</span>
-                    </div>
-
-                    <div class="header-right">
-                        <button 
-                            id="btn-${sId}" 
-                            class="btn-status btn-yellow"
-                            onclick="statusButtonAction('${tool.name}')"
-                            disabled
-                        >⏻</button>
-                        <span class="port-badge">:${tool.port}</span>
-                    </div>
-                </div>
-            </div>
-
-            ${widgetHtml}
-        `;
-
-        return div;
+        state.toolMap.set(tool.name, { card, statusDot, statusText, btn, sId });
+        return card;
     }
 
     function resizeCard(card) {
-        if (!card) return;
+        if (!card || card.classList.contains('is-hidden')) return;
         const body = card.querySelector('.card-body');
         const widget = card.querySelector('.widget-container');
         let height = 0;
@@ -219,7 +359,6 @@
         if (body) height += body.scrollHeight;
         if (widget && widget.style.display !== 'none') height += widget.scrollHeight;
 
-        // small buffer for borders/gaps
         height += 12;
         const rowSpan = Math.ceil((height + GRID_ROW_GAP) / (GRID_ROW_HEIGHT + GRID_ROW_GAP));
         card.style.gridRowEnd = `span ${rowSpan}`;
@@ -229,79 +368,91 @@
         document.querySelectorAll('.card').forEach(resizeCard);
     }
 
-    // 3. Power button behavior
+    function applyFilters() {
+        state.toolMap.forEach(({ card }) => {
+            const alive = card.dataset.alive === '1';
+            const hidden = !state.showStopped && !alive;
+            card.classList.toggle('is-hidden', hidden);
+        });
+        requestAnimationFrame(resizeAllCards);
+    }
+
     async function statusButtonAction(name) {
-        const sId = safeId(name);
-        const btn = document.getElementById(`btn-${sId}`);
-        const action = btn.dataset.action; // launch or kill
+        const entry = state.toolMap.get(name);
+        if (!entry) return;
+
+        const { btn } = entry;
+        const action = btn.dataset.action;
 
         if (!action) return;
 
-        btn.className = "btn-status btn-yellow";
+        btn.className = 'btn-status btn-yellow';
         btn.disabled = true;
 
         try {
             await fetch(`/tools/${name}/${action}`, { method: 'POST' });
         } catch {
-            alert("Command failed");
+            alert('Command failed');
         }
 
         setTimeout(refreshAllStatuses, 1000);
     }
 
-    // 4. Refresh statuses
     async function refreshAllStatuses() {
         try {
             const resp = await fetch('/tools/status-all');
             const data = await resp.json();
+            const tools = data.tools || [];
 
-            data.tools.forEach(tool => {
-                const sId = safeId(tool.name);
-                const card = document.getElementById(`card-${sId}`);
-                const statusText = document.getElementById(`status-${sId}`);
-                const btn = document.getElementById(`btn-${sId}`);
+            tools.forEach(tool => {
+                const entry = state.toolMap.get(tool.name);
+                if (!entry) return;
 
+                const { card, statusDot, statusText, btn, sId } = entry;
                 const widgetBox = document.getElementById(`widget-box-${sId}`);
                 const iframe = document.getElementById(`iframe-${sId}`);
+                const alive = !!tool.alive;
 
-                if (tool.alive) {
-                    card.classList.add('status-running');
-                    card.classList.remove('status-stopped');
+                card.dataset.alive = alive ? '1' : '0';
+                card.classList.toggle('status-running', alive);
+                card.classList.toggle('status-stopped', !alive);
 
-                    statusText.innerHTML = `<span style="color:green">● Running (PID: ${tool.pid})</span>`;
+                statusDot.classList.toggle('running', alive);
+                statusDot.classList.toggle('stopped', !alive);
 
-                    btn.disabled = false;
-                    btn.dataset.action = "kill";
-                    btn.className = "btn-status btn-green";
+                statusText.textContent = alive
+                    ? `Running (PID: ${tool.pid})`
+                    : 'Stopped';
 
-                    if (widgetBox && iframe) {
+                btn.disabled = false;
+                btn.dataset.action = alive ? 'kill' : 'launch';
+                btn.className = alive ? 'btn-status btn-green' : 'btn-status btn-red';
+
+                if (widgetBox && iframe) {
+                    if (alive) {
                         if (!iframe.src) iframe.src = `http://127.0.0.1:${tool.port}/widget`;
                         widgetBox.style.display = 'block';
+                    } else {
+                        widgetBox.style.display = 'none';
+                        iframe.removeAttribute('src');
                     }
-
-                } else {
-                    card.classList.remove('status-running');
-                    card.classList.add('status-stopped');
-
-                    statusText.innerHTML = `<span style="color:red">● Stopped</span>`;
-
-                    btn.disabled = false;
-                    btn.dataset.action = "launch";
-                    btn.className = "btn-status btn-red";
-
-                    if (widgetBox) widgetBox.style.display = 'none';
-                    if (iframe) iframe.removeAttribute('src');
                 }
 
                 requestAnimationFrame(() => resizeCard(card));
             });
 
+            applyFilters();
+
         } catch (e) {
-            console.error("Refresh failed", e);
+            console.error('Refresh failed', e);
         }
     }
 
-    // Init
+    els.toggleStopped.addEventListener('change', () => {
+        state.showStopped = els.toggleStopped.checked;
+        applyFilters();
+    });
+
     loadDashboard();
     setInterval(refreshAllStatuses, REFRESH_RATE);
     window.addEventListener('resize', () => requestAnimationFrame(resizeAllCards));
