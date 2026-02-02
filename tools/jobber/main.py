@@ -256,16 +256,25 @@ async def generate_letter(request: Request):
     except Exception:
         pass
 
+    output_name = f"{slugify(company or job_title or 'job')}.txt"
+    output_dir = (tool.root_dir / OUTPUT_DIR).resolve()
+    output_path = output_dir / output_name
+
+    if output_path.exists():
+        return {
+            "ok": True,
+            "outputPath": str(output_path),
+            "skipped": True,
+            "reason": "Letter already exists for this job/company."
+        }
+
     request_start = time.time()
     try:
         codex_start = time.time()
         letter = run_codex(prompt, MODEL, REASONING_EFFORT)
         codex_ms = int((time.time() - codex_start) * 1000)
 
-        output_name = f"{slugify(company or job_title or 'job')}.txt"
-        output_dir = (tool.root_dir / OUTPUT_DIR).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / output_name
         output_path.write_text(letter + "\n", encoding="utf-8")
 
         total_ms = int((time.time() - request_start) * 1000)
