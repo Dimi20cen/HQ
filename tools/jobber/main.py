@@ -5,7 +5,9 @@ import re
 import sqlite3
 import subprocess
 import tempfile
+import threading
 import time
+import uuid
 from pathlib import Path
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -133,6 +135,51 @@ def run_codex(prompt: str, model: str, reasoning_effort: str) -> str:
         raise RuntimeError("codex output file missing")
 
     return output_text.strip()
+
+def reveal_in_file_manager(path: Path) -> None:
+    if sys.platform.startswith("win"):
+        subprocess.Popen(["explorer", "/select,", str(path)])
+        return
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", str(path)])
+        return
+    subprocess.Popen(["xdg-open", str(path.parent)])
+
+_jobs_lock = threading.Lock()
+_jobs: dict[str, dict] = {}
+_inflight_by_output: dict[str, str] = {}
+
+def _set_job(job_id: str, updates: dict) -> None:
+    with _jobs_lock:
+        job = _jobs.get(job_id, {})
+        job.update(updates)
+        _jobs[job_id] = job
+
+def _get_job(job_id: str) -> dict | None:
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        return dict(job) if job else None
+
+def _get_inflight_job_id(output_path: Path) -> str | None:
+    with _jobs_lock:
+        job_id = _inflight_by_output.get(str(output_path))
+        if not job_id:
+            return None
+        if job_id not in _jobs:
+            # Stale mapping; drop it.
+            _inflight_by_output.pop(str(output_path), None)
+            return None
+        return job_id
+
+def _set_inflight(output_path: Path, job_id: str) -> None:
+    with _jobs_lock:
+        _inflight_by_output[str(output_path)] = job_id
+
+def _clear_inflight(output_path: Path, job_id: str) -> None:
+    with _jobs_lock:
+        existing = _inflight_by_output.get(str(output_path))
+        if existing == job_id:
+            _inflight_by_output.pop(str(output_path), None)
 
 config = load_config()
 INFO_FILE = resolve_info_file(os.environ.get("COVLET_INFO_FILE") or config.get("infoFile"))
@@ -268,26 +315,94 @@ async def generate_letter(request: Request):
             "reason": "Letter already exists for this job/company."
         }
 
-    request_start = time.time()
-    try:
-        codex_start = time.time()
-        letter = run_codex(prompt, MODEL, REASONING_EFFORT)
-        codex_ms = int((time.time() - codex_start) * 1000)
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(letter + "\n", encoding="utf-8")
-
-        total_ms = int((time.time() - request_start) * 1000)
-        print(f"jobber: generated {output_name} in {total_ms}ms (codex {codex_ms}ms)")
-
+    inflight_job_id = _get_inflight_job_id(output_path)
+    if inflight_job_id:
+        job = _get_job(inflight_job_id) or {}
         return {
             "ok": True,
+            "jobId": inflight_job_id,
+            "status": job.get("status", "running"),
             "outputPath": str(output_path),
-            "preview": letter[:500],
-            "timingsMs": {"total": total_ms, "codex": codex_ms},
-            "promptLogPath": str(PROMPT_LOG),
-            "warnings": warnings
+            "inFlight": True,
+            "reason": "Generation already in progress."
         }
+
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, {
+        "ok": True,
+        "jobId": job_id,
+        "status": "queued",
+        "outputPath": str(output_path),
+        "createdAtMs": int(time.time() * 1000),
+        "warnings": warnings,
+        "promptLogPath": str(PROMPT_LOG)
+    })
+    _set_inflight(output_path, job_id)
+
+    def worker():
+        _set_job(job_id, {"status": "running", "startedAtMs": int(time.time() * 1000)})
+        request_start = time.time()
+        try:
+            codex_start = time.time()
+            letter = run_codex(prompt, MODEL, REASONING_EFFORT)
+            codex_ms = int((time.time() - codex_start) * 1000)
+
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(letter + "\n", encoding="utf-8")
+
+            total_ms = int((time.time() - request_start) * 1000)
+            print(f"jobber: generated {output_name} in {total_ms}ms (codex {codex_ms}ms)")
+
+            _set_job(job_id, {
+                "status": "done",
+                "preview": letter[:500],
+                "timingsMs": {"total": total_ms, "codex": codex_ms},
+                "finishedAtMs": int(time.time() * 1000)
+            })
+        except Exception as e:
+            _set_job(job_id, {
+                "status": "error",
+                "error": str(e),
+                "finishedAtMs": int(time.time() * 1000)
+            })
+        finally:
+            _clear_inflight(output_path, job_id)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    # Return immediately; popup can poll /generate-status/<jobId>.
+    return {"ok": True, "jobId": job_id, "status": "queued", "outputPath": str(output_path)}
+
+@tool.app.get("/generate-status/{job_id}")
+async def generate_status(job_id: str):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+    if not job:
+        return JSONResponse({"ok": False, "error": "Unknown job id"}, status_code=404)
+    return job
+
+@tool.app.post("/open-output")
+async def open_output(request: Request):
+    data = await request.json()
+    path_raw = data.get("path")
+    if not path_raw:
+        return JSONResponse({"ok": False, "error": "Missing path"}, status_code=400)
+
+    try:
+        path = Path(path_raw).expanduser().resolve()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid path"}, status_code=400)
+
+    output_dir = (tool.root_dir / OUTPUT_DIR).resolve()
+    if output_dir not in path.parents:
+        return JSONResponse({"ok": False, "error": "Path not allowed"}, status_code=400)
+
+    if not path.exists():
+        return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
+
+    try:
+        reveal_in_file_manager(path)
+        return {"ok": True}
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 

@@ -43,3 +43,5 @@ Letters are written to:
 - `POST /save` → upsert job data
 - `POST /delete` → delete by URL
 - `POST /generate` → generate cover letter
+- `GET /generate-status/{jobId}` → poll generation status
+- `POST /open-output` → reveal output file in file explorer

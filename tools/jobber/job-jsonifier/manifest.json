@@ -4,6 +4,7 @@
   "version": "1.0",
   "description": "Extracts job details, saves to Jobber, and generates cover letters.",
   "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
   "action": {
     "default_popup": "popup.html"
   }

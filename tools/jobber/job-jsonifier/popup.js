@@ -1,8 +1,62 @@
 // --- EVENT LISTENERS ---
 
+let statusLocked = false;
+
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 1500) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        let data = null;
+        try {
+            data = await res.json();
+        } catch {
+            data = null;
+        }
+        return { res, data };
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+function setStatus(text, color, force = false) {
+    if (statusLocked && !force) return;
+    const statusDiv = document.getElementById("statusMsg");
+    statusDiv.textContent = text;
+    if (color) statusDiv.style.color = color;
+}
+
+function setStatusWithOpen(text, path) {
+    const statusDiv = document.getElementById("statusMsg");
+    statusDiv.style.color = "green";
+    statusDiv.innerHTML = `${text} — <span id="openOutput" class="status-link">Open</span>`;
+    const openEl = document.getElementById("openOutput");
+    openEl.addEventListener("click", () => openOutput(path));
+}
+
+async function openOutput(path) {
+    try {
+        const { data } = await fetchJsonWithTimeout(
+            "http://127.0.0.1:30001/open-output",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path })
+            },
+            1500
+        );
+        if (!data || !data.ok) {
+            setStatus(`❌ ${(data && data.error) || "Unable to open file"}`, "red", true);
+        }
+    } catch (error) {
+        setStatus("❌ Jobber is offline", "red", true);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Check DB first, then scrape if unknown
-    checkDbOrScrape();
+    // Fast path: scrape immediately, then try DB in parallel.
+    runScraper();
+    checkDbAndMaybeLoad();
 });
 
 document.getElementById("deleteBtn").addEventListener("click", async () => {
@@ -13,80 +67,97 @@ document.getElementById("deleteBtn").addEventListener("click", async () => {
         return;
     }
 
-    statusDiv.innerText = "Deleting...";
+    setStatus("Deleting...", "#666", true);
     
     try {
-        const response = await fetch("http://127.0.0.1:30001/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: url })
-        });
+        const { res: response } = await fetchJsonWithTimeout(
+            "http://127.0.0.1:30001/delete",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            },
+            3000
+        );
 
-        if (response.ok) {
-            statusDiv.innerText = "🗑️ Job Deleted!";
-            statusDiv.style.color = "red";
+        if (response && response.ok) {
+            setStatus("🗑️ Job Deleted!", "red", true);
             
             // Optional: Close popup or clear form after delay
             setTimeout(() => window.close(), 1000);
         } else {
-            statusDiv.innerText = "Error deleting";
+            setStatus("Error deleting", "red", true);
         }
     } catch (error) {
         console.error(error);
-        statusDiv.innerText = "Server Error";
+        setStatus("Server Error", "red", true);
     }
 });
 
 document.getElementById("extractBtn").addEventListener("click", runScraper);
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
-    const statusDiv = document.getElementById("statusMsg");
-    
     const jobData = collectJobData();
 
     if (!jobData.title) {
-        statusDiv.innerText = "⚠️ Title is required";
-        statusDiv.style.color = "orange";
+        setStatus("⚠️ Title is required", "orange", true);
         return;
     }
 
     // 2. Send to Jobber
-    statusDiv.innerText = "Sending...";
+    setStatus("Sending...", "#666", true);
     await sendToJobber(jobData);
 });
 
 document.getElementById("generateBtn").addEventListener("click", async () => {
-    const statusDiv = document.getElementById("statusMsg");
     const jobData = collectJobData();
 
     if (!jobData.title || !jobData.description) {
-        statusDiv.innerText = "⚠️ Title and description are required";
-        statusDiv.style.color = "orange";
+        setStatus("⚠️ Title and description are required", "orange", true);
         return;
     }
 
-    statusDiv.innerText = "Generating letter...";
-    statusDiv.style.color = "#666";
+    statusLocked = true;
+    setStatus("Generating letter...", "#666", true);
 
     try {
-        const response = await fetch("http://127.0.0.1:30001/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jobTitle: jobData.title,
-                company: jobData.company,
-                jobDescription: jobData.description,
-                jobUrl: jobData.url
-            })
-        });
+        const { res: response, data } = await fetchJsonWithTimeout(
+            "http://127.0.0.1:30001/generate",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jobTitle: jobData.title,
+                    company: jobData.company,
+                    jobDescription: jobData.description,
+                    jobUrl: jobData.url
+                })
+            },
+            3000
+        );
 
-        const data = await response.json();
-        if (!data.ok) {
-            statusDiv.innerText = `❌ ${data.error}`;
-            statusDiv.style.color = "red";
+        if (!data || !data.ok) {
+            setStatus(`❌ ${(data && data.error) || "Server Error"}`, "red", true);
             return;
         }
 
+        if (data.skipped) {
+            setStatusWithOpen("✅ Already exists", data.outputPath);
+            return;
+        }
+
+        if (data.inFlight && data.jobId) {
+            setStatus("Already running... ", "#666", true);
+            await pollGenerateStatus(data.jobId);
+            return;
+        }
+
+        if (data.jobId) {
+            await pollGenerateStatus(data.jobId);
+            return;
+        }
+
+        // Back-compat in case the server returns a completed response.
         const totalMs = data.timingsMs?.total;
         const codexMs = data.timingsMs?.codex;
         const promptLog = data.promptLogPath;
@@ -100,13 +171,66 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
                 : "";
         const promptLine = promptLog ? `\nPrompt: ${promptLog}` : "";
 
-        statusDiv.innerText = `✅ Saved: ${data.outputPath}${timingLine}${promptLine}`;
-        statusDiv.style.color = "green";
+        setStatusWithOpen(`✅ Saved${timingLine}${promptLine}`, data.outputPath);
     } catch (error) {
-        statusDiv.innerText = "❌ Jobber server is offline";
-        statusDiv.style.color = "red";
+        setStatus("❌ Jobber server is offline", "red", true);
+    } finally {
+        statusLocked = false;
     }
 });
+
+async function pollGenerateStatus(jobId) {
+    const startedAt = Date.now();
+    while (true) {
+        if (Date.now() - startedAt > 5 * 60 * 1000) {
+            setStatus("❌ Timed out waiting for generation", "red", true);
+            return;
+        }
+
+        let data;
+        try {
+            ({ data } = await fetchJsonWithTimeout(
+                `http://127.0.0.1:30001/generate-status/${jobId}`,
+                {},
+                1500
+            ));
+        } catch (e) {
+            setStatus("❌ Jobber server is offline", "red", true);
+            return;
+        }
+
+        if (!data.ok) {
+            setStatus(`❌ ${data.error || "Generation failed"}`, "red", true);
+            return;
+        }
+
+        if (data.status === "done") {
+            const totalMs = data.timingsMs?.total;
+            const codexMs = data.timingsMs?.codex;
+            const promptLog = data.promptLogPath;
+            const timingLine =
+                typeof totalMs === "number"
+                    ? ` (${Math.round(totalMs / 1000)}s total` +
+                      (typeof codexMs === "number"
+                          ? `, ${Math.round(codexMs / 1000)}s codex`
+                          : "") +
+                      ")"
+                    : "";
+            const promptLine = promptLog ? `\nPrompt: ${promptLog}` : "";
+
+            setStatusWithOpen(`✅ Saved${timingLine}${promptLine}`, data.outputPath);
+            return;
+        }
+
+        if (data.status === "error") {
+            setStatus(`❌ ${data.error || "Generation failed"}`, "red", true);
+            return;
+        }
+
+        setStatus("Generating letter...", "#666", true);
+        await new Promise((r) => setTimeout(r, 800));
+    }
+}
 
 function collectJobData() {
     return {
@@ -122,9 +246,7 @@ function collectJobData() {
 // --- MAIN SCRAPER ORCHESTRATOR ---
 
 async function runScraper() {
-    const statusDiv = document.getElementById("statusMsg");
-    statusDiv.innerText = "Scanning page...";
-    statusDiv.style.color = "#666";
+    setStatus("Scanning page...", "#666");
 
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -146,34 +268,33 @@ async function runScraper() {
             document.getElementById("jobUrl").value = data.url;
             document.getElementById("jobDate").value = data.date_scraped;
 
-            statusDiv.innerText = ""; // Clear status
+            setStatus("", null, true);
         } else {
-            statusDiv.innerText = "Could not extract data";
-            statusDiv.style.color = "red";
+            setStatus("Could not extract data", "red", true);
         }
     });
 }
 
 async function sendToJobber(jobData) {
-    const statusDiv = document.getElementById("statusMsg");
     try {
-        const response = await fetch("http://127.0.0.1:30001/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(jobData)
-        });
+        const { res: response } = await fetchJsonWithTimeout(
+            "http://127.0.0.1:30001/save",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(jobData)
+            },
+            3000
+        );
 
         if (response.ok) {
-            statusDiv.innerText = "✅ Saved to Jobber!";
-            statusDiv.style.color = "green";
+            setStatus("✅ Saved to Jobber!", "green", true);
             setTimeout(() => window.close(), 1200); // Close popup after success
         } else {
-            statusDiv.innerText = "❌ Server Error";
-            statusDiv.style.color = "red";
+            setStatus("❌ Server Error", "red", true);
         }
     } catch (error) {
-        statusDiv.innerText = "❌ Jobber is offline";
-        statusDiv.style.color = "red";
+        setStatus("❌ Jobber is offline", "red", true);
     }
 }
 
@@ -527,29 +648,29 @@ function scrapeJobData() {
     return data;
 }
 
-async function checkDbOrScrape() {
-    const statusDiv = document.getElementById("statusMsg");
-    statusDiv.innerText = "Checking database...";
+async function checkDbAndMaybeLoad() {
     
     // 1. Get the current Tab URL first
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!tab || !tab.url) {
-        statusDiv.innerText = "Error: No URL found";
+        setStatus("Error: No URL found", "red", true);
         return;
     }
 
     try {
         // 2. Ask the backend if we have this URL
-        const response = await fetch("http://127.0.0.1:30001/check", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: tab.url })
-        });
+        const { data: result } = await fetchJsonWithTimeout(
+            "http://127.0.0.1:30001/check",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: tab.url })
+            },
+            600
+        );
 
-        const result = await response.json();
-
-        if (result.found && result.data) {
+        if (result && result.found && result.data) {
             // --- SCENARIO A: LOAD FROM DB ---
             console.log("Job found in DB!");
             const data = result.data;
@@ -562,20 +683,17 @@ async function checkDbOrScrape() {
             document.getElementById("jobUrl").value = data.url;
             document.getElementById("jobDate").value = data.date_scraped;
 
-            statusDiv.innerText = "✅ Loaded from Database";
-            statusDiv.style.color = "blue";
+            setStatus("✅ Loaded from Database", "blue");
             document.getElementById("deleteBtn").style.display = "block";
             
         } else {
-            // --- SCENARIO B: NOT FOUND, RUN SCRAPER ---
-            console.log("Job not in DB, scraping...");
-            runScraper();
+            // Not found: keep scraped values.
             document.getElementById("deleteBtn").style.display = "none";
         }
 
     } catch (error) {
-        // If Backend is offline, fail gracefully back to scraping
-        console.warn("Backend unavailable, falling back to scrape", error);
-        runScraper();
+        // If backend is offline/slow, keep scraped values.
+        console.warn("Backend unavailable, using scraped data", error);
+        document.getElementById("deleteBtn").style.display = "none";
     }
 }
