@@ -1,6 +1,6 @@
 # jobber
 
-Collect job postings and generate cover letters from job pages using the local Codex CLI.
+Collect job postings and generate cover letters from job pages using the local Gemini CLI.
 
 ## Setup
 
@@ -19,16 +19,25 @@ Collect job postings and generate cover letters from job pages using the local C
 
 ## Config
 
-Edit `covlet.config.json` (paths relative to `tools/jobber` unless absolute):
+Edit `jobber.config.json` (paths relative to `tools/jobber` unless absolute):
 - `infoFile`: your resume/summary markdown
 - `outputDir`: where to write letters (default `cover-letter`)
-- `model`: optional codex model override (empty = CLI default)
-- `reasoningEffort`: optional override (`low|medium|high|xhigh`)
+- `codex`: true/false (default false)
+- `codex_reasoningEffort`: codex-only override (`low|medium|high|xhigh`)
+- `gemini`: true/false (default true)
+- `geminiCli`: gemini executable name/path (default `gemini`)
+- `geminiArgs`: extra args list (optional)
+- `geminiModelFlag`: model flag (default `--model`, set empty to disable)
+- `model`: optional model override (empty = CLI default)
 
 Env overrides (optional):
 - `COVLET_INFO_FILE`
 - `COVLET_OUTPUT_DIR`
 - `COVLET_MODEL`
+- `COVLET_PROVIDER`
+- `COVLET_GEMINI_CLI`
+- `COVLET_GEMINI_ARGS`
+- `COVLET_GEMINI_MODEL_FLAG`
 - `COVLET_REASONING_EFFORT`
 - `COVLET_PROMPT_LOG` (path for last prompt dump)
 

@@ -1,6 +1,11 @@
 {
   "infoFile": "~/Projects/private/jobber/info.md",
   "outputDir": "cover-letter",
-  "model": "gpt-5.2",
-  "reasoningEffort": ""
+  "codex": false,
+  "codex_reasoningEffort": "",
+  "gemini": true,
+  "geminiCli": "gemini",
+  "geminiArgs": [],
+  "geminiModelFlag": "",
+  "model": ""
 }

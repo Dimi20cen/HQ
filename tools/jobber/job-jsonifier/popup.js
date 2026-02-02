@@ -159,13 +159,14 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
 
         // Back-compat in case the server returns a completed response.
         const totalMs = data.timingsMs?.total;
-        const codexMs = data.timingsMs?.codex;
+        const llmMs = data.timingsMs?.llm;
+        const engine = data.engine || "llm";
         const promptLog = data.promptLogPath;
         const timingLine =
             typeof totalMs === "number"
                 ? ` (${Math.round(totalMs / 1000)}s total` +
-                  (typeof codexMs === "number"
-                      ? `, ${Math.round(codexMs / 1000)}s codex`
+                  (typeof llmMs === "number"
+                      ? `, ${Math.round(llmMs / 1000)}s ${engine}`
                       : "") +
                   ")"
                 : "";
@@ -206,13 +207,14 @@ async function pollGenerateStatus(jobId) {
 
         if (data.status === "done") {
             const totalMs = data.timingsMs?.total;
-            const codexMs = data.timingsMs?.codex;
+            const llmMs = data.timingsMs?.llm;
+            const engine = data.engine || "llm";
             const promptLog = data.promptLogPath;
             const timingLine =
                 typeof totalMs === "number"
                     ? ` (${Math.round(totalMs / 1000)}s total` +
-                      (typeof codexMs === "number"
-                          ? `, ${Math.round(codexMs / 1000)}s codex`
+                      (typeof llmMs === "number"
+                          ? `, ${Math.round(llmMs / 1000)}s ${engine}`
                           : "") +
                       ")"
                     : "";

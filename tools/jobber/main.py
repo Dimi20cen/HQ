@@ -8,6 +8,7 @@ import tempfile
 import threading
 import time
 import uuid
+import shlex
 from pathlib import Path
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -27,6 +28,9 @@ CONFIG_PATH = tool.root_dir / "jobber.config.json"
 
 DEFAULT_OUTPUT_DIR = "cover-letter"
 DEFAULT_PROMPT_LOG = Path(tempfile.gettempdir()) / "covlet-last-prompt.txt"
+DEFAULT_PROVIDER = "gemini"
+DEFAULT_GEMINI_CLI = "gemini"
+DEFAULT_GEMINI_MODEL_FLAG = "--model"
 
 def load_config():
     try:
@@ -107,7 +111,16 @@ def validate_model_name(name: str | None) -> str | None:
         )
     return None
 
-def run_codex(prompt: str, model: str, reasoning_effort: str) -> str:
+def normalize_args(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    if isinstance(value, str):
+        return shlex.split(value)
+    return []
+
+def run_codex(prompt: str, model: str, reasoning_effort: str) -> tuple[str, list[str]]:
     with tempfile.NamedTemporaryFile(prefix="covlet-", suffix=".txt", delete=False) as tmp:
         output_path = tmp.name
 
@@ -134,7 +147,30 @@ def run_codex(prompt: str, model: str, reasoning_effort: str) -> str:
     if not output_text:
         raise RuntimeError("codex output file missing")
 
-    return output_text.strip()
+    return output_text.strip(), args
+
+def run_gemini(prompt: str, model: str, cli: str, extra_args: list[str], model_flag: str | None) -> tuple[str, list[str]]:
+    args = [cli] + extra_args
+    if model and model_flag:
+        args.extend([model_flag, model])
+
+    result = subprocess.run(
+        args,
+        input=prompt,
+        text=True,
+        capture_output=True,
+        cwd=tool.root_dir,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"gemini exited with code {result.returncode}: {result.stderr.strip()}")
+
+    output_text = (result.stdout or "").strip()
+    if not output_text:
+        raise RuntimeError("gemini output empty")
+
+    return output_text, args
 
 def reveal_in_file_manager(path: Path) -> None:
     if sys.platform.startswith("win"):
@@ -186,6 +222,57 @@ INFO_FILE = resolve_info_file(os.environ.get("COVLET_INFO_FILE") or config.get("
 OUTPUT_DIR = os.environ.get("COVLET_OUTPUT_DIR") or config.get("outputDir") or DEFAULT_OUTPUT_DIR
 MODEL = os.environ.get("COVLET_MODEL") or config.get("model") or ""
 REASONING_EFFORT = os.environ.get("COVLET_REASONING_EFFORT") or config.get("reasoningEffort") or ""
+
+def parse_bool(value) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "y", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "n", "off"}:
+            return False
+    return None
+
+provider_raw = os.environ.get("COVLET_PROVIDER")
+if provider_raw is None:
+    codex_enabled = parse_bool(config.get("codex"))
+    gemini_enabled = parse_bool(config.get("gemini"))
+    if codex_enabled is True and gemini_enabled is True:
+        provider_raw = "gemini"
+    elif codex_enabled is True:
+        provider_raw = "codex"
+    elif gemini_enabled is True:
+        provider_raw = "gemini"
+    else:
+        provider_raw = config.get("provider") or DEFAULT_PROVIDER
+PROVIDER = str(provider_raw).strip().lower() if provider_raw else DEFAULT_PROVIDER
+
+gemini_cli_raw = os.environ.get("COVLET_GEMINI_CLI")
+if gemini_cli_raw is None:
+    gemini_cli_raw = config.get("geminiCli") or DEFAULT_GEMINI_CLI
+GEMINI_CLI = str(gemini_cli_raw).strip() if gemini_cli_raw else DEFAULT_GEMINI_CLI
+
+gemini_args_raw = os.environ.get("COVLET_GEMINI_ARGS")
+if gemini_args_raw is None:
+    gemini_args_raw = config.get("geminiArgs")
+GEMINI_ARGS = normalize_args(gemini_args_raw)
+
+gemini_model_flag_raw = os.environ.get("COVLET_GEMINI_MODEL_FLAG")
+if gemini_model_flag_raw is None:
+    gemini_model_flag_raw = config.get("geminiModelFlag", DEFAULT_GEMINI_MODEL_FLAG)
+GEMINI_MODEL_FLAG = str(gemini_model_flag_raw) if gemini_model_flag_raw is not None else DEFAULT_GEMINI_MODEL_FLAG
+GEMINI_MODEL_FLAG = GEMINI_MODEL_FLAG.strip() if isinstance(GEMINI_MODEL_FLAG, str) else DEFAULT_GEMINI_MODEL_FLAG
+GEMINI_MODEL_FLAG = GEMINI_MODEL_FLAG or None
+
+codex_reasoning_raw = config.get("codex_reasoningEffort")
+if REASONING_EFFORT == "" and codex_reasoning_raw:
+    REASONING_EFFORT = str(codex_reasoning_raw).strip()
+
 PROMPT_LOG = Path(os.environ.get("COVLET_PROMPT_LOG") or DEFAULT_PROMPT_LOG)
 
 def init_db():
@@ -293,9 +380,13 @@ async def generate_letter(request: Request):
 
     prompt = build_prompt(company, job_title, job_description, job_url, info_text)
     warnings = []
-    model_warning = validate_model_name(MODEL)
-    if model_warning:
-        warnings.append(model_warning)
+    if PROVIDER == "codex":
+        model_warning = validate_model_name(MODEL)
+        if model_warning:
+            warnings.append(model_warning)
+            print(f"jobber: warnings: {' | '.join(warnings)}")
+    elif PROVIDER != "gemini":
+        warnings.append(f'Unknown provider "{PROVIDER}". Expected "gemini" or "codex".')
         print(f"jobber: warnings: {' | '.join(warnings)}")
 
     try:
@@ -335,7 +426,8 @@ async def generate_letter(request: Request):
         "outputPath": str(output_path),
         "createdAtMs": int(time.time() * 1000),
         "warnings": warnings,
-        "promptLogPath": str(PROMPT_LOG)
+        "promptLogPath": str(PROMPT_LOG),
+        "engine": PROVIDER
     })
     _set_inflight(output_path, job_id)
 
@@ -343,26 +435,38 @@ async def generate_letter(request: Request):
         _set_job(job_id, {"status": "running", "startedAtMs": int(time.time() * 1000)})
         request_start = time.time()
         try:
-            codex_start = time.time()
-            letter = run_codex(prompt, MODEL, REASONING_EFFORT)
-            codex_ms = int((time.time() - codex_start) * 1000)
+            llm_start = time.time()
+            if PROVIDER == "codex":
+                letter, command_args = run_codex(prompt, MODEL, REASONING_EFFORT)
+            elif PROVIDER == "gemini":
+                letter, command_args = run_gemini(prompt, MODEL, GEMINI_CLI, GEMINI_ARGS, GEMINI_MODEL_FLAG)
+            else:
+                raise RuntimeError(f'Unknown provider "{PROVIDER}"')
+            llm_ms = int((time.time() - llm_start) * 1000)
+            command_str = " ".join(command_args)
 
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path.write_text(letter + "\n", encoding="utf-8")
 
             total_ms = int((time.time() - request_start) * 1000)
-            print(f"jobber: generated {output_name} in {total_ms}ms (codex {codex_ms}ms)")
+            print(f"jobber: cmd: {command_str}")
+            print(f"jobber: generated {output_name} in {total_ms}ms ({PROVIDER} {llm_ms}ms)")
 
             _set_job(job_id, {
                 "status": "done",
                 "preview": letter[:500],
-                "timingsMs": {"total": total_ms, "codex": codex_ms},
+                "timingsMs": {"total": total_ms, "llm": llm_ms},
+                "engine": PROVIDER,
+                "command": command_str,
+                "commandArgs": command_args,
                 "finishedAtMs": int(time.time() * 1000)
             })
         except Exception as e:
             _set_job(job_id, {
                 "status": "error",
                 "error": str(e),
+                "command": " ".join(command_args) if "command_args" in locals() else "",
+                "commandArgs": command_args if "command_args" in locals() else [],
                 "finishedAtMs": int(time.time() * 1000)
             })
         finally:

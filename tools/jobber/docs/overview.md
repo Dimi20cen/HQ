@@ -6,7 +6,7 @@ Purpose: collect job postings and generate plain-text cover letters.
 
 - Jobber Chrome extension scrapes the active tab into the popup form.
 - Popup can save jobs to the local DB and call `/generate`.
-- Server builds a prompt from `jobber.config.json` + info markdown, then runs `codex exec`.
+- Server builds a prompt from `jobber.config.json` + info markdown, then runs the Gemini CLI (or Codex if configured).
 - Output saved to `<outputDir>/<slug>.txt` (default `tools/jobber/cover-letter`).
 
 ## Key Files
