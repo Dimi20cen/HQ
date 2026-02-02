@@ -1,5 +1,5 @@
 {
-  "infoFile": "info.md",
+  "infoFile": "~/Projects/private/covlet/info.md",
   "outputDir": "cover-letter",
   "model": "gpt-5.2-codex",
   "reasoningEffort": ""

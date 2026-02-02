@@ -21,10 +21,17 @@ function loadConfig() {
 }
 
 const config = loadConfig();
+function expandHome(value) {
+  if (!value) return value;
+  if (value === "~") return os.homedir();
+  if (value.startsWith("~/")) return path.join(os.homedir(), value.slice(2));
+  return value;
+}
 function resolveInfoFile(value) {
   if (!value) return path.join(ROOT, "info.md");
-  if (path.isAbsolute(value)) return value;
-  return path.resolve(ROOT, value);
+  const expanded = expandHome(value);
+  if (path.isAbsolute(expanded)) return expanded;
+  return path.resolve(ROOT, expanded);
 }
 const INFO_FILE = resolveInfoFile(process.env.COVLET_INFO_FILE || config.infoFile);
 const OUTPUT_DIR = process.env.COVLET_OUTPUT_DIR || config.outputDir || "cover-letter";
