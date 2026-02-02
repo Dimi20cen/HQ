@@ -7,6 +7,6 @@
   "port": 5055,
   "entry_point": "server/server.js",
   "runtime": "node",
-  "auto_start": false,
+  "auto_start": true,
   "has_widget": false
 }
