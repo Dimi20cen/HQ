@@ -427,7 +427,8 @@ async def generate_letter(request: Request):
         "createdAtMs": int(time.time() * 1000),
         "warnings": warnings,
         "promptLogPath": str(PROMPT_LOG),
-        "engine": PROVIDER
+        "engine": PROVIDER,
+        "modelRequested": MODEL or ""
     })
     _set_inflight(output_path, job_id)
 
@@ -438,8 +439,10 @@ async def generate_letter(request: Request):
             llm_start = time.time()
             if PROVIDER == "codex":
                 letter, command_args = run_codex(prompt, MODEL, REASONING_EFFORT)
+                model_used = MODEL or ""
             elif PROVIDER == "gemini":
                 letter, command_args = run_gemini(prompt, MODEL, GEMINI_CLI, GEMINI_ARGS, GEMINI_MODEL_FLAG)
+                model_used = MODEL or ""
             else:
                 raise RuntimeError(f'Unknown provider "{PROVIDER}"')
             llm_ms = int((time.time() - llm_start) * 1000)
@@ -449,6 +452,8 @@ async def generate_letter(request: Request):
             output_path.write_text(letter + "\n", encoding="utf-8")
 
             total_ms = int((time.time() - request_start) * 1000)
+            if model_used:
+                print(f"jobber: model: {model_used}")
             print(f"jobber: cmd: {command_str}")
             print(f"jobber: generated {output_name} in {total_ms}ms ({PROVIDER} {llm_ms}ms)")
 
@@ -457,6 +462,7 @@ async def generate_letter(request: Request):
                 "preview": letter[:500],
                 "timingsMs": {"total": total_ms, "llm": llm_ms},
                 "engine": PROVIDER,
+                "modelUsed": model_used,
                 "command": command_str,
                 "commandArgs": command_args,
                 "finishedAtMs": int(time.time() * 1000)
@@ -465,6 +471,7 @@ async def generate_letter(request: Request):
             _set_job(job_id, {
                 "status": "error",
                 "error": str(e),
+                "modelUsed": model_used if "model_used" in locals() else "",
                 "command": " ".join(command_args) if "command_args" in locals() else "",
                 "commandArgs": command_args if "command_args" in locals() else [],
                 "finishedAtMs": int(time.time() * 1000)
