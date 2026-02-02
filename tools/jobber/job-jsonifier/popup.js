@@ -50,9 +50,9 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
         return;
     }
 
-    // 2. Send to Kolibri
+    // 2. Send to Jobber
     statusDiv.innerText = "Sending...";
-    await sendToKolibri(jobData);
+    await sendToJobber(jobData);
 });
 
 document.getElementById("generateBtn").addEventListener("click", async () => {
@@ -69,7 +69,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
     statusDiv.style.color = "#666";
 
     try {
-        const response = await fetch("http://127.0.0.1:5055/generate", {
+        const response = await fetch("http://127.0.0.1:30001/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -103,7 +103,7 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
         statusDiv.innerText = `✅ Saved: ${data.outputPath}${timingLine}${promptLine}`;
         statusDiv.style.color = "green";
     } catch (error) {
-        statusDiv.innerText = "❌ Covlet server is offline";
+        statusDiv.innerText = "❌ Jobber server is offline";
         statusDiv.style.color = "red";
     }
 });
@@ -154,7 +154,7 @@ async function runScraper() {
     });
 }
 
-async function sendToKolibri(jobData) {
+async function sendToJobber(jobData) {
     const statusDiv = document.getElementById("statusMsg");
     try {
         const response = await fetch("http://127.0.0.1:30001/save", {
@@ -164,7 +164,7 @@ async function sendToKolibri(jobData) {
         });
 
         if (response.ok) {
-            statusDiv.innerText = "✅ Saved to Database!";
+            statusDiv.innerText = "✅ Saved to Jobber!";
             statusDiv.style.color = "green";
             setTimeout(() => window.close(), 1200); // Close popup after success
         } else {
@@ -172,7 +172,7 @@ async function sendToKolibri(jobData) {
             statusDiv.style.color = "red";
         }
     } catch (error) {
-        statusDiv.innerText = "❌ Kolibri is offline";
+        statusDiv.innerText = "❌ Jobber is offline";
         statusDiv.style.color = "red";
     }
 }

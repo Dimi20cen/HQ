@@ -1,5 +1,11 @@
 import sys
+import json
+import os
+import re
 import sqlite3
+import subprocess
+import tempfile
+import time
 from pathlib import Path
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -15,6 +21,125 @@ tool = BaseTool(__file__)
 
 # 3. DATABASE SETUP
 DB_FILE = tool.root_dir / "jobs.db"
+CONFIG_PATH = tool.root_dir / "covlet.config.json"
+
+DEFAULT_OUTPUT_DIR = "cover-letter"
+DEFAULT_PROMPT_LOG = Path(tempfile.gettempdir()) / "covlet-last-prompt.txt"
+
+def load_config():
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+def expand_home(value: str | None) -> str | None:
+    if not value:
+        return value
+    if value == "~":
+        return str(Path.home())
+    if value.startswith("~/"):
+        return str(Path.home() / value[2:])
+    return value
+
+def resolve_info_file(value: str | None) -> Path:
+    if not value:
+        return tool.root_dir / "info.md"
+    expanded = expand_home(value)
+    if not expanded:
+        return tool.root_dir / "info.md"
+    path = Path(expanded)
+    if path.is_absolute():
+        return path
+    return (tool.root_dir / path).resolve()
+
+def slugify(input_text: str) -> str:
+    base = (input_text or "").strip().lower()
+    base = base.replace("&", "and")
+    base = re.sub(r"[^a-z0-9]+", "-", base)
+    base = base.strip("-")
+    return (base[:80] or "unknown-company")
+
+def safe_read(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+def build_prompt(company: str, job_title: str, job_description: str, job_url: str, info_text: str) -> str:
+    parts = [
+        "Write a tailored cover letter in plain text.",
+        "Constraints:",
+        "- Use only the provided info and job ad; do not invent details.",
+        "- Keep it concise (120-170 words).",
+        "- No placeholders.",
+        "- Professional, warm tone.",
+        "- No typical AI language; should feel human",
+        "- Stick to facts; no over exaggeration",
+        "- Output plain text only.",
+        "",
+        "Candidate info:",
+        info_text.strip(),
+        "",
+        "Job context:"
+    ]
+
+    if company:
+        parts.append(f"Company: {company}")
+    if job_title:
+        parts.append(f"Role: {job_title}")
+    if job_url:
+        parts.append(f"Job URL: {job_url}")
+    if job_description:
+        parts.extend(["", "Job ad text:", job_description.strip()])
+
+    return "\n".join(parts)
+
+def validate_model_name(name: str | None) -> str | None:
+    if not name:
+        return None
+    trimmed = str(name).strip()
+    if re.search(r"(^|[\s-])((x)?high|medium|low)\b", trimmed, re.IGNORECASE):
+        return (
+            f'Model "{trimmed}" looks like it includes a reasoning-effort suffix. '
+            'Use "gpt-5.2-codex" and set reasoningEffort separately.'
+        )
+    return None
+
+def run_codex(prompt: str, model: str, reasoning_effort: str) -> str:
+    with tempfile.NamedTemporaryFile(prefix="covlet-", suffix=".txt", delete=False) as tmp:
+        output_path = tmp.name
+
+    args = ["codex", "exec", "--skip-git-repo-check", "--output-last-message", output_path]
+    if model:
+        args.extend(["-m", model])
+    if reasoning_effort:
+        args.extend(["-c", f'model_reasoning_effort="{reasoning_effort}"'])
+    args.append("-")
+
+    result = subprocess.run(
+        args,
+        input=prompt,
+        text=True,
+        capture_output=True,
+        cwd=tool.root_dir,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"codex exited with code {result.returncode}: {result.stderr.strip()}")
+
+    output_text = safe_read(Path(output_path))
+    if not output_text:
+        raise RuntimeError("codex output file missing")
+
+    return output_text.strip()
+
+config = load_config()
+INFO_FILE = resolve_info_file(os.environ.get("COVLET_INFO_FILE") or config.get("infoFile"))
+OUTPUT_DIR = os.environ.get("COVLET_OUTPUT_DIR") or config.get("outputDir") or DEFAULT_OUTPUT_DIR
+MODEL = os.environ.get("COVLET_MODEL") or config.get("model") or ""
+REASONING_EFFORT = os.environ.get("COVLET_REASONING_EFFORT") or config.get("reasoningEffort") or ""
+PROMPT_LOG = Path(os.environ.get("COVLET_PROMPT_LOG") or DEFAULT_PROMPT_LOG)
 
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
@@ -102,6 +227,60 @@ async def save_job(request: Request):
         return {"status": "saved", "total_count": count}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+@tool.app.post("/generate")
+async def generate_letter(request: Request):
+    data = await request.json()
+
+    info_text = safe_read(INFO_FILE)
+    if not info_text:
+        return JSONResponse({"ok": False, "error": f"Missing info file: {INFO_FILE}"}, status_code=500)
+
+    company = (data.get("company") or "").strip()
+    job_title = (data.get("jobTitle") or data.get("title") or "").strip()
+    job_description = (data.get("jobDescription") or data.get("description") or "").strip()
+    job_url = (data.get("jobUrl") or data.get("url") or "").strip()
+
+    if not job_description:
+        return JSONResponse({"ok": False, "error": "Missing job description"}, status_code=400)
+
+    prompt = build_prompt(company, job_title, job_description, job_url, info_text)
+    warnings = []
+    model_warning = validate_model_name(MODEL)
+    if model_warning:
+        warnings.append(model_warning)
+        print(f"jobber: warnings: {' | '.join(warnings)}")
+
+    try:
+        PROMPT_LOG.write_text(prompt + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+    request_start = time.time()
+    try:
+        codex_start = time.time()
+        letter = run_codex(prompt, MODEL, REASONING_EFFORT)
+        codex_ms = int((time.time() - codex_start) * 1000)
+
+        output_name = f"{slugify(company or job_title or 'job')}.txt"
+        output_dir = (tool.root_dir / OUTPUT_DIR).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / output_name
+        output_path.write_text(letter + "\n", encoding="utf-8")
+
+        total_ms = int((time.time() - request_start) * 1000)
+        print(f"jobber: generated {output_name} in {total_ms}ms (codex {codex_ms}ms)")
+
+        return {
+            "ok": True,
+            "outputPath": str(output_path),
+            "preview": letter[:500],
+            "timingsMs": {"total": total_ms, "codex": codex_ms},
+            "promptLogPath": str(PROMPT_LOG),
+            "warnings": warnings
+        }
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 @tool.app.post("/delete")
 async def delete_job(request: Request):

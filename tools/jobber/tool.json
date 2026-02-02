@@ -1,0 +1,11 @@
+{
+  "key": "jobber",
+  "name": "jobber",
+  "title": "Jobber",
+  "description": "Collects job postings and generates cover letters via Chrome Extension",
+  "version": "1.0.0",
+  "port": 30001,
+  "entry_point": "main.py",
+  "auto_start": true,
+  "has_widget": true
+}

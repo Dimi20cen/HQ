@@ -1,0 +1,7 @@
+Hello Hiring Team at Eiffage Suisse,
+
+I’m Dimitrios Mylonas and I’m applying for the IT‑Mitarbeiter (1st/2nd‑Level) role in Glattpark/Zürich. I’m open to relocation or remote work. My background blends hands‑on support work from OSS programs and solid Windows and Python tooling. In Google Summer of Code 2025, I maintained a Windows desktop app: upgrading to Edge WebView2, splitting UI/server processes for stability, and building an InnoSetup installer with automated build/signing. In 2023, I shipped multiple fixes and ports in the SugarLabs stack.
+
+I work comfortably with tickets, debugging, and user‑facing communication, and I’m used to coordinating across teams and time zones. Languages: Greek (native), English (proficient), German (A2). I’m candid about this and willing to improve if needed.
+
+Thank you for your time.

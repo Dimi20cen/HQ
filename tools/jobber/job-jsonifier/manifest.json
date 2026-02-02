@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Job JSONifier",
+  "name": "Jobber",
   "version": "1.0",
-  "description": "Extracts job details and sends them to the Kolibri Job Collector.",
+  "description": "Extracts job details, saves to Jobber, and generates cover letters.",
   "permissions": ["activeTab", "scripting"],
   "action": {
     "default_popup": "popup.html"
