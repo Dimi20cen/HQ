@@ -539,10 +539,12 @@ async def delete_job(request: Request):
 def widget_generator():
     """Displays jobs in a clean, truncated list with hover-reveal"""
     jobs = []
+    total_count = 0
     try:
         with sqlite3.connect(DB_FILE) as conn:
             conn.row_factory = sqlite3.Row
             jobs = conn.execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 50").fetchall()
+            total_count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     except Exception:
         pass # Handle DB errors gracefully in UI
 
@@ -553,12 +555,16 @@ def widget_generator():
     
     for job in jobs:
         date_str = job['date_scraped'][:10] if job['date_scraped'] else "-"
+        if date_str and date_str != "-" and len(date_str) >= 10:
+            date_str = date_str[2:]
         
         list_html += f"""
         <a class="row" href="{job['url']}" target="_blank">
-            <div class="col-title" title="{job['title']}">{job['title']}</div>
-            <div class="col-company" title="{job['company']}">{job['company']}</div>
-            <div class="col-loc" title="{job['location']}">{job['location']}</div>
+            <div class="row-main">
+                <div class="col-title" title="{job['title']}">{job['title']}</div>
+                <div class="col-sub" title="{job['company']}">{job['company']}</div>
+                <div class="col-sub" title="{job['location']}">{job['location']}</div>
+            </div>
             <div class="col-date">{date_str}</div>
         </a>
         """
@@ -570,31 +576,79 @@ def widget_generator():
         <meta charset="utf-8">
         <style>
             :root {{
-                --bg: #ffffff; --text-main: #222; --text-sub: #666;
-                --border: #f0f0f0; --hover-bg: #f8f9fa;
+                --bg: #ffffff;
+                --text-main: #1b1f24;
+                --text-sub: #6a6f76;
+                --border: #eef0f2;
+                --hover-bg: #f7f8fa;
+                --accent: #0b6efd;
             }}
             * {{ box-sizing: border-box; }}
             body {{ 
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                background-color: var(--bg); padding: 10px 30px; margin: 0 auto;
-                max-width: 1200px; color: var(--text-main);
+                font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
+                background-color: var(--bg);
+                padding: 20px 28px 26px;
+                margin: 0 auto;
+                max-width: 1200px;
+                color: var(--text-main);
             }}
+            .table {{ width: 100%; }}
             .row {{
-                display: flex; align-items: center; padding: 12px 0;
-                text-decoration: none; border-bottom: 1px solid var(--border);
-                color: inherit; gap: 20px; transition: background 0.15s;
+                display: flex;
+                align-items: center;
+                align-items: center;
+                padding: 14px 0;
+                text-decoration: none;
+                border-bottom: 1px solid var(--border);
+                color: inherit;
+                transition: background 0.15s;
+                gap: 12px;
             }}
             .row:hover {{ background-color: var(--hover-bg); }}
-            .col-title {{ flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }}
-            .col-company {{ width: 180px; font-size: 13px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }}
-            .col-loc {{ width: 140px; font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }}
-            .col-date {{ width: 85px; font-size: 11px; color: #bbb; font-family: monospace; text-align: right; flex-shrink: 0; }}
-            @media (max-width: 700px) {{ .col-loc {{ display: none; }} .col-company {{ width: 120px; }} }}
-            .empty-state {{ padding: 40px; text-align: center; color: #ccc; }}
+            .row-main {{
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }}
+            .col-title {{
+                font-weight: 600;
+                font-size: 14px;
+                min-width: 0;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }}
+            .col-sub {{
+                font-size: 12px;
+                color: var(--text-sub);
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }}
+            .col-date {{
+                font-size: 12px;
+                color: #4b5563;
+                font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+                margin-left: auto;
+                min-width: 68px;
+                flex: 0 0 68px;
+                text-align: right;
+            }}
+            @media (max-width: 600px) {{
+                body {{ padding: 18px 20px 24px; }}
+            }}
+            .empty-state {{
+                padding: 40px;
+                text-align: center;
+                color: var(--text-sub);
+            }}
         </style>
     </head>
     <body>
-        <div>{list_html}</div>
+        <div class="table">{list_html}</div>
     </body>
     </html>
     """
