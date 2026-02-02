@@ -19,6 +19,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
+            grid-auto-rows: 8px; /* for masonry-style row spans */
         }
 
         /* The Card */
@@ -37,6 +38,10 @@
 
         .card.status-running { border-top-color: #28a745; }
         .card.status-stopped { border-top-color: #dc3545; }
+        .card.status-stopped .card-body { padding: 10px; gap: 8px; }
+        .card.status-stopped .tool-name { font-size: 1em; }
+        .card.status-stopped .status-line { font-size: 0.8em; }
+        .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
 
         /* Card Content */
         .card-body { 
@@ -125,6 +130,8 @@
 
 <script>
     const REFRESH_RATE = 2000;
+    const GRID_ROW_HEIGHT = 8;
+    const GRID_ROW_GAP = 20;
 
     function safeId(name) {
         return name.replace(/\s+/g, '_');
@@ -147,9 +154,11 @@
             }
 
             for (const tool of tools) {
-                container.appendChild(createToolCard(tool));
+                const card = createToolCard(tool);
+                container.appendChild(card);
             }
 
+            requestAnimationFrame(resizeAllCards);
             refreshAllStatuses(); 
 
         } catch (e) {
@@ -199,6 +208,25 @@
         `;
 
         return div;
+    }
+
+    function resizeCard(card) {
+        if (!card) return;
+        const body = card.querySelector('.card-body');
+        const widget = card.querySelector('.widget-container');
+        let height = 0;
+
+        if (body) height += body.scrollHeight;
+        if (widget && widget.style.display !== 'none') height += widget.scrollHeight;
+
+        // small buffer for borders/gaps
+        height += 12;
+        const rowSpan = Math.ceil((height + GRID_ROW_GAP) / (GRID_ROW_HEIGHT + GRID_ROW_GAP));
+        card.style.gridRowEnd = `span ${rowSpan}`;
+    }
+
+    function resizeAllCards() {
+        document.querySelectorAll('.card').forEach(resizeCard);
     }
 
     // 3. Power button behavior
@@ -264,6 +292,8 @@
                     if (widgetBox) widgetBox.style.display = 'none';
                     if (iframe) iframe.removeAttribute('src');
                 }
+
+                requestAnimationFrame(() => resizeCard(card));
             });
 
         } catch (e) {
@@ -274,6 +304,7 @@
     // Init
     loadDashboard();
     setInterval(refreshAllStatuses, REFRESH_RATE);
+    window.addEventListener('resize', () => requestAnimationFrame(resizeAllCards));
 </script>
 
 </body>
