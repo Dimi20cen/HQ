@@ -531,22 +531,45 @@ def widget_html(cal_url: str) -> str:
             return;
           }
 
-          entriesEl.innerHTML = list.map((event) => {
+          entriesEl.textContent = '';
+          for (const event of list) {
             const id = event.id || '';
             const title = event.summary || '(untitled)';
             const r = eventRange(event);
             const when = r ? `${formatDateTime(r.start)} to ${formatDateTime(r.end)}` : '';
-            return `
-              <div class=\"event\">
-                <div class=\"event-title\">${title}</div>
-                <div class=\"event-time\">${when}</div>
-                <div class=\"event-actions\">
-                  <button data-action=\"edit\" data-id=\"${id}\">Edit</button>
-                  <button data-action=\"delete\" data-id=\"${id}\" class=\"warn\">Delete</button>
-                </div>
-              </div>
-            `;
-          }).join('');
+
+            const card = document.createElement('div');
+            card.className = 'event';
+
+            const titleEl = document.createElement('div');
+            titleEl.className = 'event-title';
+            titleEl.textContent = title;
+
+            const whenEl = document.createElement('div');
+            whenEl.className = 'event-time';
+            whenEl.textContent = when;
+
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'event-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.setAttribute('data-action', 'edit');
+            editBtn.setAttribute('data-id', id);
+            editBtn.textContent = 'Edit';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.setAttribute('data-action', 'delete');
+            deleteBtn.setAttribute('data-id', id);
+            deleteBtn.className = 'warn';
+            deleteBtn.textContent = 'Delete';
+
+            actionsEl.appendChild(editBtn);
+            actionsEl.appendChild(deleteBtn);
+            card.appendChild(titleEl);
+            card.appendChild(whenEl);
+            card.appendChild(actionsEl);
+            entriesEl.appendChild(card);
+          }
 
           entriesEl.querySelectorAll('button[data-action="edit"]').forEach((btn) => {
             btn.addEventListener('click', () => {
