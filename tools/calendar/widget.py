@@ -20,20 +20,17 @@ def widget_html(cal_url: str) -> str:
         * {{ box-sizing: border-box; }}
         body {{
           margin: 0;
-          padding: 10px;
-          background:
-            radial-gradient(circle at 8% 0%, rgba(11, 140, 123, 0.12), transparent 36%),
-            radial-gradient(circle at 100% 100%, rgba(10, 111, 136, 0.14), transparent 36%),
-            var(--bg);
+          padding: 0;
+          background: transparent;
           color: var(--ink);
           font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
         }}
         .card {{
           background: var(--panel);
-          border: 1px solid var(--line);
-          border-radius: 12px;
-          padding: 9px;
-          box-shadow: var(--shadow);
+          border: 1px solid #dbe5e8;
+          border-radius: 8px;
+          padding: 8px;
+          box-shadow: none;
         }}
         .title {{
           margin: 0 0 2px;
@@ -116,7 +113,6 @@ def widget_html(cal_url: str) -> str:
     <body>
       <div class=\"card\">
         <h3 class=\"title\">Calendar Control</h3>
-        <p class=\"sub\">Google Calendar quick actions</p>
         <div class=\"row\">
           <button id=\"connect\" class=\"primary\">Connect Google</button>
           <button id=\"refresh\">Refresh</button>
@@ -130,11 +126,11 @@ def widget_html(cal_url: str) -> str:
           </div>
           <div class=\"field\">
             <label for=\"start\">Start</label>
-            <input id=\"start\" type=\"datetime-local\" />
+            <input id=\"start\" type=\"text\" placeholder=\"YYYY-MM-DD\" />
           </div>
           <div class=\"field\">
             <label for=\"end\">End</label>
-            <input id=\"end\" type=\"datetime-local\" />
+            <input id=\"end\" type=\"text\" placeholder=\"YYYY-MM-DD\" />
           </div>
           <div class=\"field full\">
             <label for=\"description\">Description</label>
@@ -184,32 +180,72 @@ def widget_html(cal_url: str) -> str:
           return data;
         }}
 
-        function toIsoFromLocalInput(value) {{
-          if (!value) return null;
-          const d = new Date(value);
-          if (Number.isNaN(d.getTime())) return null;
-          return d.toISOString();
+        function parseYmd(value) {{
+          const match = /^(\\d{{4}})-(\\d{{2}})-(\\d{{2}})$/.exec((value || '').trim());
+          if (!match) return null;
+          const year = Number(match[1]);
+          const month = Number(match[2]);
+          const day = Number(match[3]);
+          const dt = new Date(Date.UTC(year, month - 1, day));
+          if (
+            dt.getUTCFullYear() !== year ||
+            dt.getUTCMonth() !== month - 1 ||
+            dt.getUTCDate() !== day
+          ) return null;
+          return {{ year, month, day }};
         }}
 
-        function toLocalInputValue(iso) {{
-          if (!iso) return '';
-          const d = new Date(iso);
+        function toIsoFromYmdStart(value) {{
+          const parsed = parseYmd(value);
+          if (!parsed) return null;
+          return new Date(parsed.year, parsed.month - 1, parsed.day, 0, 0, 0, 0).toISOString();
+        }}
+
+        function toIsoFromYmdEnd(value) {{
+          const parsed = parseYmd(value);
+          if (!parsed) return null;
+          return new Date(parsed.year, parsed.month - 1, parsed.day, 23, 59, 59, 999).toISOString();
+        }}
+
+        function toComparableDay(value) {{
+          const parsed = parseYmd(value);
+          if (!parsed) return null;
+          return Date.UTC(parsed.year, parsed.month - 1, parsed.day);
+        }}
+
+        function formatYmd(value) {{
+          if (!value) return '';
+          if (/^\\d{{4}}-\\d{{2}}-\\d{{2}}$/.test(value)) return value;
+          const d = new Date(value);
           if (Number.isNaN(d.getTime())) return '';
-          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-          return d.toISOString().slice(0, 16);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${{y}}-${{m}}-${{day}}`;
+        }}
+
+        function formatEventWhen(event) {{
+          const startRaw = event.start && (event.start.dateTime || event.start.date);
+          const endRaw = event.end && (event.end.dateTime || event.end.date);
+          const start = formatYmd(startRaw);
+          const end = formatYmd(endRaw);
+          if (start && end && start !== end) return `${{start}} to ${{end}}`;
+          return start || '(no start)';
         }}
 
         function getFormPayload() {{
           const summary = document.getElementById('summary').value.trim();
           const description = document.getElementById('description').value.trim();
-          const startLocal = document.getElementById('start').value;
-          const endLocal = document.getElementById('end').value;
-          const startIso = toIsoFromLocalInput(startLocal);
-          const endIso = toIsoFromLocalInput(endLocal);
+          const startInput = document.getElementById('start').value;
+          const endInput = document.getElementById('end').value;
+          const startIso = toIsoFromYmdStart(startInput);
+          const endIso = toIsoFromYmdEnd(endInput);
+          const startDay = toComparableDay(startInput);
+          const endDay = toComparableDay(endInput);
 
           if (!summary) throw new Error('Summary is required.');
-          if (!startIso || !endIso) throw new Error('Start and end are required.');
-          if (new Date(endIso) <= new Date(startIso)) throw new Error('End must be after start.');
+          if (!startIso || !endIso) throw new Error('Start and end must use YYYY-MM-DD.');
+          if (endDay < startDay) throw new Error('End date must be on or after start date.');
 
           return {{
             summary,
@@ -231,8 +267,8 @@ def widget_html(cal_url: str) -> str:
         function populateForm(event) {{
           document.getElementById('summary').value = event.summary || '';
           document.getElementById('description').value = event.description || '';
-          document.getElementById('start').value = toLocalInputValue(event.start && event.start.dateTime);
-          document.getElementById('end').value = toLocalInputValue(event.end && event.end.dateTime);
+          document.getElementById('start').value = formatYmd(event.start && (event.start.dateTime || event.start.date));
+          document.getElementById('end').value = formatYmd(event.end && (event.end.dateTime || event.end.date));
           selectedEventId = event.id || null;
           document.getElementById('selected').textContent = selectedEventId
             ? `Selected: ${{event.summary || '(untitled)'}}`
@@ -247,7 +283,7 @@ def widget_html(cal_url: str) -> str:
           }}
 
           root.innerHTML = items.map((event) => {{
-            const when = (event.start && (event.start.dateTime || event.start.date)) || '(no start)';
+            const when = formatEventWhen(event);
             const title = event.summary || '(untitled)';
             const id = event.id || '';
             return `
@@ -373,5 +409,3 @@ def widget_html(cal_url: str) -> str:
     </body>
     </html>
     """
-
-
