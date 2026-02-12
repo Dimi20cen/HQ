@@ -82,7 +82,9 @@ def widget_html(cal_url: str) -> str:
         .layout {
           margin-top: 6px;
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(auto-fit, minmax(220px, max-content));
+          justify-content: start;
+          align-items: start;
           gap: 8px;
         }
         .form-top {
@@ -93,6 +95,17 @@ def widget_html(cal_url: str) -> str:
           border-radius: 8px;
           background: #ffffff;
           padding: 4px;
+        }
+        .calendar-panel {
+          width: max-content;
+          max-width: 100%;
+          justify-self: start;
+        }
+        .entries-panel {
+          width: max-content;
+          max-width: 100%;
+          min-width: 170px;
+          justify-self: start;
         }
 
         .month-head {
@@ -127,26 +140,28 @@ def widget_html(cal_url: str) -> str:
         .weekday-row,
         .day-grid {
           display: grid;
-          grid-template-columns: repeat(7, minmax(0, 1fr));
-          gap: 2px;
+          grid-template-columns: repeat(7, 28px);
+          gap: 3px;
+          width: max-content;
         }
         .weekday {
           text-align: center;
           color: var(--muted);
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 600;
           text-transform: uppercase;
         }
         .day {
-          min-height: 26px;
+          min-height: 20px;
           border: 1px solid transparent;
           border-radius: 5px;
           background: transparent;
-          padding: 2px 1px;
+          padding: 0;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-start;
+          gap: 1px;
           cursor: pointer;
         }
         .day:hover { background: #eef5ff; }
@@ -162,17 +177,20 @@ def widget_html(cal_url: str) -> str:
           background: #e1eeff;
         }
         .day-num {
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 600;
+          line-height: 1;
         }
         .dots {
           display: flex;
-          gap: 2px;
-          min-height: 4px;
+          gap: 1px;
+          min-height: 0;
+          height: 2px;
+          line-height: 1;
         }
         .dot {
-          width: 3px;
-          height: 3px;
+          width: 2px;
+          height: 2px;
           border-radius: 50%;
           background: var(--accent);
         }
@@ -239,9 +257,6 @@ def widget_html(cal_url: str) -> str:
 
         .hidden { display: none !important; }
 
-        @media (max-width: 920px) {
-          .layout { grid-template-columns: 1fr; }
-        }
         @media (max-width: 560px) {
           .range-fields { grid-template-columns: 1fr; }
           .to { padding-bottom: 0; }
@@ -296,7 +311,7 @@ def widget_html(cal_url: str) -> str:
         </div>
 
         <div id=\"layout\" class=\"layout hidden\">
-          <section class=\"panel\">
+          <section class=\"panel calendar-panel\">
             <div class=\"month-head\">
               <h4 id=\"month-name\" class=\"month-name\">-</h4>
               <div class=\"month-nav\">
@@ -312,7 +327,7 @@ def widget_html(cal_url: str) -> str:
             <div id=\"calendar-root\" class=\"day-grid\"></div>
           </section>
 
-          <section class=\"panel\">
+          <section class=\"panel entries-panel\">
             <div class=\"section\" style=\"margin-top:0;padding-top:0;border-top:0;\">
               <h4 id=\"entries-title\" class=\"section-title\">Entries</h4>
               <div id=\"entries\"></div>
