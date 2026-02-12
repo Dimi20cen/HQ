@@ -288,14 +288,6 @@
             z-index: 1;
         }
 
-        .widget-resize-edge-right {
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 14px;
-            cursor: ew-resize;
-        }
-
         .widget-resize-edge-bottom {
             left: 0;
             right: 0;
@@ -326,9 +318,11 @@
         .card.is-resizing iframe { pointer-events: none; }
 
         body.is-resizing {
-            cursor: nwse-resize;
             user-select: none;
         }
+
+        body.is-resizing-corner { cursor: nwse-resize; }
+        body.is-resizing-bottom { cursor: ns-resize; }
 
         iframe {
             width: 100%;

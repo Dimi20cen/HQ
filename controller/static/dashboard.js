@@ -307,21 +307,14 @@
             resizeHandle.type = 'button';
             resizeHandle.setAttribute('aria-label', `Resize ${tool.name} widget`);
             resizeHandle.setAttribute('title', 'Drag this corner to resize');
-            resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
-
-            const resizeEdgeRight = el('button', 'widget-resize-edge widget-resize-edge-right widget-resize-control');
-            resizeEdgeRight.type = 'button';
-            resizeEdgeRight.setAttribute('aria-label', `Resize ${tool.name} widget width`);
-            resizeEdgeRight.setAttribute('title', 'Drag right edge to resize');
-            resizeEdgeRight.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
+            resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'corner'));
 
             const resizeEdgeBottom = el('button', 'widget-resize-edge widget-resize-edge-bottom widget-resize-control');
             resizeEdgeBottom.type = 'button';
             resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.name} widget height`);
             resizeEdgeBottom.setAttribute('title', 'Drag bottom edge to resize');
-            resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
+            resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'bottom'));
 
-            widgetBox.appendChild(resizeEdgeRight);
             widgetBox.appendChild(resizeEdgeBottom);
             widgetBox.appendChild(resizeHandle);
             card.appendChild(widgetBox);
@@ -445,7 +438,7 @@
         state.dragPointer = null;
     }
 
-    function startWidgetResize(event, name) {
+    function startWidgetResize(event, name, mode = 'corner') {
         if (event.button !== 0) return;
         stopWidgetResize();
 
@@ -464,6 +457,7 @@
             card,
             widgetBox,
             handle: event.currentTarget,
+            mode,
             startY: event.clientY,
             startX: event.clientX,
             startHeight: widgetBox.getBoundingClientRect().height,
@@ -477,6 +471,8 @@
 
         card.classList.add('is-resizing');
         document.body.classList.add('is-resizing');
+        document.body.classList.toggle('is-resizing-bottom', mode === 'bottom');
+        document.body.classList.toggle('is-resizing-corner', mode !== 'bottom');
     }
 
     function onWidgetResizeMove(event) {
@@ -499,13 +495,15 @@
             current.widgetBox.style.height = `${nextHeight}px`;
             current.nextHeight = nextHeight;
 
-            const deltaX = (current.lastX ?? current.startX) - current.startX;
-            const desiredWidth = Math.max(200, current.startWidth + deltaX);
-            const { columns, colGap, columnWidth } = getGridMetrics();
-            const minSpan = getMinCardSpan(columns, colGap, columnWidth);
-            const span = clamp(Math.round((desiredWidth + colGap) / (columnWidth + colGap)), minSpan, columns);
-            current.card.style.gridColumnEnd = `span ${span}`;
-            current.nextColSpan = span;
+            if (current.mode !== 'bottom') {
+                const deltaX = (current.lastX ?? current.startX) - current.startX;
+                const desiredWidth = Math.max(200, current.startWidth + deltaX);
+                const { columns, colGap, columnWidth } = getGridMetrics();
+                const minSpan = getMinCardSpan(columns, colGap, columnWidth);
+                const span = clamp(Math.round((desiredWidth + colGap) / (columnWidth + colGap)), minSpan, columns);
+                current.card.style.gridColumnEnd = `span ${span}`;
+                current.nextColSpan = span;
+            }
 
             resizeCard(current.card);
         });
@@ -523,6 +521,7 @@
 
         resize.card.classList.remove('is-resizing');
         document.body.classList.remove('is-resizing');
+        document.body.classList.remove('is-resizing-bottom', 'is-resizing-corner');
         const { columns, colGap, columnWidth } = getGridMetrics();
         const minSpan = getMinCardSpan(columns, colGap, columnWidth);
         saveWidgetLayout(resize.name, {
