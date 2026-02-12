@@ -63,6 +63,45 @@ def widget_html(cal_url: str) -> str:
           color: var(--danger);
           border-color: #f0c2cc;
         }
+        .circle-btn {
+          width: 26px;
+          height: 26px;
+          padding: 0;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          line-height: 1;
+          font-weight: 700;
+        }
+        .link-btn {
+          border: 1px solid var(--line);
+          border-radius: 7px;
+          background: #fff;
+          color: var(--ink);
+          padding: 4px 8px;
+          font: inherit;
+          font-size: 11px;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+        }
+        .link-btn:hover {
+          background: #f7fbff;
+          border-color: #b5cae2;
+        }
+        .external-link-btn {
+          width: 26px;
+          height: 26px;
+          padding: 0;
+          justify-content: center;
+        }
+        .external-link-btn svg {
+          width: 14px;
+          height: 14px;
+          stroke: currentColor;
+        }
         .icon-btn {
           width: 30px;
           padding: 4px 0;
@@ -266,7 +305,14 @@ def widget_html(cal_url: str) -> str:
     <body>
       <div class=\"card\">
         <div class=\"top\">
-          <button id=\"create-toggle\" class=\"primary hidden\">+ Create</button>
+          <button id=\"create-toggle\" class=\"primary circle-btn hidden\" aria-label=\"Open create form\" title=\"Create entry\">+</button>
+          <a class=\"link-btn external-link-btn\" href=\"https://calendar.google.com/\" target=\"_blank\" rel=\"noopener noreferrer\" aria-label=\"Open Google Calendar\" title=\"Open Google Calendar\">
+            <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">
+              <path d=\"M14 4h6v6\"></path>
+              <path d=\"M10 14L20 4\"></path>
+              <path d=\"M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5\"></path>
+            </svg>
+          </a>
           <button id=\"connect\" class=\"primary\">Connect Google</button>
           <button id=\"refresh\" type=\"button\" class=\"hidden icon-btn\" aria-label=\"Refresh\" title=\"Refresh\">&#8635;</button>
           <button id=\"disconnect\" type=\"button\" class=\"hidden warn\">Disconnect</button>
@@ -404,7 +450,9 @@ def widget_html(cal_url: str) -> str:
         function setFormOpen(open) {
           isFormOpen = open;
           formTopEl.classList.toggle('hidden', !open);
-          createToggleBtn.textContent = open ? 'Close' : '+ Create';
+          createToggleBtn.textContent = open ? '\u00D7' : '+';
+          createToggleBtn.setAttribute('aria-label', open ? 'Close create form' : 'Open create form');
+          createToggleBtn.setAttribute('title', open ? 'Close' : 'Create entry');
           if (!open) {
             selectedEventId = null;
             formTitleEl.textContent = 'Create Entry';
