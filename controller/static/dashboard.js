@@ -580,7 +580,10 @@
 
                 if (widgetBox && iframe) {
                     if (alive) {
-                        if (!iframe.src) iframe.src = `http://127.0.0.1:${tool.port}/widget`;
+                        if (!iframe.src) {
+                            const widgetHost = window.location.hostname;
+                            iframe.src = `${window.location.protocol}//${widgetHost}:${tool.port}/widget`;
+                        }
                         widgetBox.style.display = 'block';
                         if (resizeHandle) resizeHandle.style.display = 'block';
                     } else {

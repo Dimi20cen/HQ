@@ -1,5 +1,6 @@
 import subprocess
 import platform
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -11,12 +12,14 @@ def venv_python():
 
 def main():
     python = venv_python()
+    host = os.getenv("CONTROLLER_HOST", "0.0.0.0")
+    port = os.getenv("CONTROLLER_PORT", "8000")
 
     subprocess.call([
         str(python), "-m", "uvicorn",
         "controller.controller_main:app",
-        "--host", "127.0.0.1",
-        "--port", "8000",
+        "--host", str(host),
+        "--port", str(port),
         "--reload"
     ])
 

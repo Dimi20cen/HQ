@@ -109,9 +109,9 @@ class BaseTool:
 
     def run(self):
         """Standard launcher."""
-        # CHANGED: Removed rocket emoji to prevent Windows UnicodeEncodeError
-        print(f"[*] [{self.title}] Starting on http://127.0.0.1:{self.port}")
-        uvicorn.run(self.app, host="127.0.0.1", port=self.port)
+        host = os.getenv("TOOL_HOST", "0.0.0.0")
+        print(f"[*] [{self.title}] Starting on http://{host}:{self.port}")
+        uvicorn.run(self.app, host=host, port=self.port)
 
 # Helper to check if a function is async
 import inspect
