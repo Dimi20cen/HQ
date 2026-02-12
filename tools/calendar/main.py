@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from fastapi import Query, Request
+from fastapi import Query
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
@@ -11,6 +11,7 @@ from tools.sdk.base_tool import BaseTool
 tool = BaseTool(__file__)
 
 from tools.calendar import auth, config, service, store, sync, widget
+from tools.calendar.schemas import EventCreateRequest, EventUpdateRequest
 
 
 @tool.app.get("/auth/status")
@@ -53,16 +54,16 @@ def list_events(
 
 
 @tool.app.post("/events")
-async def create_event(request: Request, calendar_id: str = Query(config.API_DEFAULT_CAL_ID)):
+async def create_event(request: EventCreateRequest, calendar_id: str = Query(config.API_DEFAULT_CAL_ID)):
     api_service = auth.build_service()
-    payload = await request.json()
+    payload = request.model_dump(exclude_none=True)
     return service.create_event(api_service=api_service, calendar_id=calendar_id, payload=payload)
 
 
 @tool.app.patch("/events/{event_id}")
-async def update_event(event_id: str, request: Request, calendar_id: str = Query(config.API_DEFAULT_CAL_ID)):
+async def update_event(event_id: str, request: EventUpdateRequest, calendar_id: str = Query(config.API_DEFAULT_CAL_ID)):
     api_service = auth.build_service()
-    payload = await request.json()
+    payload = request.model_dump(exclude_none=True)
     return service.update_event(api_service=api_service, calendar_id=calendar_id, event_id=event_id, payload=payload)
 
 
