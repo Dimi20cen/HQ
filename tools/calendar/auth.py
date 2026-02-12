@@ -1,14 +1,11 @@
 import json
 import secrets
-import time
 from typing import Any
 
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 
 from tools.calendar import config, google_api, store
-
-_oauth_states: dict[str, int] = {}
 
 
 def _ensure_client_config() -> None:
@@ -17,13 +14,6 @@ def _ensure_client_config() -> None:
             status_code=400,
             detail="Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment.",
         )
-
-
-def _cleanup_states() -> None:
-    cutoff = int(time.time()) - 900
-    stale = [k for k, ts in _oauth_states.items() if ts < cutoff]
-    for key in stale:
-        _oauth_states.pop(key, None)
 
 
 def auth_status(sync_health: dict) -> dict:
@@ -49,10 +39,10 @@ def auth_status(sync_health: dict) -> dict:
 def auth_start() -> dict:
     google_api.ensure_google_libs()
     _ensure_client_config()
-    _cleanup_states()
+    store.cleanup_oauth_states()
 
     state = secrets.token_urlsafe(24)
-    _oauth_states[state] = int(time.time())
+    store.save_oauth_state(state, ttl_seconds=900)
 
     client_config = {
         "web": {
@@ -78,11 +68,10 @@ def auth_start() -> dict:
 def auth_callback(code: str, state: str) -> RedirectResponse:
     google_api.ensure_google_libs()
     _ensure_client_config()
-    _cleanup_states()
+    store.cleanup_oauth_states()
 
-    if state not in _oauth_states:
+    if not store.consume_oauth_state(state):
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state.")
-    _oauth_states.pop(state, None)
 
     client_config = {
         "web": {

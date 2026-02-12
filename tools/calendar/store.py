@@ -25,6 +25,15 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state TEXT PRIMARY KEY,
+                expires_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
         conn.commit()
 
 
@@ -87,3 +96,36 @@ def get_sync_state(state_key: str) -> dict | None:
         return json.loads(row[0])
     except json.JSONDecodeError:
         return None
+
+
+def save_oauth_state(state: str, ttl_seconds: int = 900) -> None:
+    now = int(time.time())
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO oauth_states(state, expires_at, created_at)
+            VALUES(?, ?, ?)
+            ON CONFLICT(state)
+            DO UPDATE SET expires_at=excluded.expires_at, created_at=excluded.created_at
+            """,
+            (state, now + ttl_seconds, now),
+        )
+        conn.commit()
+
+
+def consume_oauth_state(state: str) -> bool:
+    now = int(time.time())
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute("SELECT expires_at FROM oauth_states WHERE state = ?", (state,)).fetchone()
+        conn.execute("DELETE FROM oauth_states WHERE state = ?", (state,))
+        conn.commit()
+    if not row:
+        return False
+    return int(row[0]) >= now
+
+
+def cleanup_oauth_states() -> None:
+    now = int(time.time())
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM oauth_states WHERE expires_at < ?", (now,))
+        conn.commit()
