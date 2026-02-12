@@ -19,6 +19,7 @@ from controller.process_manager import ProcessManager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
 # --- Path Setup ---
 BASE_DIR = Path(__file__).resolve().parent
@@ -154,6 +155,7 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan
 )
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # -------------------------------------------------------------
 # Core Controller Routes

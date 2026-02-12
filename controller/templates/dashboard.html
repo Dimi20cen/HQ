@@ -3,227 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Utility Controller</title>
-    <style>
-        :root {
-            --bg: #f6f7fb;
-            --bg-accent: #eef1f7;
-            --card: #ffffff;
-            --text: #1f2937;
-            --muted: #6b7280;
-            --border: rgba(0, 0, 0, 0.06);
-            --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-            --green: #16a34a;
-            --red: #dc2626;
-            --yellow: #d97706;
-            --blue: #2563eb;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            font-family: "Space Grotesk", "Segoe UI", sans-serif;
-            margin: 36px;
-            color: var(--text);
-            background:
-                radial-gradient(1200px 600px at 20% -10%, #e7ecf9 0%, transparent 55%),
-                radial-gradient(900px 500px at 90% 0%, #f0f3ff 0%, transparent 50%),
-                var(--bg);
-        }
-
-        .toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            gap: 16px;
-        }
-
-        .title {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .app-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #111827, #3b82f6);
-            display: grid;
-            place-items: center;
-            color: #fff;
-            font-size: 18px;
-            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
-        }
-
-        .app-name {
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .app-subtitle {
-            color: var(--muted);
-            font-size: 13px;
-            margin-top: 2px;
-        }
-
-        .toolbar-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .toolbar-actions button {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-family: inherit;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-        }
-
-        .toolbar-actions button:hover { border-color: rgba(37, 99, 235, 0.4); }
-
-        .toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-            grid-auto-rows: 8px;
-        }
-
-        .card {
-            background: var(--card);
-            border-top: 5px solid #e5e7eb;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s, box-shadow 0.2s;
-            overflow: hidden;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-        }
-
-        .card.is-hidden { display: none; }
-        .card.status-running { border-top-color: var(--green); }
-        .card.status-stopped { border-top-color: var(--red); }
-
-        .card-body {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .card.status-stopped .card-body { padding: 10px; gap: 8px; }
-        .card.status-stopped .tool-name { font-size: 1em; }
-        .card.status-stopped .status-line { font-size: 0.8em; }
-        .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
-
-        .tool-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .tool-header-left {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .tool-name {
-            font-size: 1.1em;
-            font-weight: 700;
-            color: var(--text);
-            text-transform: capitalize;
-        }
-
-        .status-line {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85em;
-            font-weight: 500;
-            color: var(--muted);
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--muted);
-        }
-
-        .status-dot.running { background: var(--green); }
-        .status-dot.stopped { background: var(--red); }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .port-badge {
-            font-size: 0.75em;
-            color: var(--muted);
-            background: var(--bg-accent);
-            padding: 3px 8px;
-            border-radius: 6px;
-        }
-
-        .btn-status {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 28px;
-            font-weight: bold;
-            padding: 4px;
-            line-height: 1;
-            transition: opacity .2s;
-        }
-
-        .btn-status:hover { opacity: 0.7; }
-
-        .btn-green { color: var(--green); }
-        .btn-red { color: var(--red); }
-        .btn-yellow { color: var(--yellow); cursor: wait !important; }
-
-        .widget-container {
-            border-top: 1px solid var(--border);
-            background-color: #fafafa;
-            height: 160px;
-            display: none;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
-        }
-
-        .empty-state {
-            padding: 28px;
-            color: var(--muted);
-            background: var(--card);
-            border: 1px dashed var(--border);
-            border-radius: 12px;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/dashboard.css" />
 </head>
 <body>
 
@@ -236,230 +16,44 @@
         </div>
     </div>
 
-    <label class="toggle">
-        <input id="toggle-stopped" type="checkbox" />
-        <span>Show stopped</span>
-    </label>
+    <div class="toolbar-right">
+        <label class="toggle">
+            <input id="toggle-stopped" type="checkbox" />
+            <span>Show stopped</span>
+        </label>
+        <button id="layout-settings-btn" class="settings-btn" type="button">Layout Settings</button>
+        <div id="layout-settings-popover" class="settings-popover" role="dialog" aria-label="Layout settings">
+            <div class="settings-title">Layout Settings</div>
+            <label class="settings-row">
+                <span>Min widget height (px)</span>
+                <input id="setting-min-height" type="number" min="80" max="1000" />
+            </label>
+            <label class="settings-row">
+                <span>Max widget height (px)</span>
+                <input id="setting-max-height" type="number" min="120" max="2000" />
+            </label>
+            <label class="settings-row">
+                <span>Min widget width (px)</span>
+                <input id="setting-min-width" type="number" min="180" max="1200" />
+            </label>
+            <label class="settings-row">
+                <span>Auto-scroll edge (px)</span>
+                <input id="setting-scroll-edge" type="number" min="20" max="300" />
+            </label>
+            <label class="settings-row">
+                <span>Auto-scroll speed (px)</span>
+                <input id="setting-scroll-step" type="number" min="4" max="100" />
+            </label>
+            <div class="settings-actions">
+                <button id="settings-reset" type="button">Reset</button>
+                <button id="settings-save" type="button">Save</button>
+            </div>
+        </div>
+    </div>
 </header>
 
 <div id="tools-container" class="grid-container"></div>
 
-<script>
-    const REFRESH_RATE = 2000;
-    const GRID_ROW_HEIGHT = 8;
-    const GRID_ROW_GAP = 20;
-
-    const state = {
-        showStopped: false,
-        toolMap: new Map()
-    };
-
-    const els = {
-        container: document.getElementById('tools-container'),
-        toggleStopped: document.getElementById('toggle-stopped')
-    };
-
-    function el(tag, className, text) {
-        const node = document.createElement(tag);
-        if (className) node.className = className;
-        if (text !== undefined && text !== null) node.textContent = text;
-        return node;
-    }
-
-    function safeId(name) {
-        return name.replace(/[^a-zA-Z0-9_-]+/g, '_');
-    }
-
-    async function loadDashboard() {
-        try {
-            const resp = await fetch('/tools');
-            const data = await resp.json();
-            const tools = data.tools || [];
-
-            els.container.innerHTML = '';
-            state.toolMap.clear();
-
-            if (tools.length === 0) {
-                const empty = el('div', 'empty-state', 'No tools found.');
-                els.container.appendChild(empty);
-                return;
-            }
-
-            tools.forEach(tool => {
-                const card = createToolCard(tool);
-                els.container.appendChild(card);
-            });
-
-            requestAnimationFrame(resizeAllCards);
-            refreshAllStatuses();
-
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    function createToolCard(tool) {
-        const card = el('div', `card status-${tool.status || 'stopped'}`);
-        const sId = safeId(tool.name);
-
-        card.id = `card-${sId}`;
-        card.dataset.name = tool.name;
-
-        const cardBody = el('div', 'card-body');
-        const header = el('div', 'tool-header');
-        const left = el('div', 'tool-header-left');
-        const right = el('div', 'header-right');
-
-        const name = el('span', 'tool-name', tool.name);
-        const statusLine = el('div', 'status-line');
-        const statusDot = el('span', 'status-dot');
-        const statusText = el('span', 'status-text', 'Checking...');
-
-        statusLine.appendChild(statusDot);
-        statusLine.appendChild(statusText);
-        left.appendChild(name);
-        left.appendChild(statusLine);
-
-        const btn = el('button', 'btn-status btn-yellow');
-        btn.id = `btn-${sId}`;
-        btn.disabled = true;
-        btn.setAttribute('aria-label', `Toggle ${tool.name}`);
-        btn.textContent = '⏻';
-        btn.addEventListener('click', () => statusButtonAction(tool.name));
-
-        const port = el('span', 'port-badge', `:${tool.port}`);
-
-        right.appendChild(btn);
-        right.appendChild(port);
-
-        header.appendChild(left);
-        header.appendChild(right);
-        cardBody.appendChild(header);
-        card.appendChild(cardBody);
-
-        if (tool.has_widget) {
-            const widgetBox = el('div', 'widget-container');
-            widgetBox.id = `widget-box-${sId}`;
-            const iframe = el('iframe');
-            iframe.id = `iframe-${sId}`;
-            widgetBox.appendChild(iframe);
-            card.appendChild(widgetBox);
-        }
-
-        state.toolMap.set(tool.name, { card, statusDot, statusText, btn, sId });
-        return card;
-    }
-
-    function resizeCard(card) {
-        if (!card || card.classList.contains('is-hidden')) return;
-        const body = card.querySelector('.card-body');
-        const widget = card.querySelector('.widget-container');
-        let height = 0;
-
-        if (body) height += body.scrollHeight;
-        if (widget && widget.style.display !== 'none') height += widget.scrollHeight;
-
-        height += 12;
-        const rowSpan = Math.ceil((height + GRID_ROW_GAP) / (GRID_ROW_HEIGHT + GRID_ROW_GAP));
-        card.style.gridRowEnd = `span ${rowSpan}`;
-    }
-
-    function resizeAllCards() {
-        document.querySelectorAll('.card').forEach(resizeCard);
-    }
-
-    function applyFilters() {
-        state.toolMap.forEach(({ card }) => {
-            const alive = card.dataset.alive === '1';
-            const hidden = !state.showStopped && !alive;
-            card.classList.toggle('is-hidden', hidden);
-        });
-        requestAnimationFrame(resizeAllCards);
-    }
-
-    async function statusButtonAction(name) {
-        const entry = state.toolMap.get(name);
-        if (!entry) return;
-
-        const { btn } = entry;
-        const action = btn.dataset.action;
-
-        if (!action) return;
-
-        btn.className = 'btn-status btn-yellow';
-        btn.disabled = true;
-
-        try {
-            await fetch(`/tools/${name}/${action}`, { method: 'POST' });
-        } catch {
-            alert('Command failed');
-        }
-
-        setTimeout(refreshAllStatuses, 1000);
-    }
-
-    async function refreshAllStatuses() {
-        try {
-            const resp = await fetch('/tools/status-all');
-            const data = await resp.json();
-            const tools = data.tools || [];
-
-            tools.forEach(tool => {
-                const entry = state.toolMap.get(tool.name);
-                if (!entry) return;
-
-                const { card, statusDot, statusText, btn, sId } = entry;
-                const widgetBox = document.getElementById(`widget-box-${sId}`);
-                const iframe = document.getElementById(`iframe-${sId}`);
-                const alive = !!tool.alive;
-
-                card.dataset.alive = alive ? '1' : '0';
-                card.classList.toggle('status-running', alive);
-                card.classList.toggle('status-stopped', !alive);
-
-                statusDot.classList.toggle('running', alive);
-                statusDot.classList.toggle('stopped', !alive);
-
-                statusText.textContent = alive
-                    ? `Running (PID: ${tool.pid})`
-                    : 'Stopped';
-
-                btn.disabled = false;
-                btn.dataset.action = alive ? 'kill' : 'launch';
-                btn.className = alive ? 'btn-status btn-green' : 'btn-status btn-red';
-
-                if (widgetBox && iframe) {
-                    if (alive) {
-                        if (!iframe.src) iframe.src = `http://127.0.0.1:${tool.port}/widget`;
-                        widgetBox.style.display = 'block';
-                    } else {
-                        widgetBox.style.display = 'none';
-                        iframe.removeAttribute('src');
-                    }
-                }
-
-                requestAnimationFrame(() => resizeCard(card));
-            });
-
-            applyFilters();
-
-        } catch (e) {
-            console.error('Refresh failed', e);
-        }
-    }
-
-    function syncToggleState() {
-        state.showStopped = els.toggleStopped.checked;
-        applyFilters();
-    }
-
-    els.toggleStopped.addEventListener('change', syncToggleState);
-
-    syncToggleState();
-    loadDashboard();
-    setInterval(refreshAllStatuses, REFRESH_RATE);
-    window.addEventListener('resize', () => requestAnimationFrame(resizeAllCards));
-</script>
-
+<script src="/static/dashboard.js"></script>
 </body>
 </html>
