@@ -104,9 +104,16 @@ def credentials_from_db() -> Any:
         return None
 
     creds = google_api.Credentials.from_authorized_user_info(token_data, config.SCOPES)
-    if creds.expired and creds.refresh_token:
-        creds.refresh(google_api.GoogleAuthRequest())
-        store.save_token(json.loads(creds.to_json()))
+    if creds.expired:
+        if not creds.refresh_token:
+            store.delete_token()
+            raise HTTPException(status_code=401, detail="Google session expired. Reconnect Google.")
+        try:
+            creds.refresh(google_api.GoogleAuthRequest())
+            store.save_token(json.loads(creds.to_json()))
+        except google_api.RefreshError:
+            store.delete_token()
+            raise HTTPException(status_code=401, detail="Google session expired. Reconnect Google.")
     return creds
 
 
