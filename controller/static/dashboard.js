@@ -302,11 +302,27 @@
             iframe.id = `iframe-${sId}`;
             widgetBox.appendChild(iframe);
 
-            const resizeHandle = el('button', 'widget-resize-handle');
+            const resizeHandle = el('button', 'widget-resize-handle widget-resize-control');
             resizeHandle.id = `resize-handle-${sId}`;
             resizeHandle.type = 'button';
             resizeHandle.setAttribute('aria-label', `Resize ${tool.name} widget`);
+            resizeHandle.setAttribute('title', 'Drag this corner to resize');
             resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
+
+            const resizeEdgeRight = el('button', 'widget-resize-edge widget-resize-edge-right widget-resize-control');
+            resizeEdgeRight.type = 'button';
+            resizeEdgeRight.setAttribute('aria-label', `Resize ${tool.name} widget width`);
+            resizeEdgeRight.setAttribute('title', 'Drag right edge to resize');
+            resizeEdgeRight.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
+
+            const resizeEdgeBottom = el('button', 'widget-resize-edge widget-resize-edge-bottom widget-resize-control');
+            resizeEdgeBottom.type = 'button';
+            resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.name} widget height`);
+            resizeEdgeBottom.setAttribute('title', 'Drag bottom edge to resize');
+            resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name));
+
+            widgetBox.appendChild(resizeEdgeRight);
+            widgetBox.appendChild(resizeEdgeBottom);
             widgetBox.appendChild(resizeHandle);
             card.appendChild(widgetBox);
         }
@@ -560,7 +576,7 @@
                 const { card, statusDot, statusText, btn, sId } = entry;
                 const widgetBox = document.getElementById(`widget-box-${sId}`);
                 const iframe = document.getElementById(`iframe-${sId}`);
-                const resizeHandle = document.getElementById(`resize-handle-${sId}`);
+                const resizeControls = widgetBox ? widgetBox.querySelectorAll('.widget-resize-control') : [];
                 const alive = !!tool.alive;
 
                 card.dataset.alive = alive ? '1' : '0';
@@ -585,11 +601,15 @@
                             iframe.src = `${window.location.protocol}//${widgetHost}:${tool.port}/widget`;
                         }
                         widgetBox.style.display = 'block';
-                        if (resizeHandle) resizeHandle.style.display = 'block';
+                        resizeControls.forEach(node => {
+                            node.style.display = 'block';
+                        });
                     } else {
                         widgetBox.style.display = 'none';
                         iframe.removeAttribute('src');
-                        if (resizeHandle) resizeHandle.style.display = 'none';
+                        resizeControls.forEach(node => {
+                            node.style.display = 'none';
+                        });
                     }
                 }
 

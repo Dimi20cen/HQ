@@ -78,10 +78,16 @@ def widget_generator():
     <!DOCTYPE html>
     <style>
         * {{ box-sizing: border-box; }}
+        html, body {{ height: 100%; }}
         body {{
-            font-family: sans-serif; padding: 10px; margin: 0;
+            font-family: sans-serif; padding: 0; margin: 0;
             font-size: 12px; background: #fff; color: #222;
             overflow-x: hidden;
+        }}
+        .widget-root {{
+            width: 100%;
+            height: 100%;
+            padding: 8px 8px 10px 8px;
         }}
         .row {{ display: flex; gap: 6px; margin-bottom: 6px; width: 100%; }}
         input, textarea, button {{
@@ -94,12 +100,14 @@ def widget_generator():
         textarea {{ width: 100%; height: 70px; resize: vertical; font-family: monospace; }}
     </style>
 
-    <div class="row">
-        <input class="time-input" id="start" value="{current_start}" placeholder="Start">
-        <input class="time-input" id="end" value="{current_end}" placeholder="End">
-        <button onclick="saveConfig(event)">Save</button>
+    <div class="widget-root">
+        <div class="row">
+            <input class="time-input" id="start" value="{current_start}" placeholder="Start">
+            <input class="time-input" id="end" value="{current_end}" placeholder="End">
+            <button onclick="saveConfig(event)">Save</button>
+        </div>
+        <textarea id="procs" placeholder="blocked.exe">{current_procs}</textarea>
     </div>
-    <textarea id="procs" placeholder="blocked.exe">{current_procs}</textarea>
 
     <script>
         async function saveConfig(event) {{

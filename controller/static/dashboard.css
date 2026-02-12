@@ -269,26 +269,52 @@
 
         .widget-container {
             border-top: 1px solid var(--border);
-            background-color: #fafafa;
+            background-color: #fff;
             height: 160px;
             display: none;
             position: relative;
         }
 
-.widget-resize-handle {
-    display: none;
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-    width: 18px;
-    height: 18px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    cursor: nwse-resize;
-    z-index: 2;
-    touch-action: none;
-}
+        .widget-resize-control {
+            display: none;
+            position: absolute;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            touch-action: none;
+        }
+
+        .widget-resize-edge {
+            z-index: 1;
+        }
+
+        .widget-resize-edge-right {
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 14px;
+            cursor: ew-resize;
+        }
+
+        .widget-resize-edge-bottom {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 14px;
+            cursor: ns-resize;
+        }
+
+        .widget-resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 0;
+            background: transparent;
+            cursor: nwse-resize;
+            z-index: 2;
+        }
 
         .card.is-resizing,
         .card.is-resizing:hover {
