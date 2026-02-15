@@ -1,0 +1,11 @@
+{
+    "key": "meditator",
+    "name": "meditator",
+    "title": "Meditator",
+    "version": "1.0.0",
+    "port": 9030,
+    "entry_point": "main.py",
+    "runtime": "python",
+    "auto_start": true,
+    "has_widget": true
+}
