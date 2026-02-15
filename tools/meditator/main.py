@@ -40,65 +40,101 @@ def widget_html():
   <title>{tool.title}</title>
   <style>
     :root {{
-      --bg: #f4f0e8;
-      --panel: #f9f4ec;
-      --ink: #1f2937;
-      --muted: #6b7280;
-      --line: #e7dcca;
-      --wheel-bg: #12151c;
-      --wheel-line: #2a2f3d;
-      --wheel-text: #e5e7eb;
-      --wheel-dim: #7b8290;
-      --item-h: 40px;
-      --wheel-h: 184px;
-      --wheel-pad: 72px;
+      --bg: #eef1f5;
+      --panel: #f9fafb;
+      --ink: #0f1724;
+      --muted: #627185;
+      --line: #dde4ee;
+      --focus: #16a34a;
+      --start-a: #f59e0b;
+      --start-b: #ea7c05;
+      --start-ink: #4a2b08;
+      --wheel-bg: #0b1320;
+      --wheel-line: #1f2b3f;
+      --wheel-text: #e8eef8;
+      --wheel-dim: #6f7d93;
+      --item-h: 42px;
+      --wheel-h: 198px;
+      --wheel-pad: 78px;
     }}
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
-      font-family: "Georgia", "Times New Roman", serif;
+      padding: 10px;
       color: var(--ink);
-      background: var(--bg);
-      padding: 8px;
+      font-family: "Avenir Next", "SF Pro Text", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 100% 100%, #e5f2ff 0%, transparent 44%),
+        radial-gradient(circle at 0% 0%, #f7f9fc 0%, transparent 40%),
+        var(--bg);
     }}
     .card {{
       width: 100%;
       margin: 0;
-      background: var(--panel);
+      border-radius: 18px;
       border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 10px 24px rgba(80, 60, 20, 0.06);
+      background: linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
+      box-shadow:
+        0 14px 30px rgba(15, 23, 36, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
       padding: 14px;
+      display: grid;
+      gap: 12px;
     }}
     .picker-shell {{
       position: relative;
-      background: linear-gradient(180deg, #1a1d26 0%, #12151c 100%);
-      border: 1px solid #2a2f3d;
-      border-radius: 14px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      background:
+        radial-gradient(circle at 50% 12%, #1a2a42 0%, transparent 40%),
+        linear-gradient(180deg, #101826 0%, var(--wheel-bg) 100%);
+      border: 1px solid var(--wheel-line);
+      border-radius: 16px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 12px 24px rgba(8, 15, 28, 0.32);
       overflow: hidden;
-      margin-bottom: 12px;
+      transform: translateZ(0);
+    }}
+    .picker-shell::before,
+    .picker-shell::after {{
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 42px;
+      z-index: 3;
+      pointer-events: none;
+    }}
+    .picker-shell::before {{
+      top: 0;
+      background: linear-gradient(180deg, rgba(11, 19, 32, 0.95), rgba(11, 19, 32, 0.15));
+    }}
+    .picker-shell::after {{
+      bottom: 0;
+      background: linear-gradient(0deg, rgba(11, 19, 32, 0.95), rgba(11, 19, 32, 0.15));
     }}
     .picker-center {{
       position: absolute;
-      left: 8px;
-      right: 8px;
+      left: 10px;
+      right: 10px;
       top: 50%;
       height: var(--item-h);
       transform: translateY(-50%);
-      border-radius: 10px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      pointer-events: none;
+      border-radius: 12px;
+      border: 1px solid rgba(142, 182, 255, 0.32);
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+      box-shadow:
+        0 0 0 1px rgba(142, 182, 255, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
       z-index: 2;
+      pointer-events: none;
     }}
     .picker-grid {{
+      position: relative;
+      z-index: 1;
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
-      padding: 6px 8px;
-      position: relative;
-      z-index: 1;
+      padding: 8px 10px;
     }}
     .wheel {{
       height: var(--wheel-h);
@@ -113,9 +149,7 @@ def widget_html():
       touch-action: pan-y;
     }}
     .wheel.dragging {{ cursor: grabbing; }}
-    .wheel::-webkit-scrollbar {{
-      display: none;
-    }}
+    .wheel::-webkit-scrollbar {{ display: none; }}
     .wheel-item {{
       height: var(--item-h);
       scroll-snap-align: center;
@@ -124,117 +158,183 @@ def widget_html():
       justify-content: center;
       gap: 6px;
       color: var(--wheel-dim);
-      font-weight: 600;
+      font-weight: 560;
+      letter-spacing: 0.01em;
       transition: color 120ms ease, transform 120ms ease;
       user-select: none;
     }}
     .wheel-item .num {{
-      min-width: 16px;
+      min-width: 20px;
       text-align: right;
+      font-variant-numeric: tabular-nums;
     }}
     .wheel-item .unit {{
-      font-size: 0.84rem;
+      font-size: 0.82rem;
+      opacity: 0.92;
     }}
     .wheel-item.selected {{
       color: var(--wheel-text);
-      transform: scale(1.03);
+      transform: scale(1.02);
       font-weight: 700;
+      text-shadow: 0 0 10px rgba(173, 210, 255, 0.3);
     }}
     .row {{
-      margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
     }}
+    .controls {{
+      background: #f7f9fc;
+      border: 1px solid #e3e9f1;
+      border-radius: 14px;
+      padding: 9px;
+    }}
+    .controls-row {{
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+    }}
+    .controls-row #cancelBtn {{
+      justify-self: end;
+    }}
+    .controls-row #startPauseBtn {{
+      justify-self: start;
+      min-width: 110px;
+    }}
     .live-time {{
-      margin-left: auto;
-      background: #10141b;
-      border: 1px solid #2a2f3d;
-      color: #e5e7eb;
+      margin: 0;
+      border: 1px solid #31445e;
+      background: #0f1b2d;
+      color: #f8fbff;
       border-radius: 999px;
-      padding: 6px 10px;
-      font-family: "Courier New", monospace;
-      font-size: 0.9rem;
+      padding: 7px 12px;
+      font-family: "Menlo", "Consolas", monospace;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      min-width: 88px;
+      text-align: center;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }}
     button {{
-      border: none;
-      border-radius: 10px;
-      padding: 8px 12px;
+      border: 0;
+      border-radius: 11px;
+      padding: 9px 14px;
       font-size: 0.95rem;
-      cursor: pointer;
-      background: linear-gradient(180deg, #fbbf24, #f59e0b);
-      color: #422006;
       font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }}
+    button:hover {{ transform: translateY(-1px); }}
+    button:active {{ transform: translateY(0); }}
+    #startPauseBtn {{
+      background: linear-gradient(180deg, var(--start-a), var(--start-b));
+      color: var(--start-ink);
+      box-shadow: 0 6px 12px rgba(234, 124, 5, 0.2);
+    }}
+    #startPauseBtn.running {{
+      filter: saturate(1.15);
+      box-shadow: 0 0 0 2px rgba(234, 124, 5, 0.2), 0 8px 18px rgba(234, 124, 5, 0.34);
     }}
     button.secondary {{
-      background: #fff;
-      border: 1px solid var(--line);
+      background: #ffffff;
       color: var(--ink);
-      font-weight: 600;
+      border: 1px solid #d7deea;
+      box-shadow: none;
     }}
     .options {{
-      border-top: 1px dashed var(--line);
-      padding-top: 10px;
-      margin-top: 2px;
+      border: 1px solid #e3e9f1;
+      background: #f7f9fc;
+      border-radius: 14px;
+      padding: 9px;
+      display: grid;
+      gap: 8px;
     }}
-    .options label {{
+    .music-row {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.97rem;
       font-weight: 600;
+      color: #16324f;
+    }}
+    .music-row input[type="checkbox"] {{
+      width: 16px;
+      height: 16px;
+      accent-color: var(--focus);
     }}
     .menu-row {{
-      margin-top: 4px;
-      background: linear-gradient(90deg, #14151a 0%, #1d2028 100%);
-      border-radius: 10px;
-      border: 1px solid #242834;
-      padding: 10px 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #d7e0ed;
+      padding: 8px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      color: #f3f4f6;
       gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
     }}
     .menu-left {{
       font-size: 0.93rem;
-      color: #e5e7eb;
+      color: #173250;
+      font-weight: 620;
     }}
     .menu-right {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 0;
+      border: 1px solid #cfdae8;
+      border-radius: 999px;
+      background: #f7faff;
+      padding: 6px 10px;
     }}
     .menu-right select {{
-      border: none;
+      border: 0;
       background: transparent;
-      color: #f3f4f6;
+      color: #15314f;
       padding: 0;
       font-size: 0.92rem;
-      max-width: 140px;
+      font-weight: 620;
+      max-width: 160px;
       text-align: right;
       appearance: none;
       -webkit-appearance: none;
+      outline: none;
+      cursor: pointer;
     }}
     .chev {{
-      color: #9ca3af;
-      font-weight: 700;
+      display: none;
     }}
     .status {{
       min-height: 1.2rem;
-      margin-top: 10px;
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.91rem;
+      font-weight: 520;
+      padding: 0 4px;
+    }}
+    .status.active {{
+      color: #127a44;
     }}
     .locked {{
       pointer-events: none;
       opacity: 0.85;
     }}
-    .noselect {{
-      user-select: none;
-    }}
+    .noselect {{ user-select: none; }}
     @media (max-width: 520px) {{
       .row {{ gap: 8px; }}
       button {{ flex: 1; }}
+      .controls-row {{
+        grid-template-columns: 1fr;
+      }}
+      .controls-row #cancelBtn,
+      .controls-row #startPauseBtn {{
+        justify-self: stretch;
+      }}
       .picker-grid {{ gap: 6px; }}
-      .wheel-item .unit {{ font-size: 0.8rem; }}
+      .wheel-item .unit {{ font-size: 0.79rem; }}
+      .live-time {{ width: 100%; margin-left: 0; }}
     }}
   </style>
 </head>
@@ -249,15 +349,16 @@ def widget_html():
       </div>
     </div>
 
-    <div class="row">
-      <button id="startBtn">Start</button>
-      <button id="pauseBtn" class="secondary">Pause</button>
-      <button id="resetBtn" class="secondary">Reset</button>
-      <div class="live-time" id="timer">15:00</div>
+    <div class="controls">
+      <div class="controls-row">
+        <button id="startPauseBtn">Start</button>
+        <div class="live-time" id="timer">15:00</div>
+        <button id="cancelBtn" class="secondary">Cancel</button>
+      </div>
     </div>
 
     <div class="options">
-      <div class="row">
+      <div class="music-row">
         <input type="checkbox" id="musicToggle" checked />
         <label for="musicToggle">Play music during timer</label>
       </div>
@@ -268,7 +369,6 @@ def widget_html():
             <option value="stop" selected>Stop Music</option>
             <option value="ring">Play Ringtone</option>
           </select>
-          <span class="chev">›</span>
         </span>
       </div>
     </div>
@@ -284,7 +384,7 @@ def widget_html():
   </audio>
 
   <script>
-    const ITEM_H = 40;
+    const ITEM_H = 42;
 
     const wheels = {{
       hours: {{ el: document.getElementById("hoursWheel"), max: 12, unit: "hours", value: 0 }},
@@ -295,9 +395,8 @@ def widget_html():
     const finishModeEl = document.getElementById("finishMode");
     const timerEl = document.getElementById("timer");
     const statusEl = document.getElementById("status");
-    const startBtn = document.getElementById("startBtn");
-    const pauseBtn = document.getElementById("pauseBtn");
-    const resetBtn = document.getElementById("resetBtn");
+    const startPauseBtn = document.getElementById("startPauseBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
     const musicToggle = document.getElementById("musicToggle");
     const musicAudio = document.getElementById("musicAudio");
     const ringAudio = document.getElementById("ringAudio");
@@ -305,6 +404,16 @@ def widget_html():
     let countdown = null;
     let remainingSeconds = 15 * 60;
     let running = false;
+
+    function syncPrimaryButton() {{
+      startPauseBtn.textContent = running ? "Pause" : "Start";
+      startPauseBtn.classList.toggle("running", running);
+    }}
+
+    function setStatus(text, active = false) {{
+      statusEl.textContent = text;
+      statusEl.classList.toggle("active", active);
+    }}
 
     function formatTime(totalSeconds) {{
       const hours = Math.floor(totalSeconds / 3600);
@@ -336,7 +445,7 @@ def widget_html():
       if (musicToggle.checked) {{
         musicAudio.currentTime = 0;
         musicAudio.play().catch(() => {{
-          statusEl.textContent = "Timer started. Audio blocked until user interaction is allowed.";
+          setStatus("Timer started. Audio blocked until user interaction is allowed.");
         }});
       }}
     }}
@@ -439,12 +548,13 @@ def widget_html():
       countdown = null;
       stopMusic();
       setWheelLocked(false);
+      syncPrimaryButton();
       if (selectedFinishMode() === "ring") {{
         ringAudio.currentTime = 0;
         ringAudio.play().catch(() => null);
-        statusEl.textContent = "Session complete. Ringtone played.";
+        setStatus("Session complete. Ringtone played.");
       }} else {{
-        statusEl.textContent = "Session complete.";
+        setStatus("Session complete.");
       }}
     }}
 
@@ -452,13 +562,14 @@ def widget_html():
       if (running) return;
       if (remainingSeconds <= 0) remainingSeconds = getSelectedDurationSeconds();
       if (remainingSeconds <= 0) {{
-        statusEl.textContent = "Pick a duration greater than 0 seconds.";
+        setStatus("Pick a duration greater than 0 seconds.");
         return;
       }}
       stopRingtone();
       running = true;
       setWheelLocked(true);
-      statusEl.textContent = "Meditation in progress...";
+      syncPrimaryButton();
+      setStatus("Meditation in progress...", true);
       startMusicIfEnabled();
       countdown = setInterval(() => {{
         remainingSeconds -= 1;
@@ -479,39 +590,47 @@ def widget_html():
       countdown = null;
       stopMusic();
       setWheelLocked(false);
-      statusEl.textContent = "Paused.";
+      syncPrimaryButton();
+      setStatus("Paused.");
     }}
 
-    function resetTimer() {{
+    function cancelTimer() {{
       running = false;
       clearInterval(countdown);
       countdown = null;
       stopMusic();
       stopRingtone();
       setWheelLocked(false);
+      syncPrimaryButton();
       remainingSeconds = getSelectedDurationSeconds();
       updateTimerDisplay();
-      statusEl.textContent = "Reset.";
+      setStatus("Ready.");
     }}
 
     Object.keys(wheels).forEach(buildWheel);
     remainingSeconds = getSelectedDurationSeconds();
     updateTimerDisplay();
+    syncPrimaryButton();
 
     musicToggle.addEventListener("change", () => {{
       if (!running) return;
       if (musicToggle.checked) {{
         startMusicIfEnabled();
-        statusEl.textContent = "Meditation in progress...";
+        setStatus("Meditation in progress...", true);
       }} else {{
         stopMusic();
-        statusEl.textContent = "Meditation in progress (music off).";
+        setStatus("Meditation in progress (music off).", true);
       }}
     }});
 
-    startBtn.addEventListener("click", startTimer);
-    pauseBtn.addEventListener("click", pauseTimer);
-    resetBtn.addEventListener("click", resetTimer);
+    startPauseBtn.addEventListener("click", () => {{
+      if (running) {{
+        pauseTimer();
+      }} else {{
+        startTimer();
+      }}
+    }});
+    cancelBtn.addEventListener("click", cancelTimer);
   </script>
 </body>
 </html>
