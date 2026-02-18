@@ -1,0 +1,21 @@
+services:
+  hq:
+    build: .
+    container_name: hq
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CONTROLLER_HOST: 0.0.0.0
+      CONTROLLER_PORT: "8000"
+      CONTROLLER_DB_PATH: /app/runtime/controller/tools.db
+      CALENDAR_DB_PATH: /app/runtime/calendar/calendar.db
+      JOBBER_DB_PATH: /app/runtime/jobber/jobs.db
+    ports:
+      - "${LAN_BIND_IP:-192.168.1.119}:${LAN_BIND_PORT:-8000}:8000"
+    command: >
+      sh -c "mkdir -p /app/runtime/controller /app/runtime/calendar /app/runtime/jobber /app/logs
+      && python -m uvicorn controller.controller_main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./runtime:/app/runtime
+      - ./logs:/app/logs

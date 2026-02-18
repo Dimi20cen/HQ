@@ -6,8 +6,9 @@ from sqlalchemy import Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from pathlib import Path
+import os
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = str(BASE_DIR / "tools.db")
+DB_PATH = os.getenv("CONTROLLER_DB_PATH", str(BASE_DIR / "tools.db"))
 
 # SQLite engine
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)

@@ -5,7 +5,7 @@ from urllib.parse import quote_plus
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 ROOT_DIR = Path(__file__).resolve().parent
-DB_PATH = ROOT_DIR / "calendar.db"
+DB_PATH = Path(os.getenv("CALENDAR_DB_PATH", str(ROOT_DIR / "calendar.db")))
 
 SYNC_INTERVAL_SECONDS = max(int(os.getenv("CALENDAR_SYNC_INTERVAL_SECONDS", "300")), 15)
 SYNC_MAX_BACKOFF_SECONDS = max(
