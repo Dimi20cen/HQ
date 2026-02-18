@@ -25,6 +25,7 @@ tool = BaseTool(__file__)
 # 3. DATABASE SETUP
 DB_FILE = tool.root_dir / "jobs.db"
 CONFIG_PATH = tool.root_dir / "jobber.config.json"
+DB_FILE = Path(os.getenv("JOBBER_DB_PATH", str(DB_FILE)))
 
 DEFAULT_OUTPUT_DIR = "cover-letter"
 DEFAULT_PROMPT_LOG = Path(tempfile.gettempdir()) / "covlet-last-prompt.txt"

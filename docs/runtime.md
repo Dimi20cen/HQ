@@ -24,3 +24,19 @@ Ports
 
 Gate
 - `./bin/gate` (compileall; pytest only if tests exist + installed)
+
+Docker (LAN deploy)
+- Requires Docker Engine + Compose v2.
+- Uses `docker-compose.yml` in repo root.
+- Set bind values in `.env`:
+  - `LAN_BIND_IP=192.168.1.119`
+  - `LAN_BIND_PORT=8000`
+- Start:
+  - `docker compose up -d --build`
+- Verify:
+  - `curl http://127.0.0.1:8000/tools`
+  - `curl http://192.168.1.119:8000/tools`
+- Persistent runtime data:
+  - `runtime/controller/tools.db`
+  - `runtime/calendar/calendar.db`
+  - `runtime/jobber/jobs.db`
