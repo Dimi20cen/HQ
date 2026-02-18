@@ -38,5 +38,6 @@ Docker (LAN deploy)
   - `curl http://192.168.1.119:8000/tools`
 - Persistent runtime data:
   - `runtime/controller/tools.db`
-  - `runtime/calendar/calendar.db`
-  - `runtime/jobber/jobs.db`
+  - `runtime/tools/calendar/calendar.db`
+  - `runtime/tools/jobber/jobs.db`
+  - Future tools: `runtime/tools/<tool_name>/...` (auto-created by tool code)

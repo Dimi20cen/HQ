@@ -56,6 +56,7 @@ class Tool(Base):
 # Database initialization
 # -------------------------------------------------------------
 def init_db():
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
 
 

@@ -6,6 +6,7 @@ from tools.calendar.config import DB_PATH
 
 
 def init_db() -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             """
