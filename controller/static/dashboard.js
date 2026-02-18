@@ -596,8 +596,7 @@
                 if (widgetBox && iframe) {
                     if (alive) {
                         if (!iframe.src) {
-                            const widgetHost = window.location.hostname;
-                            iframe.src = `${window.location.protocol}//${widgetHost}:${tool.port}/widget`;
+                            iframe.src = `/proxy/${encodeURIComponent(tool.name)}/widget`;
                         }
                         widgetBox.style.display = 'block';
                         resizeControls.forEach(node => {

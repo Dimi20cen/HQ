@@ -17,7 +17,7 @@ from controller.db import (
 from controller.process_manager import ProcessManager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -222,6 +222,81 @@ def kill_tool(name: str):
 @app.get("/tools/{name}/alive")
 def tool_alive(name: str):
     return ProcessManager.is_alive(name)
+
+
+def _rewrite_widget_content(content: bytes, tool_name: str, content_type: str) -> bytes:
+    """Rewrite absolute root paths in proxied widget HTML/JS to stay under controller proxy."""
+    if "text/html" not in content_type and "javascript" not in content_type:
+        return content
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return content
+
+    prefix = f"/proxy/{tool_name}/"
+    replacements = [
+        ('src="/', f'src="{prefix}'),
+        ("src='/", f"src='{prefix}"),
+        ('href="/', f'href="{prefix}'),
+        ("href='/", f"href='{prefix}"),
+        ('action="/', f'action="{prefix}'),
+        ("action='/", f"action='{prefix}"),
+        ('fetch("/', f'fetch("{prefix}'),
+        ("fetch('/", f"fetch('{prefix}"),
+    ]
+
+    for before, after in replacements:
+        text = text.replace(before, after)
+
+    return text.encode("utf-8")
+
+
+@app.api_route("/proxy/{name}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+async def proxy_tool_http(name: str, path: str, request: Request):
+    tool = get_tool_by_name(name)
+    if not tool:
+        return JSONResponse(status_code=404, content={"detail": "Tool not found."})
+
+    if not tool.port:
+        return JSONResponse(status_code=400, content={"detail": "No port assigned."})
+
+    target_url = f"http://127.0.0.1:{tool.port}/{path}"
+    body = await request.body()
+
+    headers = {}
+    content_type = request.headers.get("content-type")
+    if content_type:
+        headers["content-type"] = content_type
+
+    try:
+        resp = requests.request(
+            method=request.method,
+            url=target_url,
+            params=request.query_params,
+            data=body if body else None,
+            headers=headers,
+            timeout=30,
+            allow_redirects=False,
+        )
+    except requests.exceptions.ConnectionError:
+        return JSONResponse(
+            status_code=502,
+            content={"detail": f"Tool '{name}' unreachable on port {tool.port}."},
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+
+    response_content_type = resp.headers.get("content-type", "")
+    payload = _rewrite_widget_content(resp.content, name, response_content_type)
+
+    out_headers = {}
+    for h in ("content-type", "cache-control", "location"):
+        value = resp.headers.get(h)
+        if value:
+            out_headers[h] = value
+
+    return Response(content=payload, status_code=resp.status_code, headers=out_headers)
 
 # -------------------------------------------------------------
 # Generic Tool Proxy

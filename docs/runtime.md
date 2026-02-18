@@ -28,6 +28,7 @@ Gate
 Docker (LAN deploy)
 - Requires Docker Engine + Compose v2.
 - Uses `docker-compose.yml` in repo root.
+- Expose only controller port `8000`; widget traffic is proxied through controller.
 - Set bind values in `.env`:
   - `LAN_BIND_IP=192.168.1.119`
   - `LAN_BIND_PORT=8000`
