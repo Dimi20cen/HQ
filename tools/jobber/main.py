@@ -277,6 +277,7 @@ if REASONING_EFFORT == "" and codex_reasoning_raw:
 PROMPT_LOG = Path(os.environ.get("COVLET_PROMPT_LOG") or DEFAULT_PROMPT_LOG)
 
 def init_db():
+    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS jobs (
