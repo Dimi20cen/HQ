@@ -1,4 +1,10 @@
 ## 2026-02-25
+- Summary: Improved dashboard mobile/web usability by adding viewport scaling, always-visible status text, larger touch targets, small-screen layout safeguards, coarse-pointer drag reorder fallback, and a dedicated reorder mode panel with explicit up/down controls; added tool `category` support and a dashboard view-model mapping layer for cleaner UI rendering.
+- Affected files: `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `controller/controller_main.py`, `create_tool.py`, `docs/tools.md`, `docs/controller.md`, `docs/dashboard-mobile-web-checklist.md`, `tools/*/tool.json`
+- Migration notes: None.
+- Validation status: `node --check controller/static/dashboard.js`, `python3 -m py_compile controller/controller_main.py controller/db.py controller/process_manager.py create_tool.py`, runtime `GET /dashboard`, `GET /tools`, `GET /tools/status-all`, downloader lifecycle smoke (`launch`, `auto-start on/off`, `kill`), and `/tools` category/title payload check passed.
+
+## 2026-02-25
 - Summary: Removed `has_widget` from tool manifests and controller/dashboard logic; widgets are now treated as always available.
 - Affected files: `controller/controller_main.py`, `controller/db.py`, `controller/static/dashboard.js`, `create_tool.py`, `tools/*/tool.json`, `docs/tools.md`
 - Migration notes: Existing tools should remove `has_widget` from `tool.json`; no behavior toggle remains.

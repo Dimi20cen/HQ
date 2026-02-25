@@ -3,7 +3,7 @@ read_when: integrating UI or debugging tools
 
 Endpoints
 - `GET /dashboard` html dashboard
-- `GET /tools` list tools from DB
+- `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)
 - `GET /tools/status-all` batch status check
 - `POST /tools/{name}/launch` start tool
 - `POST /tools/{name}/kill` stop tool

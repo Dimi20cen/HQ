@@ -6,5 +6,6 @@
     "port": 9030,
     "entry_point": "main.py",
     "runtime": "python",
-    "auto_start": true
+    "auto_start": true,
+    "category": "display"
 }

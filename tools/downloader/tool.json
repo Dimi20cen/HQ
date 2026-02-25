@@ -5,5 +5,6 @@
     "version": "1.0.0",
     "port": 9020,
     "entry_point": "main.py",
-    "auto_start": false
+    "auto_start": false,
+    "category": "background"
 }

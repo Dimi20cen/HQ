@@ -16,6 +16,7 @@ Common fields (defaults)
 - `title`: dashboard label (default from `name`)
 - `version`: default `0.1.0`
 - `auto_start`: controller auto-launch (default `false`)
+- `category`: dashboard grouping (`display`, `background`, or `hybrid`; default `display`)
 
 Optional `tool.json` fields
 - `key`: legacy/folder id (not used by controller)

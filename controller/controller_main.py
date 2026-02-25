@@ -55,11 +55,13 @@ def _write_tool_manifest(name: str, manifest: dict) -> bool:
         return False
 
 
-def _get_tool_auto_start(name: str) -> bool:
-    manifest = _read_tool_manifest(name)
-    if not manifest:
-        return False
-    return bool(manifest.get("auto_start", False))
+def _normalize_tool_category(value: str | None) -> str:
+    if not isinstance(value, str):
+        return "display"
+    category = value.strip().lower()
+    if category in {"display", "background", "hybrid"}:
+        return category
+    return "display"
 
 def scan_tools():
     """
@@ -201,7 +203,10 @@ def dashboard(request: Request):
 def get_tools():
     tools = list_tools()
     for tool in tools:
-        tool["auto_start"] = _get_tool_auto_start(tool["name"])
+        manifest = _read_tool_manifest(tool["name"]) or {}
+        tool["auto_start"] = bool(manifest.get("auto_start", False))
+        tool["category"] = _normalize_tool_category(manifest.get("category"))
+        tool["title"] = str(manifest.get("title") or tool["name"])
     return {"tools": tools}
 
 @app.post("/tools/register")

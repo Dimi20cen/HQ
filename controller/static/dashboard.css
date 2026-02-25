@@ -34,9 +34,124 @@
         .top-actions {
             display: flex;
             justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
             position: relative;
             margin-bottom: 10px;
             z-index: 120;
+        }
+
+        .reorder-mode-btn {
+            display: none;
+            min-height: 40px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 12px;
+            cursor: pointer;
+        }
+
+        @media (pointer: coarse) {
+            .reorder-mode-btn {
+                display: inline-flex;
+                align-items: center;
+            }
+        }
+
+        .reorder-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 62px;
+            min-width: 280px;
+            max-width: 340px;
+            max-height: min(70vh, 560px);
+            overflow: auto;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+            padding: 10px;
+            z-index: 131;
+        }
+
+        .reorder-title {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .reorder-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .reorder-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 8px;
+            background: #fff;
+        }
+
+        .reorder-name {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .reorder-controls {
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .reorder-move-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            color: #374151;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .reorder-move-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .reorder-panel-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        .reorder-done-btn {
+            min-height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-accent);
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 12px;
+            cursor: pointer;
         }
 
         .apps-menu-btn {
@@ -332,22 +447,36 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .tool-name {
+            display: block;
             font-size: 1em;
             font-weight: 700;
             color: var(--text);
             text-transform: capitalize;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .status-line {
-            display: none;
+            display: flex;
             align-items: center;
             gap: 6px;
             font-size: 0.85em;
             font-weight: 500;
             color: var(--muted);
+            min-width: 0;
+        }
+
+        .status-text {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .status-dot {
@@ -364,6 +493,7 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            flex-shrink: 0;
         }
 
         .btn-status {
@@ -372,7 +502,12 @@
             cursor: pointer;
             font-size: 24px;
             font-weight: bold;
-            padding: 2px;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
             line-height: 1;
             transition: opacity .2s;
         }
@@ -384,8 +519,8 @@
         .btn-yellow { color: var(--yellow); cursor: wait !important; }
 
         .tool-settings-btn {
-            width: 24px;
-            height: 24px;
+            width: 40px;
+            height: 40px;
             border: 1px solid var(--border);
             border-radius: 6px;
             background: #fff;
@@ -398,8 +533,8 @@
         }
 
         .tool-open-btn {
-            width: 24px;
-            height: 24px;
+            width: 40px;
+            height: 40px;
             border: 1px solid var(--border);
             border-radius: 6px;
             background: #fff;
@@ -532,6 +667,54 @@
             height: 100%;
             border: none;
             display: block;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                margin: 12px;
+            }
+
+            .top-actions {
+                gap: 6px;
+            }
+
+            .reorder-mode-btn {
+                min-height: 42px;
+                padding: 0 10px;
+            }
+
+            .reorder-panel {
+                right: 0;
+                min-width: min(320px, calc(100vw - 24px));
+                max-width: calc(100vw - 24px);
+            }
+
+            .reorder-move-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .hidden-tools-menu {
+                min-width: min(260px, calc(100vw - 24px));
+                max-width: calc(100vw - 24px);
+            }
+
+            .apps-row-settings-btn,
+            .apps-row-power-btn,
+            .apps-row-open-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .apps-menu-row {
+                min-height: 42px;
+            }
+
+            .tool-open-btn,
+            .tool-settings-btn {
+                width: 42px;
+                height: 42px;
+            }
         }
 
         .empty-state {

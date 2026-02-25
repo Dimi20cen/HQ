@@ -1,6 +1,4 @@
     const REFRESH_RATE = 2000;
-    const GRID_ROW_HEIGHT = 8;
-    const GRID_ROW_GAP = 20;
     const WIDGET_LAYOUT_STORAGE_KEY = 'dashboard.widgetLayout.v1';
     const WIDGET_ORDER_STORAGE_KEY = 'dashboard.widgetOrder.v1';
     const HIDDEN_TOOLS_STORAGE_KEY = 'dashboard.hiddenTools.v1';
@@ -21,13 +19,17 @@
         widgetOrder: loadWidgetOrder(),
         hiddenTools: loadHiddenTools(),
         hiddenToolsMenuOpen: false,
+        reorderModeOpen: false,
         appsRowMenuOpenFor: null,
         dragAutoScrollRaf: 0,
         dragPointer: null,
         settings: { ...DEFAULT_SETTINGS }
     };
+    const CATEGORY_ORDER = { display: 0, hybrid: 1, background: 2 };
 
     const els = {
+        reorderModeBtn: document.getElementById('reorder-mode-btn'),
+        reorderPanel: document.getElementById('reorder-panel'),
         appsMenuBtn: document.getElementById('apps-menu-btn'),
         hiddenToolsMenu: document.getElementById('hidden-tools-menu'),
         container: document.getElementById('tools-container')
@@ -42,6 +44,40 @@
 
     function safeId(name) {
         return name.replace(/[^a-zA-Z0-9_-]+/g, '_');
+    }
+
+    function normalizeCategory(value) {
+        const category = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        if (category === 'display' || category === 'background' || category === 'hybrid') return category;
+        return 'display';
+    }
+
+    function categoryLabel(category) {
+        if (category === 'background') return 'Background';
+        if (category === 'hybrid') return 'Hybrid';
+        return 'Display';
+    }
+
+    function toToolViewModel(rawTool) {
+        const id = String(rawTool?.name || '').trim();
+        const title = String(rawTool?.title || id).trim() || id;
+        return {
+            id,
+            name: id,
+            title,
+            category: normalizeCategory(rawTool?.category),
+            status: rawTool?.status || 'stopped',
+            autoStart: !!rawTool?.auto_start
+        };
+    }
+
+    function sortToolsByCategory(tools) {
+        return [...tools].sort((a, b) => {
+            const ac = CATEGORY_ORDER[normalizeCategory(a?.category)] ?? 0;
+            const bc = CATEGORY_ORDER[normalizeCategory(b?.category)] ?? 0;
+            if (ac !== bc) return ac - bc;
+            return String(a?.title || a?.name || '').localeCompare(String(b?.title || b?.name || ''));
+        });
     }
 
     function loadWidgetLayout() {
@@ -120,9 +156,31 @@
         return Math.max(min, Math.min(max, value));
     }
 
+    function canUseDragReorder() {
+        return !window.matchMedia('(pointer: coarse)').matches;
+    }
+
     function openToolPage(name) {
         const url = `/proxy/${encodeURIComponent(name)}/widget`;
         window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function getCurrentCardOrder() {
+        return Array.from(els.container.querySelectorAll('.card'))
+            .map(card => card.dataset.name)
+            .filter(Boolean);
+    }
+
+    function applyCardOrder(order) {
+        if (!Array.isArray(order) || order.length === 0) return;
+        const frag = document.createDocumentFragment();
+        order.forEach(name => {
+            const entry = state.toolMap.get(name);
+            if (entry && entry.card) frag.appendChild(entry.card);
+        });
+        els.container.appendChild(frag);
+        saveWidgetOrder();
+        requestAnimationFrame(resizeAllCards);
     }
 
     function getGridMetrics() {
@@ -131,6 +189,13 @@
         const colGap = parseFloat(styles.columnGap || styles.gap || '20') || 20;
         const columnWidth = (els.container.clientWidth - colGap * (columns - 1)) / columns;
         return { columns, colGap, columnWidth };
+    }
+
+    function getGridRowMetrics() {
+        const styles = getComputedStyle(els.container);
+        const rowHeight = parseFloat(styles.gridAutoRows || '8') || 8;
+        const rowGap = parseFloat(styles.rowGap || styles.gap || '14') || 14;
+        return { rowHeight, rowGap };
     }
 
     function getMinCardSpan(columns, colGap, columnWidth) {
@@ -178,7 +243,8 @@
         try {
             const resp = await fetch('/tools');
             const data = await resp.json();
-            const tools = applySavedOrder(data.tools || []);
+            const rawTools = applySavedOrder(sortToolsByCategory(data.tools || []));
+            const tools = rawTools.map(toToolViewModel).filter(tool => !!tool.id);
 
             stopWidgetResize();
             els.container.innerHTML = '';
@@ -208,17 +274,18 @@
 
     function createToolCard(tool) {
         const card = el('div', `card status-${tool.status || 'stopped'}`);
-        const sId = safeId(tool.name);
+        const sId = safeId(tool.id);
 
         card.id = `card-${sId}`;
-        card.dataset.name = tool.name;
+        card.dataset.name = tool.id;
+        card.dataset.category = tool.category;
 
         const cardBody = el('div', 'card-body');
         const header = el('div', 'tool-header');
         const left = el('div', 'tool-header-left');
         const right = el('div', 'header-right');
 
-        const name = el('span', 'tool-name', tool.name);
+        const name = el('span', 'tool-name', tool.title);
         const statusLine = el('div', 'status-line');
         const statusDot = el('span', 'status-dot');
         const statusText = el('span', 'status-text', 'Checking...');
@@ -232,13 +299,13 @@
         btn.id = `btn-${sId}`;
         btn.disabled = true;
         btn.type = 'button';
-        btn.setAttribute('aria-label', `Toggle ${tool.name}`);
+        btn.setAttribute('aria-label', `Toggle ${tool.title}`);
         btn.textContent = '⏻';
-        btn.addEventListener('click', () => statusButtonAction(tool.name));
+        btn.addEventListener('click', () => statusButtonAction(tool.id));
 
         const openBtn = el('button', 'tool-open-btn');
         openBtn.type = 'button';
-        openBtn.setAttribute('aria-label', `Open ${tool.name}`);
+        openBtn.setAttribute('aria-label', `Open ${tool.title}`);
         openBtn.innerHTML = `
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M14 5h5v5M10 14L19 5M19 13v6H5V5h6" />
@@ -246,12 +313,12 @@
         `;
         openBtn.addEventListener('click', event => {
             event.stopPropagation();
-            openToolPage(tool.name);
+            openToolPage(tool.id);
         });
 
         const settingsBtn = el('button', 'tool-settings-btn');
         settingsBtn.type = 'button';
-        settingsBtn.setAttribute('aria-label', `Open ${tool.name} settings`);
+        settingsBtn.setAttribute('aria-label', `Open ${tool.title} settings`);
         settingsBtn.innerHTML = `
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h9M15 7h5M9 7v0M4 17h5M11 17h9M15 17v0M13 7a2 2 0 1 0-4 0a2 2 0 0 0 4 0m4 10a2 2 0 1 0-4 0a2 2 0 0 0 4 0" />
@@ -276,14 +343,14 @@
         visibilityAction.addEventListener('click', event => {
             event.stopPropagation();
             const hidden = !card.classList.contains('is-hidden');
-            setToolHidden(tool.name, hidden);
+            setToolHidden(tool.id, hidden);
             settingsMenu.classList.remove('is-open');
         });
         autoStartAction.addEventListener('click', async event => {
             event.stopPropagation();
-            const entry = state.toolMap.get(tool.name);
+            const entry = state.toolMap.get(tool.id);
             if (!entry) return;
-            await setToolAutoStart(tool.name, !entry.autoStart);
+            await setToolAutoStart(tool.id, !entry.autoStart);
             settingsMenu.classList.remove('is-open');
         });
 
@@ -296,12 +363,12 @@
         cardBody.appendChild(header);
         card.appendChild(cardBody);
         card.appendChild(settingsMenu);
-        card.draggable = true;
+        card.draggable = canUseDragReorder();
         wireCardDnD(card, header);
 
         const widgetBox = el('div', 'widget-container');
         widgetBox.id = `widget-box-${sId}`;
-        const savedLayout = state.widgetLayout[tool.name] || {};
+        const savedLayout = state.widgetLayout[tool.id] || {};
         const savedHeight = savedLayout.height;
         if (Number.isFinite(savedHeight)) {
             const h = clamp(savedHeight, state.settings.minWidgetHeight, getMaxWidgetHeight());
@@ -320,37 +387,38 @@
         const resizeHandle = el('button', 'widget-resize-handle widget-resize-control');
         resizeHandle.id = `resize-handle-${sId}`;
         resizeHandle.type = 'button';
-        resizeHandle.setAttribute('aria-label', `Resize ${tool.name} widget`);
+        resizeHandle.setAttribute('aria-label', `Resize ${tool.title} widget`);
         resizeHandle.setAttribute('title', 'Drag this corner to resize');
-        resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'corner'));
+        resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.id, 'corner'));
 
         const resizeEdgeBottom = el('button', 'widget-resize-edge widget-resize-edge-bottom widget-resize-control');
         resizeEdgeBottom.type = 'button';
-        resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.name} widget height`);
+        resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.title} widget height`);
         resizeEdgeBottom.setAttribute('title', 'Drag bottom edge to resize');
-        resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'bottom'));
+        resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.id, 'bottom'));
 
         widgetBox.appendChild(resizeEdgeBottom);
         widgetBox.appendChild(resizeHandle);
         card.appendChild(widgetBox);
 
-        state.toolMap.set(tool.name, {
+        state.toolMap.set(tool.id, {
             card,
             statusDot,
             statusText,
             btn,
             sId,
+            view: tool,
             settingsMenu,
             visibilityAction,
             autoStartAction,
-            autoStart: !!tool.auto_start,
+            autoStart: !!tool.autoStart,
             alive: false,
             pendingAction: false
         });
-        if (state.hiddenTools.has(tool.name)) {
+        if (state.hiddenTools.has(tool.id)) {
             card.classList.add('is-hidden');
         }
-        syncToolMenuActions(tool.name);
+        syncToolMenuActions(tool.id);
         return card;
     }
 
@@ -364,7 +432,8 @@
         if (widget && widget.style.display !== 'none') height += widget.scrollHeight;
 
         height += 12;
-        const rowSpan = Math.ceil((height + GRID_ROW_GAP) / (GRID_ROW_HEIGHT + GRID_ROW_GAP));
+        const { rowHeight, rowGap } = getGridRowMetrics();
+        const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap));
         card.style.gridRowEnd = `span ${rowSpan}`;
     }
 
@@ -373,7 +442,11 @@
     }
 
     function wireCardDnD(card, header) {
-        header.setAttribute('title', 'Drag to reorder');
+        if (canUseDragReorder()) {
+            header.setAttribute('title', 'Drag to reorder');
+        } else {
+            header.removeAttribute('title');
+        }
         header.addEventListener('pointerdown', event => {
             const fromControl = event.target && event.target.closest('.btn-status, .tool-open-btn, .tool-settings-btn, .tool-settings-menu');
             if (fromControl) return;
@@ -660,6 +733,79 @@
         els.appsMenuBtn.setAttribute('aria-expanded', state.hiddenToolsMenuOpen ? 'true' : 'false');
     }
 
+    function setReorderModeOpen(open) {
+        if (!els.reorderPanel || !els.reorderModeBtn) return;
+        state.reorderModeOpen = !!open;
+        els.reorderPanel.hidden = !state.reorderModeOpen;
+        els.reorderModeBtn.setAttribute('aria-expanded', state.reorderModeOpen ? 'true' : 'false');
+        if (state.reorderModeOpen) {
+            renderReorderPanel();
+        }
+    }
+
+    function renderReorderPanel() {
+        if (!els.reorderPanel) return;
+        const names = getCurrentCardOrder();
+        els.reorderPanel.innerHTML = '';
+
+        const title = el('div', 'reorder-title', 'Reorder Tools');
+        const list = el('div', 'reorder-list');
+        names.forEach((name, index) => {
+            const row = el('div', 'reorder-row');
+            const entry = state.toolMap.get(name);
+            const label = el('div', 'reorder-name', entry?.view?.title || name);
+            const controls = el('div', 'reorder-controls');
+            const upBtn = el('button', 'reorder-move-btn', '↑');
+            upBtn.type = 'button';
+            upBtn.setAttribute('aria-label', `Move ${name} up`);
+            upBtn.disabled = index === 0;
+            upBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                moveToolInOrder(name, -1);
+            });
+
+            const downBtn = el('button', 'reorder-move-btn', '↓');
+            downBtn.type = 'button';
+            downBtn.setAttribute('aria-label', `Move ${name} down`);
+            downBtn.disabled = index === names.length - 1;
+            downBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                moveToolInOrder(name, 1);
+            });
+
+            controls.appendChild(upBtn);
+            controls.appendChild(downBtn);
+            row.appendChild(label);
+            row.appendChild(controls);
+            list.appendChild(row);
+        });
+
+        const footer = el('div', 'reorder-panel-footer');
+        const doneBtn = el('button', 'reorder-done-btn', 'Done');
+        doneBtn.type = 'button';
+        doneBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            setReorderModeOpen(false);
+        });
+        footer.appendChild(doneBtn);
+
+        els.reorderPanel.appendChild(title);
+        els.reorderPanel.appendChild(list);
+        els.reorderPanel.appendChild(footer);
+    }
+
+    function moveToolInOrder(name, direction) {
+        const order = getCurrentCardOrder();
+        const from = order.indexOf(name);
+        if (from === -1) return;
+        const to = clamp(from + direction, 0, order.length - 1);
+        if (from === to) return;
+        const [moved] = order.splice(from, 1);
+        order.splice(to, 0, moved);
+        applyCardOrder(order);
+        if (state.reorderModeOpen) renderReorderPanel();
+    }
+
     function closeAppsRowMenus() {
         state.appsRowMenuOpenFor = null;
         if (state.hiddenToolsMenuOpen) renderHiddenToolsMenu();
@@ -673,7 +819,14 @@
         });
         saveHiddenTools();
 
-        const toolNames = Array.from(knownTools).sort((a, b) => a.localeCompare(b));
+        const toolNames = Array.from(knownTools).sort((a, b) => {
+            const aEntry = state.toolMap.get(a);
+            const bEntry = state.toolMap.get(b);
+            const ac = CATEGORY_ORDER[aEntry?.view?.category] ?? 0;
+            const bc = CATEGORY_ORDER[bEntry?.view?.category] ?? 0;
+            if (ac !== bc) return ac - bc;
+            return (aEntry?.view?.title || a).localeCompare(bEntry?.view?.title || b);
+        });
         els.hiddenToolsMenu.innerHTML = '';
 
         if (toolNames.length === 0) {
@@ -681,12 +834,19 @@
             return;
         }
 
+        let currentCategory = '';
         toolNames.forEach(name => {
             const row = el('div', 'apps-menu-row');
-            const nameLabel = el('button', 'apps-menu-name', name);
+            const entry = state.toolMap.get(name);
+            const view = entry?.view;
+            const category = view?.category || 'display';
+            if (category !== currentCategory) {
+                currentCategory = category;
+                els.hiddenToolsMenu.appendChild(el('div', 'hidden-tools-label', categoryLabel(category)));
+            }
+            const nameLabel = el('button', 'apps-menu-name', view?.title || name);
             const rowActions = el('div', 'apps-row-actions');
             const hidden = state.hiddenTools.has(name);
-            const entry = state.toolMap.get(name);
             const autoStart = !!(entry && entry.autoStart);
             const alive = !!(entry && entry.alive);
             const pendingAction = !!(entry && entry.pendingAction);
@@ -868,6 +1028,7 @@
             enforceCardSpanConstraints();
             requestAnimationFrame(resizeAllCards);
             if (state.hiddenToolsMenuOpen) renderHiddenToolsMenu();
+            if (state.reorderModeOpen) renderReorderPanel();
 
         } catch (e) {
             console.error('Refresh failed', e);
@@ -903,7 +1064,16 @@
         els.appsMenuBtn.addEventListener('click', event => {
             event.stopPropagation();
             closeAllToolMenus();
+            setReorderModeOpen(false);
             setHiddenToolsMenuOpen(!state.hiddenToolsMenuOpen);
+        });
+    }
+    if (els.reorderModeBtn) {
+        els.reorderModeBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            closeAllToolMenus();
+            setHiddenToolsMenuOpen(false);
+            setReorderModeOpen(!state.reorderModeOpen);
         });
     }
     document.addEventListener('click', event => {
@@ -911,17 +1081,23 @@
         const inButton = event.target && event.target.closest('.tool-settings-btn');
         const inHiddenToolsMenu = event.target && event.target.closest('#hidden-tools-menu');
         const inAppsBtn = event.target && event.target.closest('#apps-menu-btn');
+        const inReorderPanel = event.target && event.target.closest('#reorder-panel');
+        const inReorderBtn = event.target && event.target.closest('#reorder-mode-btn');
         if (!inMenu && !inButton) closeAllToolMenus();
         if (!inHiddenToolsMenu && !inAppsBtn) {
             setHiddenToolsMenuOpen(false);
         } else if (!event.target.closest('.apps-row-settings-btn, .apps-row-menu')) {
             closeAppsRowMenus();
         }
+        if (!inReorderPanel && !inReorderBtn) {
+            setReorderModeOpen(false);
+        }
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
             closeAllToolMenus();
             setHiddenToolsMenuOpen(false);
+            setReorderModeOpen(false);
         }
     });
     window.addEventListener('resize', () => {
