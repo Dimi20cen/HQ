@@ -25,6 +25,10 @@ def venv_pip():
     else:
         return VENV_DIR / "bin" / "pip"
 
+def pip_cmd():
+    """Use python -m pip for portability across environments."""
+    return [str(venv_python()), "-m", "pip"]
+
 def install_tool_deps():
     tools_dir = BASE_DIR / "tools"
     if not tools_dir.exists(): return
@@ -33,7 +37,7 @@ def install_tool_deps():
         req_file = tool_folder / "requirements.txt"
         if req_file.exists():
             print(f"Installing dependencies for {tool_folder.name}...")
-            run([str(venv_pip()), "install", "-r", str(req_file)])
+            run(pip_cmd() + ["install", "-r", str(req_file)])
 
 def main():
     # 1. Create the virtual environment if it doesn't exist
@@ -45,7 +49,7 @@ def main():
 
     # 2.1 Install Root Deps
     print("Installing dependencies...")
-    run([str(venv_pip()), "install", "-r", "requirements.txt"])
+    run(pip_cmd() + ["install", "-r", "requirements.txt"])
     # 2.2 Install Tool Deps
     install_tool_deps()
 
