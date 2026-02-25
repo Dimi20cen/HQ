@@ -468,7 +468,15 @@ def widget_html(cal_url: str) -> str:
         }
 
         async function jsonFetch(url, options) {
-          const res = await fetch(url, options || {});
+          const resolvedUrl = (() => {
+            if (!url || typeof url !== 'string') return url;
+            if (!url.startsWith('/')) return url;
+            if (!window.location.pathname.startsWith('/proxy/')) return url;
+            const parts = window.location.pathname.split('/').filter(Boolean);
+            if (parts.length < 2) return url;
+            return `/proxy/${parts[1]}${url}`;
+          })();
+          const res = await fetch(resolvedUrl, options || {});
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.detail || data.error || res.statusText);
           return data;
