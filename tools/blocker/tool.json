@@ -4,6 +4,6 @@
   "title": "Focus Blocker",
   "port": 9001,
   "entry_point": "main.py",
-  "auto_start": true,
+  "auto_start": false,
   "category": "background"
 }
