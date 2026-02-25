@@ -1,4 +1,10 @@
 ## 2026-02-25
+- Summary: Removed `has_widget` from tool manifests and controller/dashboard logic; widgets are now treated as always available.
+- Affected files: `controller/controller_main.py`, `controller/db.py`, `controller/static/dashboard.js`, `create_tool.py`, `tools/*/tool.json`, `docs/tools.md`
+- Migration notes: Existing tools should remove `has_widget` from `tool.json`; no behavior toggle remains.
+- Validation status: `node --check controller/static/dashboard.js` and `python3 -m py_compile controller/controller_main.py controller/db.py` passed.
+
+## 2026-02-25
 - Summary: Added per-tool settings actions in dashboard menus (hide/unhide, auto-start toggle, start/stop toggle), and added a controller API to persist `auto_start` in each tool manifest.
 - Affected files: `controller/controller_main.py`, `controller/static/dashboard.js`, `controller/static/dashboard.css`, `controller/templates/dashboard.html`, `docs/controller.md`
 - Migration notes: None.

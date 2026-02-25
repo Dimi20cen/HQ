@@ -16,7 +16,6 @@ Common fields (defaults)
 - `title`: dashboard label (default from `name`)
 - `version`: default `0.1.0`
 - `auto_start`: controller auto-launch (default `false`)
-- `has_widget`: show `/widget` in dashboard (default `false`)
 
 Optional `tool.json` fields
 - `key`: legacy/folder id (not used by controller)
@@ -35,5 +34,5 @@ Create a tool
 - Restart controller to re-scan
 
 Notes
-- `create_tool.py` defaults `auto_start=true` and `has_widget=true`; edit `tool.json` if needed.
+- `create_tool.py` defaults `auto_start=true`; edit `tool.json` if needed.
 - `BaseTool` loads `.env` from the repo root via python-dotenv.

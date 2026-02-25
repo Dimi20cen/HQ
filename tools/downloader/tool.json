@@ -5,6 +5,5 @@
     "version": "1.0.0",
     "port": 9020,
     "entry_point": "main.py",
-    "auto_start": false,
-    "has_widget": true
+    "auto_start": false
 }

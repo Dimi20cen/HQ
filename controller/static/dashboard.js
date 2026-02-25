@@ -281,42 +281,40 @@
         card.draggable = true;
         wireCardDnD(card, header);
 
-        if (tool.has_widget) {
-            const widgetBox = el('div', 'widget-container');
-            widgetBox.id = `widget-box-${sId}`;
-            const savedLayout = state.widgetLayout[tool.name] || {};
-            const savedHeight = savedLayout.height;
-            if (Number.isFinite(savedHeight)) {
-                const h = clamp(savedHeight, state.settings.minWidgetHeight, getMaxWidgetHeight());
-                widgetBox.style.height = `${h}px`;
-            }
-            const savedColSpan = savedLayout.colSpan;
-            if (Number.isFinite(savedColSpan) && savedColSpan >= 1) {
-                const { columns, colGap, columnWidth } = getGridMetrics();
-                const minSpan = getMinCardSpan(columns, colGap, columnWidth);
-                card.style.gridColumnEnd = `span ${clamp(Math.floor(savedColSpan), minSpan, columns)}`;
-            }
-            const iframe = el('iframe');
-            iframe.id = `iframe-${sId}`;
-            widgetBox.appendChild(iframe);
-
-            const resizeHandle = el('button', 'widget-resize-handle widget-resize-control');
-            resizeHandle.id = `resize-handle-${sId}`;
-            resizeHandle.type = 'button';
-            resizeHandle.setAttribute('aria-label', `Resize ${tool.name} widget`);
-            resizeHandle.setAttribute('title', 'Drag this corner to resize');
-            resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'corner'));
-
-            const resizeEdgeBottom = el('button', 'widget-resize-edge widget-resize-edge-bottom widget-resize-control');
-            resizeEdgeBottom.type = 'button';
-            resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.name} widget height`);
-            resizeEdgeBottom.setAttribute('title', 'Drag bottom edge to resize');
-            resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'bottom'));
-
-            widgetBox.appendChild(resizeEdgeBottom);
-            widgetBox.appendChild(resizeHandle);
-            card.appendChild(widgetBox);
+        const widgetBox = el('div', 'widget-container');
+        widgetBox.id = `widget-box-${sId}`;
+        const savedLayout = state.widgetLayout[tool.name] || {};
+        const savedHeight = savedLayout.height;
+        if (Number.isFinite(savedHeight)) {
+            const h = clamp(savedHeight, state.settings.minWidgetHeight, getMaxWidgetHeight());
+            widgetBox.style.height = `${h}px`;
         }
+        const savedColSpan = savedLayout.colSpan;
+        if (Number.isFinite(savedColSpan) && savedColSpan >= 1) {
+            const { columns, colGap, columnWidth } = getGridMetrics();
+            const minSpan = getMinCardSpan(columns, colGap, columnWidth);
+            card.style.gridColumnEnd = `span ${clamp(Math.floor(savedColSpan), minSpan, columns)}`;
+        }
+        const iframe = el('iframe');
+        iframe.id = `iframe-${sId}`;
+        widgetBox.appendChild(iframe);
+
+        const resizeHandle = el('button', 'widget-resize-handle widget-resize-control');
+        resizeHandle.id = `resize-handle-${sId}`;
+        resizeHandle.type = 'button';
+        resizeHandle.setAttribute('aria-label', `Resize ${tool.name} widget`);
+        resizeHandle.setAttribute('title', 'Drag this corner to resize');
+        resizeHandle.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'corner'));
+
+        const resizeEdgeBottom = el('button', 'widget-resize-edge widget-resize-edge-bottom widget-resize-control');
+        resizeEdgeBottom.type = 'button';
+        resizeEdgeBottom.setAttribute('aria-label', `Resize ${tool.name} widget height`);
+        resizeEdgeBottom.setAttribute('title', 'Drag bottom edge to resize');
+        resizeEdgeBottom.addEventListener('pointerdown', event => startWidgetResize(event, tool.name, 'bottom'));
+
+        widgetBox.appendChild(resizeEdgeBottom);
+        widgetBox.appendChild(resizeHandle);
+        card.appendChild(widgetBox);
 
         state.toolMap.set(tool.name, {
             card,
@@ -551,7 +549,7 @@
         const entry = state.toolMap.get(name);
         if (!entry || !entry.visibilityAction) return;
         const hidden = entry.card.classList.contains('is-hidden');
-        entry.visibilityAction.textContent = hidden ? 'Show on dashboard' : 'Hide from dashboard';
+        entry.visibilityAction.textContent = hidden ? 'Show' : 'Hide';
     }
 
     function syncToolMenuActions(name) {
@@ -658,8 +656,6 @@
 
         const toolNames = Array.from(knownTools).sort((a, b) => a.localeCompare(b));
         els.hiddenToolsMenu.innerHTML = '';
-        const label = el('span', 'hidden-tools-label', 'Apps');
-        els.hiddenToolsMenu.appendChild(label);
 
         if (toolNames.length === 0) {
             els.hiddenToolsMenu.appendChild(el('div', 'hidden-tools-empty', 'No apps'));

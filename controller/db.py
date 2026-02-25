@@ -2,7 +2,6 @@ from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, DateTime, create_engine
 )
-from sqlalchemy import Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from pathlib import Path
@@ -31,7 +30,6 @@ class Tool(Base):
     process_path = Column(String)     # where to launch the tool
     port = Column(Integer)            # where the tool serves its API
     pid = Column(Integer, nullable=True)
-    has_widget = Column(Boolean, default=False)
     status = Column(String, default="stopped")
     last_heartbeat = Column(DateTime, nullable=True)
     registered_at = Column(DateTime, default=datetime.utcnow)
@@ -44,7 +42,6 @@ class Tool(Base):
             "port": self.port,
             "pid": self.pid,
             "status": self.status,
-            "has_widget": self.has_widget,
             "last_heartbeat": (
                 self.last_heartbeat.isoformat() if self.last_heartbeat else None
             ),
@@ -68,14 +65,13 @@ def get_session():
     return SessionLocal()
 
 
-def add_tool(name, process_path, port, has_widget=False):
+def add_tool(name, process_path, port):
     """Register a new tool in the database."""
     session = get_session()
     tool = Tool(
         name=name,
         process_path=process_path,
         port=port,
-        has_widget=has_widget,
     )
     session.add(tool)
     session.commit()
@@ -110,7 +106,7 @@ def update_tool_status(name, status):
     session.close()
 
 
-def update_tool_metadata(name, process_path=None, port=None, has_widget=None):
+def update_tool_metadata(name, process_path=None, port=None):
     session = get_session()
     tool = session.query(Tool).filter(Tool.name == name).first()
     if tool:
@@ -118,8 +114,6 @@ def update_tool_metadata(name, process_path=None, port=None, has_widget=None):
             tool.process_path = process_path
         if port is not None:
             tool.port = port
-        if has_widget is not None:
-            tool.has_widget = has_widget
         session.commit()
     session.close()
 

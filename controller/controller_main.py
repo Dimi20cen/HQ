@@ -117,22 +117,19 @@ async def lifespan(app: FastAPI):
         name = t["name"]
         process_path = t["process_path"]
         port = t["port"]
-        has_widget = t.get("has_widget", False)
 
         db_tool = get_tool_by_name(name)
         if not db_tool:
-            add_tool(name, process_path, port, has_widget)
+            add_tool(name, process_path, port)
         else:
             if (
                 db_tool.process_path != process_path
                 or db_tool.port != port
-                or db_tool.has_widget != has_widget
             ):
                 update_tool_metadata(
                     name,
                     process_path=process_path,
                     port=port,
-                    has_widget=has_widget,
                 )
 
     # --- 2.5 Reconcile DB with Reality (The Orphan Check) ---

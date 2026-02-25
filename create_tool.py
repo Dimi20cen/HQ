@@ -62,8 +62,7 @@ def create_tool(name, port):
         "port": int(port),
         "entry_point": "main.py",
         "runtime": "python",
-        "auto_start": True,
-        "has_widget": True
+        "auto_start": True
     }
 
     with open(tool_dir / "tool.json", "w") as f:
