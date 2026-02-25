@@ -119,10 +119,16 @@
             position: relative;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 8px;
+            gap: 10px;
             padding: 5px 4px;
             border-radius: 8px;
+        }
+
+        .apps-row-actions {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .apps-menu-row:hover {
@@ -140,7 +146,13 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 160px;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
         }
+
+        .apps-menu-name:hover { opacity: 0.9; }
 
         .apps-menu-row.is-stopped-app .apps-menu-name { background: #FEE2E2; color: #991B1B; }
         .apps-menu-row.is-running-hidden-app .apps-menu-name { background: #DCFCE7; color: #166534; }
@@ -160,6 +172,24 @@
             cursor: pointer;
             flex-shrink: 0;
         }
+
+        .apps-row-power-btn {
+            width: 22px;
+            height: 22px;
+            border: none;
+            background: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .apps-row-power-btn.is-running { color: var(--green); }
+        .apps-row-power-btn.is-stopped { color: var(--red); }
 
         .apps-row-settings-btn svg {
             width: 13px;
@@ -207,7 +237,8 @@
         }
 
         .tool-settings-item:disabled,
-        .apps-row-menu-item:disabled {
+        .apps-row-menu-item:disabled,
+        .apps-row-power-btn:disabled {
             opacity: 0.55;
             cursor: not-allowed;
         }

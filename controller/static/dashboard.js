@@ -245,11 +245,8 @@
         visibilityAction.type = 'button';
         const autoStartAction = el('button', 'tool-settings-item');
         autoStartAction.type = 'button';
-        const runningAction = el('button', 'tool-settings-item');
-        runningAction.type = 'button';
         settingsMenu.appendChild(visibilityAction);
         settingsMenu.appendChild(autoStartAction);
-        settingsMenu.appendChild(runningAction);
 
         settingsBtn.addEventListener('click', event => {
             event.stopPropagation();
@@ -269,11 +266,6 @@
             const entry = state.toolMap.get(tool.name);
             if (!entry) return;
             await setToolAutoStart(tool.name, !entry.autoStart);
-            settingsMenu.classList.remove('is-open');
-        });
-        runningAction.addEventListener('click', async event => {
-            event.stopPropagation();
-            await toggleToolRunning(tool.name);
             settingsMenu.classList.remove('is-open');
         });
 
@@ -335,7 +327,6 @@
             settingsMenu,
             visibilityAction,
             autoStartAction,
-            runningAction,
             autoStart: !!tool.auto_start,
             alive: false,
             pendingAction: false
@@ -571,10 +562,6 @@
             entry.autoStartAction.textContent = entry.autoStart ? 'Disable Auto Start' : 'Enable Auto Start';
             entry.autoStartAction.disabled = !!entry.pendingAction;
         }
-        if (entry.runningAction) {
-            entry.runningAction.textContent = entry.alive ? 'Stop Tool' : 'Start Tool';
-            entry.runningAction.disabled = !!entry.pendingAction;
-        }
     }
 
     function closeAllToolMenus(exceptCard = null) {
@@ -681,12 +668,24 @@
 
         toolNames.forEach(name => {
             const row = el('div', 'apps-menu-row');
-            const nameLabel = el('span', 'apps-menu-name', name);
+            const nameLabel = el('button', 'apps-menu-name', name);
+            const rowActions = el('div', 'apps-row-actions');
             const hidden = state.hiddenTools.has(name);
             const entry = state.toolMap.get(name);
             const autoStart = !!(entry && entry.autoStart);
             const alive = !!(entry && entry.alive);
             const pendingAction = !!(entry && entry.pendingAction);
+            nameLabel.type = 'button';
+            nameLabel.setAttribute(
+                'aria-label',
+                `${hidden ? 'Show' : 'Hide'} ${name} on dashboard`
+            );
+            nameLabel.addEventListener('click', event => {
+                event.stopPropagation();
+                setToolHidden(name, !hidden);
+                state.appsRowMenuOpenFor = null;
+                renderHiddenToolsMenu();
+            });
             if (!alive) {
                 row.classList.add('is-stopped-app');
             } else if (hidden) {
@@ -703,6 +702,18 @@
                     <path d="M4 7h9M15 7h5M9 7v0M4 17h5M11 17h9M15 17v0M13 7a2 2 0 1 0-4 0a2 2 0 0 0 4 0m4 10a2 2 0 1 0-4 0a2 2 0 0 0 4 0" />
                 </svg>
             `;
+            const powerBtn = el('button', 'apps-row-power-btn');
+            powerBtn.type = 'button';
+            powerBtn.setAttribute('aria-label', `${alive ? 'Stop' : 'Start'} ${name}`);
+            powerBtn.textContent = '⏻';
+            powerBtn.classList.toggle('is-running', alive);
+            powerBtn.classList.toggle('is-stopped', !alive);
+            powerBtn.disabled = pendingAction;
+            powerBtn.addEventListener('click', async event => {
+                event.stopPropagation();
+                await toggleToolRunning(name);
+                renderHiddenToolsMenu();
+            });
 
             const rowMenu = el('div', 'apps-row-menu');
             if (state.appsRowMenuOpenFor === name) rowMenu.classList.add('is-open');
@@ -736,29 +747,16 @@
             });
             rowMenu.appendChild(autoStartBtn);
 
-            const runningBtn = el(
-                'button',
-                'apps-row-menu-item',
-                alive ? 'Stop Tool' : 'Start Tool'
-            );
-            runningBtn.type = 'button';
-            runningBtn.disabled = pendingAction;
-            runningBtn.addEventListener('click', async event => {
-                event.stopPropagation();
-                await toggleToolRunning(name);
-                state.appsRowMenuOpenFor = null;
-                renderHiddenToolsMenu();
-            });
-            rowMenu.appendChild(runningBtn);
-
             settingsBtn.addEventListener('click', event => {
                 event.stopPropagation();
                 state.appsRowMenuOpenFor = state.appsRowMenuOpenFor === name ? null : name;
                 renderHiddenToolsMenu();
             });
 
+            rowActions.appendChild(settingsBtn);
+            rowActions.appendChild(powerBtn);
             row.appendChild(nameLabel);
-            row.appendChild(settingsBtn);
+            row.appendChild(rowActions);
             row.appendChild(rowMenu);
             els.hiddenToolsMenu.appendChild(row);
         });
