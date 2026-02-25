@@ -23,7 +23,8 @@
         appsRowMenuOpenFor: null,
         dragAutoScrollRaf: 0,
         dragPointer: null,
-        settings: { ...DEFAULT_SETTINGS }
+        settings: { ...DEFAULT_SETTINGS },
+        statusRefreshPromise: null
     };
     const CATEGORY_ORDER = { display: 0, hybrid: 1, background: 2 };
 
@@ -61,12 +62,15 @@
     function toToolViewModel(rawTool) {
         const id = String(rawTool?.name || '').trim();
         const title = String(rawTool?.title || id).trim() || id;
+        const normalizedStatus = typeof rawTool?.status === 'string'
+            ? rawTool.status.trim().toLowerCase()
+            : 'unknown';
         return {
             id,
             name: id,
             title,
             category: normalizeCategory(rawTool?.category),
-            status: rawTool?.status || 'stopped',
+            status: normalizedStatus,
             autoStart: !!rawTool?.auto_start
         };
     }
@@ -413,7 +417,8 @@
             visibilityAction,
             autoStartAction,
             autoStart: !!tool.autoStart,
-            alive: false,
+            statusKnown: tool.status === 'running' || tool.status === 'stopped',
+            alive: tool.status === 'running',
             pendingAction: false
         });
         if (state.hiddenTools.has(tool.id)) {
@@ -849,6 +854,7 @@
             const rowActions = el('div', 'apps-row-actions');
             const hidden = state.hiddenTools.has(name);
             const autoStart = !!(entry && entry.autoStart);
+            const statusKnown = !!(entry && entry.statusKnown);
             const alive = !!(entry && entry.alive);
             const pendingAction = !!(entry && entry.pendingAction);
             nameLabel.type = 'button';
@@ -862,12 +868,14 @@
                 state.appsRowMenuOpenFor = null;
                 renderHiddenToolsMenu();
             });
-            if (!alive) {
-                row.classList.add('is-stopped-app');
-            } else if (hidden) {
-                row.classList.add('is-running-hidden-app');
-            } else {
-                row.classList.add('is-running-visible-app');
+            if (statusKnown) {
+                if (!alive) {
+                    row.classList.add('is-stopped-app');
+                } else if (hidden) {
+                    row.classList.add('is-running-hidden-app');
+                } else {
+                    row.classList.add('is-running-visible-app');
+                }
             }
 
             const settingsBtn = el('button', 'apps-row-settings-btn');
@@ -892,11 +900,11 @@
             });
             const powerBtn = el('button', 'apps-row-power-btn');
             powerBtn.type = 'button';
-            powerBtn.setAttribute('aria-label', `${alive ? 'Stop' : 'Start'} ${name}`);
+            powerBtn.setAttribute('aria-label', statusKnown ? `${alive ? 'Stop' : 'Start'} ${name}` : `Checking ${name} status`);
             powerBtn.textContent = '⏻';
-            powerBtn.classList.toggle('is-running', alive);
-            powerBtn.classList.toggle('is-stopped', !alive);
-            powerBtn.disabled = pendingAction;
+            powerBtn.classList.toggle('is-running', statusKnown && alive);
+            powerBtn.classList.toggle('is-stopped', statusKnown && !alive);
+            powerBtn.disabled = pendingAction || !statusKnown;
             powerBtn.addEventListener('click', async event => {
                 event.stopPropagation();
                 await toggleToolRunning(name);
@@ -973,6 +981,8 @@
     }
 
     async function refreshAllStatuses() {
+        if (state.statusRefreshPromise) return state.statusRefreshPromise;
+        state.statusRefreshPromise = (async () => {
         try {
             const resp = await fetch('/tools/status-all');
             const data = await resp.json();
@@ -987,6 +997,7 @@
                 const iframe = document.getElementById(`iframe-${sId}`);
                 const resizeControls = widgetBox ? widgetBox.querySelectorAll('.widget-resize-control') : [];
                 const alive = !!tool.alive;
+                entry.statusKnown = true;
                 entry.alive = alive;
 
                 card.dataset.alive = alive ? '1' : '0';
@@ -1033,6 +1044,13 @@
 
         } catch (e) {
             console.error('Refresh failed', e);
+        }
+        })();
+
+        try {
+            await state.statusRefreshPromise;
+        } finally {
+            state.statusRefreshPromise = null;
         }
     }
 
