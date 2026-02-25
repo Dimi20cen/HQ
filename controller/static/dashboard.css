@@ -36,6 +36,7 @@
             justify-content: flex-end;
             position: relative;
             margin-bottom: 10px;
+            z-index: 120;
         }
 
         .apps-menu-btn {
@@ -104,7 +105,7 @@
             border-radius: 10px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
             padding: 8px;
-            z-index: 30;
+            z-index: 130;
         }
 
         .hidden-tools-label {
@@ -292,8 +293,6 @@
         .card.status-stopped .card-body { padding: 10px; gap: 6px; }
         .card.status-stopped .tool-name { font-size: 1em; }
         .card.status-stopped .status-line { font-size: 0.8em; }
-        .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
-
         .tool-header {
             display: flex;
             justify-content: space-between;
@@ -339,14 +338,6 @@
             display: flex;
             align-items: center;
             gap: 4px;
-        }
-
-        .port-badge {
-            font-size: 0.7em;
-            color: var(--muted);
-            background: var(--bg-accent);
-            padding: 2px 7px;
-            border-radius: 6px;
         }
 
         .btn-status {
@@ -401,7 +392,11 @@
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
             padding: 6px;
             display: none;
-            z-index: 20;
+            z-index: 140;
+        }
+
+        .card.has-open-menu {
+            z-index: 135;
         }
 
         .tool-settings-menu.is-open { display: block; }

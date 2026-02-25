@@ -231,7 +231,6 @@
         btn.textContent = '⏻';
         btn.addEventListener('click', () => statusButtonAction(tool.name));
 
-        const port = el('span', 'port-badge', `:${tool.port}`);
         const settingsBtn = el('button', 'tool-settings-btn');
         settingsBtn.type = 'button';
         settingsBtn.setAttribute('aria-label', `Open ${tool.name} settings`);
@@ -254,6 +253,7 @@
             setHiddenToolsMenuOpen(false);
             closeAllToolMenus(card);
             settingsMenu.classList.toggle('is-open', open);
+            card.classList.toggle('has-open-menu', open);
         });
         visibilityAction.addEventListener('click', event => {
             event.stopPropagation();
@@ -270,7 +270,6 @@
         });
 
         right.appendChild(btn);
-        right.appendChild(port);
         right.appendChild(settingsBtn);
 
         header.appendChild(left);
@@ -567,6 +566,7 @@
             if (!settingsMenu) return;
             if (exceptCard && card === exceptCard) return;
             settingsMenu.classList.remove('is-open');
+            card.classList.remove('has-open-menu');
         });
     }
 
