@@ -1,7 +1,10 @@
 import json
+import sqlite3
+import os
 import requests
 import psutil
 from pathlib import Path
+from datetime import date, timedelta
 from contextlib import asynccontextmanager
 
 from controller.db import (
@@ -62,6 +65,67 @@ def _normalize_tool_category(value: str | None) -> str:
     if category in {"display", "background", "hybrid"}:
         return category
     return "display"
+
+
+def _jobber_db_path() -> Path:
+    configured = os.getenv("JOBBER_DB_PATH")
+    if configured:
+        return Path(configured)
+    return BASE_DIR.parent / "tools" / "jobber" / "jobs.db"
+
+
+def _job_application_counts(days: int) -> dict:
+    safe_days = max(1, min(int(days), 730))
+    end_day = date.today()
+    start_day = end_day - timedelta(days=safe_days - 1)
+    db_path = _jobber_db_path()
+
+    if not db_path.exists():
+        return {
+            "days": [],
+            "range_start": start_day.isoformat(),
+            "range_end": end_day.isoformat(),
+            "total_count": 0,
+            "max_count": 0,
+        }
+
+    rows = []
+    try:
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT substr(date_scraped, 1, 10) AS day, COUNT(*) AS count
+                FROM jobs
+                WHERE date_scraped IS NOT NULL
+                  AND date_scraped != ''
+                  AND substr(date_scraped, 1, 10) BETWEEN ? AND ?
+                GROUP BY day
+                ORDER BY day ASC
+                """,
+                (start_day.isoformat(), end_day.isoformat()),
+            ).fetchall()
+    except Exception:
+        rows = []
+
+    day_counts = []
+    max_count = 0
+    total_count = 0
+    for row in rows:
+        day_value = str(row[0] or "")
+        count_value = int(row[1] or 0)
+        if not day_value:
+            continue
+        max_count = max(max_count, count_value)
+        total_count += count_value
+        day_counts.append({"date": day_value, "count": count_value})
+
+    return {
+        "days": day_counts,
+        "range_start": start_day.isoformat(),
+        "range_end": end_day.isoformat(),
+        "total_count": total_count,
+        "max_count": max_count,
+    }
 
 def scan_tools():
     """
@@ -198,6 +262,11 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 @app.get("/dashboard")
 def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/dashboard/job-applications")
+def dashboard_job_applications(days: int = 365):
+    return _job_application_counts(days)
 
 @app.get("/tools")
 def get_tools():

@@ -15,6 +15,11 @@ Standardize HQ visuals around a cherry-blossom palette that stays readable and c
 - `--card-edge`: `#f0bddb` (card top accent)
 - `--control-icon`: `#755f98` (icon/action ink)
 - `--chip`: `#f6daed` (neutral chip fill)
+- `--job-heat-0`: `#f4e9f3` (no applications)
+- `--job-heat-1`: `#d9f0e3` (low daily volume)
+- `--job-heat-2`: `#a6debe` (medium daily volume)
+- `--job-heat-3`: `#6ac391` (high daily volume)
+- `--job-heat-4`: `#3b9d72` (max daily volume)
 
 ## Semantic Status Colors
 - `--status-running`: `#3b9d72`
@@ -38,6 +43,7 @@ Status chip variants:
   - minimal/no gradients
   - low-contrast borders
   - subtle or no drop shadows
+- Contribution/heatmap visuals should use the `--job-heat-*` tokens for level scaling.
 - Preserve contrast for text and controls; avoid light-on-light combinations for labels or icons.
 - Add new tokens in `:root` before usage and document them in this file.
 

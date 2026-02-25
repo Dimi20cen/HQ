@@ -22,6 +22,11 @@
             --chip-running-visible-text: #1b5639;
             --chip-stopped-bg: #f8d4e9;
             --chip-stopped-text: #9a3c6c;
+            --job-heat-0: #f4e9f3;
+            --job-heat-1: #d9f0e3;
+            --job-heat-2: #a6debe;
+            --job-heat-3: #6ac391;
+            --job-heat-4: #3b9d72;
         }
 
         * { box-sizing: border-box; }
@@ -44,6 +49,130 @@
             grid-template-columns: repeat(12, minmax(0, 1fr));
             gap: 14px;
             grid-auto-rows: 8px;
+        }
+
+        .job-activity-board {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 10px;
+            width: 148px;
+            min-width: 148px;
+            height: 148px;
+        }
+
+        .job-activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .job-activity-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+            flex: 0 0 auto;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .job-activity-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .job-activity-board.is-collapsed {
+            display: inline-flex;
+            width: auto;
+            min-width: 0;
+            height: auto;
+            padding: 0;
+            gap: 0;
+            border: none;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        .job-activity-board.is-collapsed .job-activity-header {
+            justify-content: flex-start;
+            gap: 0;
+        }
+
+        .job-activity-board.is-collapsed .job-activity-total,
+        .job-activity-board.is-collapsed .job-activity-grid-shell {
+            display: none;
+        }
+
+        .job-activity-total {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+            background: var(--chip);
+            border-radius: 999px;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+
+        .job-activity-grid-shell {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex: 1 1 auto;
+            gap: 4px;
+        }
+
+        .job-activity-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 10px);
+            gap: 4px;
+            font-size: 8px;
+            line-height: 1;
+            color: var(--muted);
+            font-weight: 700;
+            text-align: center;
+            user-select: none;
+        }
+
+        .job-activity-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 10px);
+            grid-template-rows: repeat(2, 10px);
+            grid-auto-flow: row;
+            gap: 4px;
+        }
+
+        .job-activity-cell {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            border: 1px solid var(--border);
+            background: var(--job-heat-0);
+        }
+
+        .job-activity-cell.level-0 { background: var(--job-heat-0); }
+        .job-activity-cell.level-1 { background: var(--job-heat-1); }
+        .job-activity-cell.level-2 { background: var(--job-heat-2); }
+        .job-activity-cell.level-3 { background: var(--job-heat-3); }
+        .job-activity-cell.level-4 { background: var(--job-heat-4); }
+        .job-activity-cell.is-padding {
+            background: transparent;
+            border-color: transparent;
         }
 
         .top-actions {
@@ -669,6 +798,40 @@
         @media (max-width: 700px) {
             body {
                 margin: 12px;
+            }
+
+            .job-activity-board {
+                width: 136px;
+                min-width: 136px;
+                height: 136px;
+                padding: 8px;
+            }
+
+            .job-activity-grid {
+                grid-template-columns: repeat(7, 8px);
+                grid-template-rows: repeat(2, 8px);
+                gap: 3px;
+            }
+
+            .job-activity-cell {
+                width: 8px;
+                height: 8px;
+            }
+
+            .job-activity-icon {
+                width: 26px;
+                height: 26px;
+            }
+
+            .job-activity-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .job-activity-weekdays {
+                grid-template-columns: repeat(7, 8px);
+                gap: 3px;
+                font-size: 7px;
             }
 
             .top-actions {

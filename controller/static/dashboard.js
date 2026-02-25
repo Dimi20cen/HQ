@@ -1,4 +1,7 @@
     const REFRESH_RATE = 2000;
+    const JOB_ACTIVITY_DAYS = 14;
+    const JOB_ACTIVITY_REFRESH_RATE = 60000;
+    const JOB_ACTIVITY_COLLAPSED_STORAGE_KEY = 'dashboard.jobActivityCollapsed.v1';
     const WIDGET_LAYOUT_STORAGE_KEY = 'dashboard.widgetLayout.v1';
     const WIDGET_ORDER_STORAGE_KEY = 'dashboard.widgetOrder.v1';
     const HIDDEN_TOOLS_STORAGE_KEY = 'dashboard.hiddenTools.v1';
@@ -24,11 +27,17 @@
         dragAutoScrollRaf: 0,
         dragPointer: null,
         settings: { ...DEFAULT_SETTINGS },
-        statusRefreshPromise: null
+        statusRefreshPromise: null,
+        jobActivityCollapsed: loadJobActivityCollapsed()
     };
     const CATEGORY_ORDER = { display: 0, hybrid: 1, background: 2 };
 
     const els = {
+        jobActivityBoard: document.getElementById('job-activity-board'),
+        jobActivityToggle: document.getElementById('job-activity-toggle'),
+        jobActivityGrid: document.getElementById('job-activity-grid'),
+        jobActivityWeekdays: document.getElementById('job-activity-weekdays'),
+        jobActivityTotal: document.getElementById('job-activity-total'),
         reorderModeBtn: document.getElementById('reorder-mode-btn'),
         reorderPanel: document.getElementById('reorder-panel'),
         appsMenuBtn: document.getElementById('apps-menu-btn'),
@@ -126,6 +135,23 @@
         }
     }
 
+    function loadJobActivityCollapsed() {
+        try {
+            return localStorage.getItem(JOB_ACTIVITY_COLLAPSED_STORAGE_KEY) === '1';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveJobActivityCollapsed() {
+        try {
+            localStorage.setItem(
+                JOB_ACTIVITY_COLLAPSED_STORAGE_KEY,
+                state.jobActivityCollapsed ? '1' : '0'
+            );
+        } catch {}
+    }
+
     function saveHiddenTools() {
         localStorage.setItem(HIDDEN_TOOLS_STORAGE_KEY, JSON.stringify(Array.from(state.hiddenTools)));
     }
@@ -158,6 +184,132 @@
 
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    function parseIsoDate(value) {
+        if (!value || typeof value !== 'string') return null;
+        const parsed = new Date(`${value}T00:00:00`);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function toIsoDate(value) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function addDays(value, days) {
+        const next = new Date(value);
+        next.setDate(next.getDate() + days);
+        return next;
+    }
+
+    function formatLongDate(value) {
+        return value.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    function weekdayInitial(value) {
+        return value.toLocaleDateString(undefined, { weekday: 'short' }).charAt(0);
+    }
+
+    function contributionLevel(count, maxCount) {
+        if (!count || count <= 0) return 0;
+        if (!maxCount || maxCount <= 1) return 4;
+        return clamp(Math.ceil((count / maxCount) * 4), 1, 4);
+    }
+
+    function renderJobActivityBoard(payload) {
+        if (!els.jobActivityBoard || !els.jobActivityGrid) return;
+        const totalEl = els.jobActivityTotal;
+        const weekdaysEl = els.jobActivityWeekdays;
+
+        const end = parseIsoDate(payload?.range_end) || new Date();
+        const start = parseIsoDate(payload?.range_start) || addDays(end, -(JOB_ACTIVITY_DAYS - 1));
+        const rawDays = Array.isArray(payload?.days) ? payload.days : [];
+        const countMap = new Map();
+        rawDays.forEach(item => {
+            if (!item || typeof item.date !== 'string') return;
+            const nextCount = Number(item.count || 0);
+            countMap.set(item.date, nextCount > 0 ? nextCount : 0);
+        });
+
+        const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+        const cellDays = totalDays;
+        const maxCount = Math.max(0, Number(payload?.max_count || 0));
+        let totalApplied = 0;
+
+        els.jobActivityGrid.innerHTML = '';
+        if (weekdaysEl) weekdaysEl.innerHTML = '';
+
+        if (weekdaysEl) {
+            const labelDays = Math.min(7, cellDays);
+            for (let i = 0; i < labelDays; i++) {
+                const current = addDays(start, i);
+                weekdaysEl.appendChild(el('span', '', weekdayInitial(current)));
+            }
+        }
+
+        for (let i = 0; i < cellDays; i++) {
+            const current = addDays(start, i);
+            const dateKey = toIsoDate(current);
+            const count = countMap.get(dateKey) || 0;
+            const level = contributionLevel(count, maxCount);
+            const cell = el('span', `job-activity-cell level-${level}`);
+            totalApplied += count;
+            cell.title = `${count} application${count === 1 ? '' : 's'} on ${formatLongDate(current)}`;
+            els.jobActivityGrid.appendChild(cell);
+        }
+
+        if (totalEl) {
+            totalEl.textContent = `${totalApplied} total`;
+        }
+        els.jobActivityGrid.setAttribute(
+            'aria-label',
+            `${totalApplied} job applications in the last ${totalDays} days`
+        );
+    }
+
+    function setJobActivityCollapsed(collapsed) {
+        state.jobActivityCollapsed = !!collapsed;
+        if (els.jobActivityBoard) {
+            els.jobActivityBoard.classList.toggle('is-collapsed', state.jobActivityCollapsed);
+        }
+        if (els.jobActivityToggle) {
+            els.jobActivityToggle.setAttribute('aria-expanded', state.jobActivityCollapsed ? 'false' : 'true');
+            els.jobActivityToggle.setAttribute(
+                'aria-label',
+                state.jobActivityCollapsed
+                    ? 'Expand job applications panel'
+                    : 'Collapse job applications panel'
+            );
+        }
+        saveJobActivityCollapsed();
+    }
+
+    async function loadJobActivity() {
+        if (!els.jobActivityBoard) return;
+        try {
+            const resp = await fetch(`/dashboard/job-applications?days=${JOB_ACTIVITY_DAYS}`);
+            if (!resp.ok) throw new Error('failed');
+            const data = await resp.json();
+            renderJobActivityBoard(data || {});
+        } catch (error) {
+            if (els.jobActivityTotal) {
+                els.jobActivityTotal.textContent = '';
+            }
+            if (els.jobActivityGrid) {
+                els.jobActivityGrid.innerHTML = '';
+            }
+            if (els.jobActivityWeekdays) {
+                els.jobActivityWeekdays.innerHTML = '';
+            }
+            console.error('Failed to load job activity', error);
+        }
     }
 
     function canUseDragReorder() {
@@ -1095,6 +1247,12 @@
             setReorderModeOpen(!state.reorderModeOpen);
         });
     }
+    if (els.jobActivityToggle) {
+        els.jobActivityToggle.addEventListener('click', event => {
+            event.stopPropagation();
+            setJobActivityCollapsed(!state.jobActivityCollapsed);
+        });
+    }
     document.addEventListener('click', event => {
         const inMenu = event.target && event.target.closest('.tool-settings-menu');
         const inButton = event.target && event.target.closest('.tool-settings-btn');
@@ -1125,5 +1283,8 @@
         requestAnimationFrame(resizeAllCards);
     });
 
+    setJobActivityCollapsed(state.jobActivityCollapsed);
     loadDashboard();
+    loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
+    setInterval(loadJobActivity, JOB_ACTIVITY_REFRESH_RATE);

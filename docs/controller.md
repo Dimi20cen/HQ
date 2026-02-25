@@ -3,6 +3,7 @@ read_when: integrating UI or debugging tools
 
 Endpoints
 - `GET /dashboard` html dashboard
+- `GET /dashboard/job-applications?days=365` grouped daily job-application counts (from Jobber DB)
 - `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)
 - `GET /tools/status-all` batch status check
 - `POST /tools/{name}/launch` start tool

@@ -1,4 +1,10 @@
 ## 2026-02-25
+- Summary: Added a compact square dashboard top-panel GitHub-style job-application heatmap (last 14 days) with an icon header and no legend/summary text, powered by a controller endpoint that aggregates Jobber DB daily counts.
+- Affected files: `controller/controller_main.py`, `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/controller.md`, `docs/theme-guidelines.md`
+- Migration notes: None. If using a non-default Jobber database path, set `JOBBER_DB_PATH` for the controller process.
+- Validation status: `node --check controller/static/dashboard.js` and `python3 -m py_compile controller/controller_main.py` passed.
+
+## 2026-02-25
 - Summary: Tuned tool widget theming to be more muted and flat (reduced gradients/shadows and softened accents) while retaining the shared HQ blossom token family.
 - Affected files: `tools/blocker/main.py`, `tools/downloader/main.py`, `tools/jobber/main.py`, `tools/calendar/widget.py`, `tools/meditator/main.py`, `docs/theme-guidelines.md`
 - Migration notes: Tool widgets should default to muted/flat styling unless a tool explicitly needs stronger visual hierarchy.
