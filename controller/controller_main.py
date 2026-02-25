@@ -165,10 +165,10 @@ async def lifespan(app: FastAPI):
     print("[Auto-Start] Checking for tools to launch...")
     for t in tools_config:
         if t.get("auto_start", False):
-            db_tool = get_tool_by_name(t["name"])
-            if db_tool and db_tool.pid:
-                continue # Already running
-            
+            alive_check = ProcessManager.is_alive(t["name"])
+            if alive_check.get("alive"):
+                continue  # Already running
+
             print(f"[Auto-Start] Launching {t['name']}...")
             ProcessManager.launch_tool(t["name"])
 

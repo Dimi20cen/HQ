@@ -17,6 +17,38 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class ProcessManager:
     @staticmethod
+    def _expected_entry_path(tool) -> Path | None:
+        if not tool or not tool.process_path:
+            return None
+        return (BASE_DIR / tool.process_path).resolve()
+
+    @staticmethod
+    def _pid_matches_entry(pid: int, expected_entry: Path | None) -> bool:
+        if not psutil.pid_exists(pid):
+            return False
+        if expected_entry is None:
+            return True
+        try:
+            proc = psutil.Process(pid)
+            cmdline = proc.cmdline() or []
+        except Exception:
+            return False
+
+        expected_str = str(expected_entry)
+        expected_name = expected_entry.name
+
+        for arg in cmdline:
+            try:
+                candidate = str(Path(arg).resolve())
+            except Exception:
+                candidate = str(arg)
+            if candidate == expected_str:
+                return True
+            if Path(candidate).name == expected_name:
+                return True
+        return False
+
+    @staticmethod
     def _load_manifest(process_path: Path):
         for parent in [process_path.parent, *process_path.parents]:
             manifest_path = parent / "tool.json"
@@ -46,7 +78,8 @@ class ProcessManager:
             return {"error": f"Tool '{name}' not registered."}
 
         # Already running?
-        if tool.pid and ProcessManager._pid_alive(tool.pid):
+        expected_entry = ProcessManager._expected_entry_path(tool)
+        if tool.pid and ProcessManager._pid_matches_entry(tool.pid, expected_entry):
             return {"error": f"Tool '{name}' already running (pid={tool.pid})."}
 
         # Resolve full path from the PROJECT ROOT
@@ -99,14 +132,15 @@ class ProcessManager:
             return {"error": f"Tool '{name}' not registered."}
 
         pid = tool.pid
+        expected_entry = ProcessManager._expected_entry_path(tool)
         if not pid:
             update_tool_status(name, "stopped")
             return {"stopped": True, "note": "No PID recorded."}
 
-        if not ProcessManager._pid_alive(pid):
+        if not ProcessManager._pid_matches_entry(pid, expected_entry):
             update_tool_pid(name, None)
             update_tool_status(name, "stopped")
-            return {"stopped": True, "note": "Process already dead."}
+            return {"stopped": True, "note": "Recorded PID is stale or not owned by this tool."}
 
         try:
             p = psutil.Process(pid)
@@ -129,7 +163,8 @@ class ProcessManager:
             update_tool_status(name, "stopped")
             return {"alive": False}
 
-        alive = ProcessManager._pid_alive(tool.pid)
+        expected_entry = ProcessManager._expected_entry_path(tool)
+        alive = ProcessManager._pid_matches_entry(tool.pid, expected_entry)
         if not alive:
             update_tool_pid(name, None)
             update_tool_status(name, "stopped")
