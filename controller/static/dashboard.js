@@ -3,6 +3,7 @@
     const GRID_ROW_GAP = 20;
     const WIDGET_LAYOUT_STORAGE_KEY = 'dashboard.widgetLayout.v1';
     const WIDGET_ORDER_STORAGE_KEY = 'dashboard.widgetOrder.v1';
+    const HIDDEN_TOOLS_STORAGE_KEY = 'dashboard.hiddenTools.v1';
     const DEFAULT_SETTINGS = {
         minWidgetHeight: 120,
         maxWidgetHeightPx: 760,
@@ -18,12 +19,17 @@
         dragSource: null,
         dragArmedCard: null,
         widgetOrder: loadWidgetOrder(),
+        hiddenTools: loadHiddenTools(),
+        hiddenToolsMenuOpen: false,
+        appsRowMenuOpenFor: null,
         dragAutoScrollRaf: 0,
         dragPointer: null,
         settings: { ...DEFAULT_SETTINGS }
     };
 
     const els = {
+        appsMenuBtn: document.getElementById('apps-menu-btn'),
+        hiddenToolsMenu: document.getElementById('hidden-tools-menu'),
         container: document.getElementById('tools-container')
     };
 
@@ -66,6 +72,22 @@
         } catch {
             return [];
         }
+    }
+
+    function loadHiddenTools() {
+        try {
+            const raw = localStorage.getItem(HIDDEN_TOOLS_STORAGE_KEY);
+            if (!raw) return new Set();
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return new Set();
+            return new Set(parsed.filter(name => typeof name === 'string' && name.length > 0));
+        } catch {
+            return new Set();
+        }
+    }
+
+    function saveHiddenTools() {
+        localStorage.setItem(HIDDEN_TOOLS_STORAGE_KEY, JSON.stringify(Array.from(state.hiddenTools)));
     }
 
     function saveWidgetOrder() {
@@ -158,6 +180,7 @@
             state.toolMap.clear();
 
             if (tools.length === 0) {
+                renderHiddenToolsMenu();
                 const empty = el('div', 'empty-state', 'No tools found.');
                 els.container.appendChild(empty);
                 return;
@@ -168,6 +191,7 @@
                 els.container.appendChild(card);
             });
 
+            renderHiddenToolsMenu();
             requestAnimationFrame(resizeAllCards);
             requestAnimationFrame(enforceCardSpanConstraints);
             refreshAllStatuses();
@@ -202,19 +226,48 @@
         const btn = el('button', 'btn-status btn-yellow');
         btn.id = `btn-${sId}`;
         btn.disabled = true;
+        btn.type = 'button';
         btn.setAttribute('aria-label', `Toggle ${tool.name}`);
         btn.textContent = '⏻';
         btn.addEventListener('click', () => statusButtonAction(tool.name));
 
         const port = el('span', 'port-badge', `:${tool.port}`);
+        const settingsBtn = el('button', 'tool-settings-btn');
+        settingsBtn.type = 'button';
+        settingsBtn.setAttribute('aria-label', `Open ${tool.name} settings`);
+        settingsBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h9M15 7h5M9 7v0M4 17h5M11 17h9M15 17v0M13 7a2 2 0 1 0-4 0a2 2 0 0 0 4 0m4 10a2 2 0 1 0-4 0a2 2 0 0 0 4 0" />
+            </svg>
+        `;
+        const settingsMenu = el('div', 'tool-settings-menu');
+        const visibilityAction = el('button', 'tool-settings-item');
+        visibilityAction.type = 'button';
+        settingsMenu.appendChild(visibilityAction);
+
+        settingsBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            const open = !settingsMenu.classList.contains('is-open');
+            setHiddenToolsMenuOpen(false);
+            closeAllToolMenus(card);
+            settingsMenu.classList.toggle('is-open', open);
+        });
+        visibilityAction.addEventListener('click', event => {
+            event.stopPropagation();
+            const hidden = !card.classList.contains('is-hidden');
+            setToolHidden(tool.name, hidden);
+            settingsMenu.classList.remove('is-open');
+        });
 
         right.appendChild(btn);
         right.appendChild(port);
+        right.appendChild(settingsBtn);
 
         header.appendChild(left);
         header.appendChild(right);
         cardBody.appendChild(header);
         card.appendChild(cardBody);
+        card.appendChild(settingsMenu);
         card.draggable = true;
         wireCardDnD(card, header);
 
@@ -255,7 +308,11 @@
             card.appendChild(widgetBox);
         }
 
-        state.toolMap.set(tool.name, { card, statusDot, statusText, btn, sId });
+        state.toolMap.set(tool.name, { card, statusDot, statusText, btn, sId, settingsMenu, visibilityAction });
+        if (state.hiddenTools.has(tool.name)) {
+            card.classList.add('is-hidden');
+        }
+        syncVisibilityAction(tool.name);
         return card;
     }
 
@@ -279,7 +336,9 @@
 
     function wireCardDnD(card, header) {
         header.setAttribute('title', 'Drag to reorder');
-        header.addEventListener('pointerdown', () => {
+        header.addEventListener('pointerdown', event => {
+            const fromControl = event.target && event.target.closest('.btn-status, .tool-settings-btn, .tool-settings-menu');
+            if (fromControl) return;
             state.dragArmedCard = card;
         });
         header.addEventListener('pointerup', () => {
@@ -299,8 +358,8 @@
                 event.preventDefault();
                 return;
             }
-            const fromStatusBtn = event.target && event.target.closest('.btn-status');
-            if (fromStatusBtn) {
+            const fromControl = event.target && event.target.closest('.btn-status, .tool-settings-btn, .tool-settings-menu');
+            if (fromControl) {
                 event.preventDefault();
                 return;
             }
@@ -466,6 +525,118 @@
         state.activeResize = null;
     }
 
+    function syncVisibilityAction(name) {
+        const entry = state.toolMap.get(name);
+        if (!entry || !entry.visibilityAction) return;
+        const hidden = entry.card.classList.contains('is-hidden');
+        entry.visibilityAction.textContent = hidden ? 'Show on dashboard' : 'Hide from dashboard';
+    }
+
+    function closeAllToolMenus(exceptCard = null) {
+        state.toolMap.forEach(({ card, settingsMenu }) => {
+            if (!settingsMenu) return;
+            if (exceptCard && card === exceptCard) return;
+            settingsMenu.classList.remove('is-open');
+        });
+    }
+
+    function setToolHidden(name, hidden) {
+        const entry = state.toolMap.get(name);
+        if (!entry) return;
+
+        entry.card.classList.toggle('is-hidden', hidden);
+        if (hidden) {
+            state.hiddenTools.add(name);
+        } else {
+            state.hiddenTools.delete(name);
+        }
+
+        saveHiddenTools();
+        syncVisibilityAction(name);
+        renderHiddenToolsMenu();
+        enforceCardSpanConstraints();
+        requestAnimationFrame(resizeAllCards);
+    }
+
+    function setHiddenToolsMenuOpen(open) {
+        if (!els.hiddenToolsMenu || !els.appsMenuBtn) return;
+        state.hiddenToolsMenuOpen = !!open;
+        if (!state.hiddenToolsMenuOpen) {
+            state.appsRowMenuOpenFor = null;
+            renderHiddenToolsMenu();
+        }
+        els.hiddenToolsMenu.hidden = !state.hiddenToolsMenuOpen;
+        els.appsMenuBtn.setAttribute('aria-expanded', state.hiddenToolsMenuOpen ? 'true' : 'false');
+    }
+
+    function closeAppsRowMenus() {
+        state.appsRowMenuOpenFor = null;
+        if (state.hiddenToolsMenuOpen) renderHiddenToolsMenu();
+    }
+
+    function renderHiddenToolsMenu() {
+        if (!els.hiddenToolsMenu) return;
+        const knownTools = new Set(state.toolMap.keys());
+        state.hiddenTools.forEach(name => {
+            if (!knownTools.has(name)) state.hiddenTools.delete(name);
+        });
+        saveHiddenTools();
+
+        const toolNames = Array.from(knownTools).sort((a, b) => a.localeCompare(b));
+        els.hiddenToolsMenu.innerHTML = '';
+        const label = el('span', 'hidden-tools-label', 'Apps');
+        els.hiddenToolsMenu.appendChild(label);
+
+        if (toolNames.length === 0) {
+            els.hiddenToolsMenu.appendChild(el('div', 'hidden-tools-empty', 'No hidden apps'));
+            return;
+        }
+
+        toolNames.forEach(name => {
+            const row = el('div', 'apps-menu-row');
+            const nameLabel = el('span', 'apps-menu-name', name);
+            const hidden = state.hiddenTools.has(name);
+            if (hidden) row.classList.add('is-hidden-app');
+
+            const settingsBtn = el('button', 'apps-row-settings-btn');
+            settingsBtn.type = 'button';
+            settingsBtn.setAttribute('aria-label', `Open ${name} visibility settings`);
+            settingsBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h9M15 7h5M9 7v0M4 17h5M11 17h9M15 17v0M13 7a2 2 0 1 0-4 0a2 2 0 0 0 4 0m4 10a2 2 0 1 0-4 0a2 2 0 0 0 4 0" />
+                </svg>
+            `;
+
+            const rowMenu = el('div', 'apps-row-menu');
+            if (state.appsRowMenuOpenFor === name) rowMenu.classList.add('is-open');
+
+            const toggleBtn = el(
+                'button',
+                'apps-row-menu-item',
+                hidden ? 'Show on dashboard' : 'Hide from dashboard'
+            );
+            toggleBtn.type = 'button';
+            toggleBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                setToolHidden(name, !hidden);
+                state.appsRowMenuOpenFor = null;
+                renderHiddenToolsMenu();
+            });
+            rowMenu.appendChild(toggleBtn);
+
+            settingsBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                state.appsRowMenuOpenFor = state.appsRowMenuOpenFor === name ? null : name;
+                renderHiddenToolsMenu();
+            });
+
+            row.appendChild(nameLabel);
+            row.appendChild(settingsBtn);
+            row.appendChild(rowMenu);
+            els.hiddenToolsMenu.appendChild(row);
+        });
+    }
+
     async function statusButtonAction(name) {
         const entry = state.toolMap.get(name);
         if (!entry) return;
@@ -572,6 +743,31 @@
     document.addEventListener('pointermove', onWidgetResizeMove);
     document.addEventListener('pointerup', stopWidgetResize);
     document.addEventListener('pointercancel', stopWidgetResize);
+    if (els.appsMenuBtn) {
+        els.appsMenuBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            closeAllToolMenus();
+            setHiddenToolsMenuOpen(!state.hiddenToolsMenuOpen);
+        });
+    }
+    document.addEventListener('click', event => {
+        const inMenu = event.target && event.target.closest('.tool-settings-menu');
+        const inButton = event.target && event.target.closest('.tool-settings-btn');
+        const inHiddenToolsMenu = event.target && event.target.closest('#hidden-tools-menu');
+        const inAppsBtn = event.target && event.target.closest('#apps-menu-btn');
+        if (!inMenu && !inButton) closeAllToolMenus();
+        if (!inHiddenToolsMenu && !inAppsBtn) {
+            setHiddenToolsMenuOpen(false);
+        } else if (!event.target.closest('.apps-row-settings-btn, .apps-row-menu')) {
+            closeAppsRowMenus();
+        }
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            closeAllToolMenus();
+            setHiddenToolsMenuOpen(false);
+        }
+    });
     window.addEventListener('resize', () => {
         enforceCardSpanConstraints();
         enforceWidgetHeightConstraints();
