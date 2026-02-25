@@ -748,7 +748,7 @@
             const toggleBtn = el(
                 'button',
                 'apps-row-menu-item',
-                hidden ? 'Show on dashboard' : 'Hide from dashboard'
+                hidden ? 'Show' : 'Hide'
             );
             toggleBtn.type = 'button';
             toggleBtn.addEventListener('click', event => {
