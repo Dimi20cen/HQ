@@ -16,7 +16,7 @@
 
         body {
             font-family: "Space Grotesk", "Segoe UI", sans-serif;
-            margin: 36px;
+            margin: 24px;
             color: var(--text);
             background:
                 radial-gradient(1200px 600px at 20% -10%, #e7ecf9 0%, transparent 55%),
@@ -24,22 +24,18 @@
                 var(--bg);
         }
 
-        .toolbar {
-            margin-bottom: 8px;
-        }
-
         .grid-container {
             display: grid;
             grid-template-columns: repeat(12, minmax(0, 1fr));
-            gap: 20px;
+            gap: 14px;
             grid-auto-rows: 8px;
         }
 
         .card {
             grid-column-end: span 4;
             background: var(--card);
-            border-top: 5px solid #e5e7eb;
-            border-radius: 12px;
+            border-top: 4px solid #e5e7eb;
+            border-radius: 10px;
             box-shadow: var(--shadow);
             transition: transform 0.2s, box-shadow 0.2s;
             overflow: hidden;
@@ -67,13 +63,13 @@
         .card.status-stopped { border-top-color: var(--red); }
 
         .card-body {
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
 
-        .card.status-stopped .card-body { padding: 10px; gap: 8px; }
+        .card.status-stopped .card-body { padding: 10px; gap: 6px; }
         .card.status-stopped .tool-name { font-size: 1em; }
         .card.status-stopped .status-line { font-size: 0.8em; }
         .card.status-stopped .port-badge { font-size: 0.7em; padding: 2px 6px; }
@@ -82,7 +78,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             cursor: grab;
         }
         .tool-header:active { cursor: grabbing; }
@@ -94,14 +90,14 @@
         }
 
         .tool-name {
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: 700;
             color: var(--text);
             text-transform: capitalize;
         }
 
         .status-line {
-            display: inline-flex;
+            display: none;
             align-items: center;
             gap: 6px;
             font-size: 0.85em;
@@ -122,14 +118,14 @@
         .header-right {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
 
         .port-badge {
-            font-size: 0.75em;
+            font-size: 0.7em;
             color: var(--muted);
             background: var(--bg-accent);
-            padding: 3px 8px;
+            padding: 2px 7px;
             border-radius: 6px;
         }
 
@@ -137,9 +133,9 @@
             background: transparent;
             border: none;
             cursor: pointer;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
-            padding: 4px;
+            padding: 2px;
             line-height: 1;
             transition: opacity .2s;
         }
@@ -153,7 +149,7 @@
         .widget-container {
             border-top: 1px solid var(--border);
             background-color: #fff;
-            height: 160px;
+            height: 132px;
             display: none;
             position: relative;
         }
