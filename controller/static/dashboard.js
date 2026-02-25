@@ -3,7 +3,6 @@
     const GRID_ROW_GAP = 20;
     const WIDGET_LAYOUT_STORAGE_KEY = 'dashboard.widgetLayout.v1';
     const WIDGET_ORDER_STORAGE_KEY = 'dashboard.widgetOrder.v1';
-    const LAYOUT_SETTINGS_STORAGE_KEY = 'dashboard.layoutSettings.v1';
     const DEFAULT_SETTINGS = {
         minWidgetHeight: 120,
         maxWidgetHeightPx: 760,
@@ -13,7 +12,6 @@
     };
 
     const state = {
-        showStopped: false,
         toolMap: new Map(),
         widgetLayout: loadWidgetLayout(),
         activeResize: null,
@@ -22,21 +20,11 @@
         widgetOrder: loadWidgetOrder(),
         dragAutoScrollRaf: 0,
         dragPointer: null,
-        settings: loadLayoutSettings()
+        settings: { ...DEFAULT_SETTINGS }
     };
 
     const els = {
-        container: document.getElementById('tools-container'),
-        toggleStopped: document.getElementById('toggle-stopped'),
-        settingsBtn: document.getElementById('layout-settings-btn'),
-        settingsPopover: document.getElementById('layout-settings-popover'),
-        settingMinHeight: document.getElementById('setting-min-height'),
-        settingMaxHeight: document.getElementById('setting-max-height'),
-        settingMinWidth: document.getElementById('setting-min-width'),
-        settingScrollEdge: document.getElementById('setting-scroll-edge'),
-        settingScrollStep: document.getElementById('setting-scroll-step'),
-        settingsSave: document.getElementById('settings-save'),
-        settingsReset: document.getElementById('settings-reset')
+        container: document.getElementById('tools-container')
     };
 
     function el(tag, className, text) {
@@ -78,28 +66,6 @@
         } catch {
             return [];
         }
-    }
-
-    function loadLayoutSettings() {
-        try {
-            const raw = localStorage.getItem(LAYOUT_SETTINGS_STORAGE_KEY);
-            if (!raw) return { ...DEFAULT_SETTINGS };
-            const parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_SETTINGS };
-            return {
-                minWidgetHeight: Number(parsed.minWidgetHeight) || DEFAULT_SETTINGS.minWidgetHeight,
-                maxWidgetHeightPx: Number(parsed.maxWidgetHeightPx) || DEFAULT_SETTINGS.maxWidgetHeightPx,
-                minCardWidthPx: Number(parsed.minCardWidthPx) || DEFAULT_SETTINGS.minCardWidthPx,
-                dragAutoScrollEdgePx: Number(parsed.dragAutoScrollEdgePx) || DEFAULT_SETTINGS.dragAutoScrollEdgePx,
-                dragAutoScrollStepPx: Number(parsed.dragAutoScrollStepPx) || DEFAULT_SETTINGS.dragAutoScrollStepPx
-            };
-        } catch {
-            return { ...DEFAULT_SETTINGS };
-        }
-    }
-
-    function saveLayoutSettings() {
-        localStorage.setItem(LAYOUT_SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
     }
 
     function saveWidgetOrder() {
@@ -179,37 +145,6 @@
                 saveWidgetLayout(name, { height: Math.round(constrained) });
             }
         });
-    }
-
-    function syncSettingsInputs() {
-        els.settingMinHeight.value = String(state.settings.minWidgetHeight);
-        els.settingMaxHeight.value = String(state.settings.maxWidgetHeightPx);
-        els.settingMinWidth.value = String(state.settings.minCardWidthPx);
-        els.settingScrollEdge.value = String(state.settings.dragAutoScrollEdgePx);
-        els.settingScrollStep.value = String(state.settings.dragAutoScrollStepPx);
-    }
-
-    function applySettingsFromInputs() {
-        const minH = clamp(Number(els.settingMinHeight.value) || DEFAULT_SETTINGS.minWidgetHeight, 80, 1000);
-        const maxHRaw = clamp(Number(els.settingMaxHeight.value) || DEFAULT_SETTINGS.maxWidgetHeightPx, 120, 2000);
-        const maxH = Math.max(minH, maxHRaw);
-        const minW = clamp(Number(els.settingMinWidth.value) || DEFAULT_SETTINGS.minCardWidthPx, 180, 1200);
-        const edge = clamp(Number(els.settingScrollEdge.value) || DEFAULT_SETTINGS.dragAutoScrollEdgePx, 20, 300);
-        const step = clamp(Number(els.settingScrollStep.value) || DEFAULT_SETTINGS.dragAutoScrollStepPx, 4, 100);
-
-        state.settings = {
-            minWidgetHeight: minH,
-            maxWidgetHeightPx: maxH,
-            minCardWidthPx: minW,
-            dragAutoScrollEdgePx: edge,
-            dragAutoScrollStepPx: step
-        };
-
-        saveLayoutSettings();
-        syncSettingsInputs();
-        enforceCardSpanConstraints();
-        enforceWidgetHeightConstraints();
-        resizeAllCards();
     }
 
     async function loadDashboard() {
@@ -531,16 +466,6 @@
         state.activeResize = null;
     }
 
-    function applyFilters() {
-        state.toolMap.forEach(({ card }) => {
-            const alive = card.dataset.alive === '1';
-            const hidden = !state.showStopped && !alive;
-            card.classList.toggle('is-hidden', hidden);
-        });
-        enforceCardSpanConstraints();
-        requestAnimationFrame(resizeAllCards);
-    }
-
     async function statusButtonAction(name) {
         const entry = state.toolMap.get(name);
         if (!entry) return;
@@ -614,19 +539,14 @@
                 requestAnimationFrame(() => resizeCard(card));
             });
 
-            applyFilters();
+            enforceCardSpanConstraints();
+            requestAnimationFrame(resizeAllCards);
 
         } catch (e) {
             console.error('Refresh failed', e);
         }
     }
 
-    function syncToggleState() {
-        state.showStopped = els.toggleStopped.checked;
-        applyFilters();
-    }
-
-    els.toggleStopped.addEventListener('change', syncToggleState);
     els.container.addEventListener('dragover', event => {
         if (!state.dragSource) return;
         event.preventDefault();
@@ -652,34 +572,11 @@
     document.addEventListener('pointermove', onWidgetResizeMove);
     document.addEventListener('pointerup', stopWidgetResize);
     document.addEventListener('pointercancel', stopWidgetResize);
-    els.settingsBtn.addEventListener('click', () => {
-        const open = els.settingsPopover.classList.toggle('is-open');
-        if (open) syncSettingsInputs();
-    });
-    els.settingsSave.addEventListener('click', () => {
-        applySettingsFromInputs();
-        els.settingsPopover.classList.remove('is-open');
-    });
-    els.settingsReset.addEventListener('click', () => {
-        state.settings = { ...DEFAULT_SETTINGS };
-        saveLayoutSettings();
-        syncSettingsInputs();
-        enforceCardSpanConstraints();
-        resizeAllCards();
-    });
-    document.addEventListener('click', event => {
-        if (!els.settingsPopover.classList.contains('is-open')) return;
-        const inPopover = event.target && event.target.closest('#layout-settings-popover');
-        const inButton = event.target && event.target.closest('#layout-settings-btn');
-        if (!inPopover && !inButton) els.settingsPopover.classList.remove('is-open');
-    });
     window.addEventListener('resize', () => {
         enforceCardSpanConstraints();
         enforceWidgetHeightConstraints();
         requestAnimationFrame(resizeAllCards);
     });
 
-    syncSettingsInputs();
-    syncToggleState();
     loadDashboard();
     setInterval(refreshAllStatuses, REFRESH_RATE);

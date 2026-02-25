@@ -8,48 +8,6 @@
 <body>
 
 <header class="toolbar">
-    <div class="title">
-        <div class="app-icon">&#x1F39B;</div>
-        <div>
-            <div class="app-name">Utility Controller</div>
-            <div class="app-subtitle">Local tools dashboard</div>
-        </div>
-    </div>
-
-    <div class="toolbar-right">
-        <label class="toggle">
-            <input id="toggle-stopped" type="checkbox" />
-            <span>Show stopped</span>
-        </label>
-        <button id="layout-settings-btn" class="settings-btn" type="button">Layout Settings</button>
-        <div id="layout-settings-popover" class="settings-popover" role="dialog" aria-label="Layout settings">
-            <div class="settings-title">Layout Settings</div>
-            <label class="settings-row">
-                <span>Min widget height (px)</span>
-                <input id="setting-min-height" type="number" min="80" max="1000" />
-            </label>
-            <label class="settings-row">
-                <span>Max widget height (px)</span>
-                <input id="setting-max-height" type="number" min="120" max="2000" />
-            </label>
-            <label class="settings-row">
-                <span>Min widget width (px)</span>
-                <input id="setting-min-width" type="number" min="180" max="1200" />
-            </label>
-            <label class="settings-row">
-                <span>Auto-scroll edge (px)</span>
-                <input id="setting-scroll-edge" type="number" min="20" max="300" />
-            </label>
-            <label class="settings-row">
-                <span>Auto-scroll speed (px)</span>
-                <input id="setting-scroll-step" type="number" min="4" max="100" />
-            </label>
-            <div class="settings-actions">
-                <button id="settings-reset" type="button">Reset</button>
-                <button id="settings-save" type="button">Save</button>
-            </div>
-        </div>
-    </div>
 </header>
 
 <div id="tools-container" class="grid-container"></div>
