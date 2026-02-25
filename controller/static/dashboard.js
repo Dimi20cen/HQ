@@ -120,6 +120,11 @@
         return Math.max(min, Math.min(max, value));
     }
 
+    function openToolPage(name) {
+        const url = `/proxy/${encodeURIComponent(name)}/widget`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
     function getGridMetrics() {
         const styles = getComputedStyle(els.container);
         const columns = styles.gridTemplateColumns.split(/\s+/).filter(Boolean).length || 1;
@@ -231,6 +236,19 @@
         btn.textContent = '⏻';
         btn.addEventListener('click', () => statusButtonAction(tool.name));
 
+        const openBtn = el('button', 'tool-open-btn');
+        openBtn.type = 'button';
+        openBtn.setAttribute('aria-label', `Open ${tool.name}`);
+        openBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 5h5v5M10 14L19 5M19 13v6H5V5h6" />
+            </svg>
+        `;
+        openBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            openToolPage(tool.name);
+        });
+
         const settingsBtn = el('button', 'tool-settings-btn');
         settingsBtn.type = 'button';
         settingsBtn.setAttribute('aria-label', `Open ${tool.name} settings`);
@@ -270,6 +288,7 @@
         });
 
         right.appendChild(btn);
+        right.appendChild(openBtn);
         right.appendChild(settingsBtn);
 
         header.appendChild(left);
@@ -356,7 +375,7 @@
     function wireCardDnD(card, header) {
         header.setAttribute('title', 'Drag to reorder');
         header.addEventListener('pointerdown', event => {
-            const fromControl = event.target && event.target.closest('.btn-status, .tool-settings-btn, .tool-settings-menu');
+            const fromControl = event.target && event.target.closest('.btn-status, .tool-open-btn, .tool-settings-btn, .tool-settings-menu');
             if (fromControl) return;
             state.dragArmedCard = card;
         });
@@ -377,7 +396,7 @@
                 event.preventDefault();
                 return;
             }
-            const fromControl = event.target && event.target.closest('.btn-status, .tool-settings-btn, .tool-settings-menu');
+            const fromControl = event.target && event.target.closest('.btn-status, .tool-open-btn, .tool-settings-btn, .tool-settings-menu');
             if (fromControl) {
                 event.preventDefault();
                 return;
@@ -698,6 +717,18 @@
                     <path d="M4 7h9M15 7h5M9 7v0M4 17h5M11 17h9M15 17v0M13 7a2 2 0 1 0-4 0a2 2 0 0 0 4 0m4 10a2 2 0 1 0-4 0a2 2 0 0 0 4 0" />
                 </svg>
             `;
+            const openBtn = el('button', 'apps-row-open-btn');
+            openBtn.type = 'button';
+            openBtn.setAttribute('aria-label', `Open ${name}`);
+            openBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 5h5v5M10 14L19 5M19 13v6H5V5h6" />
+                </svg>
+            `;
+            openBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                openToolPage(name);
+            });
             const powerBtn = el('button', 'apps-row-power-btn');
             powerBtn.type = 'button';
             powerBtn.setAttribute('aria-label', `${alive ? 'Stop' : 'Start'} ${name}`);
@@ -749,6 +780,7 @@
                 renderHiddenToolsMenu();
             });
 
+            rowActions.appendChild(openBtn);
             rowActions.appendChild(settingsBtn);
             rowActions.appendChild(powerBtn);
             row.appendChild(nameLabel);

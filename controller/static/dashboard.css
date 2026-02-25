@@ -192,6 +192,31 @@
         .apps-row-power-btn.is-running { color: var(--green); }
         .apps-row-power-btn.is-stopped { color: var(--red); }
 
+        .apps-row-open-btn {
+            width: 22px;
+            height: 22px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            color: #4b5563;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .apps-row-open-btn svg {
+            width: 12px;
+            height: 12px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
         .apps-row-settings-btn svg {
             width: 13px;
             height: 13px;
@@ -239,7 +264,8 @@
 
         .tool-settings-item:disabled,
         .apps-row-menu-item:disabled,
-        .apps-row-power-btn:disabled {
+        .apps-row-power-btn:disabled,
+        .apps-row-open-btn:disabled {
             opacity: 0.55;
             cursor: not-allowed;
         }
@@ -369,6 +395,30 @@
             padding: 0;
             color: #4b5563;
             cursor: pointer;
+        }
+
+        .tool-open-btn {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            color: #4b5563;
+            cursor: pointer;
+        }
+
+        .tool-open-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .tool-settings-btn svg {
