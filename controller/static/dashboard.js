@@ -266,7 +266,7 @@
         }
 
         if (totalEl) {
-            totalEl.textContent = `${totalApplied} total`;
+            totalEl.textContent = `${totalApplied}`;
         }
         els.jobActivityGrid.setAttribute(
             'aria-label',
