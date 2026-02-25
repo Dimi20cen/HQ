@@ -687,7 +687,13 @@
             const autoStart = !!(entry && entry.autoStart);
             const alive = !!(entry && entry.alive);
             const pendingAction = !!(entry && entry.pendingAction);
-            if (hidden) row.classList.add('is-hidden-app');
+            if (!alive) {
+                row.classList.add('is-stopped-app');
+            } else if (hidden) {
+                row.classList.add('is-running-hidden-app');
+            } else {
+                row.classList.add('is-running-visible-app');
+            }
 
             const settingsBtn = el('button', 'apps-row-settings-btn');
             settingsBtn.type = 'button';
