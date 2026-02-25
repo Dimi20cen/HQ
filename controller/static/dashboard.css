@@ -201,6 +201,12 @@
             background: var(--bg-accent);
         }
 
+        .tool-settings-item:disabled,
+        .apps-row-menu-item:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         .hidden-tools-empty {
             font-size: 12px;
             color: var(--muted);

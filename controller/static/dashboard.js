@@ -243,7 +243,13 @@
         const settingsMenu = el('div', 'tool-settings-menu');
         const visibilityAction = el('button', 'tool-settings-item');
         visibilityAction.type = 'button';
+        const autoStartAction = el('button', 'tool-settings-item');
+        autoStartAction.type = 'button';
+        const runningAction = el('button', 'tool-settings-item');
+        runningAction.type = 'button';
         settingsMenu.appendChild(visibilityAction);
+        settingsMenu.appendChild(autoStartAction);
+        settingsMenu.appendChild(runningAction);
 
         settingsBtn.addEventListener('click', event => {
             event.stopPropagation();
@@ -256,6 +262,18 @@
             event.stopPropagation();
             const hidden = !card.classList.contains('is-hidden');
             setToolHidden(tool.name, hidden);
+            settingsMenu.classList.remove('is-open');
+        });
+        autoStartAction.addEventListener('click', async event => {
+            event.stopPropagation();
+            const entry = state.toolMap.get(tool.name);
+            if (!entry) return;
+            await setToolAutoStart(tool.name, !entry.autoStart);
+            settingsMenu.classList.remove('is-open');
+        });
+        runningAction.addEventListener('click', async event => {
+            event.stopPropagation();
+            await toggleToolRunning(tool.name);
             settingsMenu.classList.remove('is-open');
         });
 
@@ -308,11 +326,24 @@
             card.appendChild(widgetBox);
         }
 
-        state.toolMap.set(tool.name, { card, statusDot, statusText, btn, sId, settingsMenu, visibilityAction });
+        state.toolMap.set(tool.name, {
+            card,
+            statusDot,
+            statusText,
+            btn,
+            sId,
+            settingsMenu,
+            visibilityAction,
+            autoStartAction,
+            runningAction,
+            autoStart: !!tool.auto_start,
+            alive: false,
+            pendingAction: false
+        });
         if (state.hiddenTools.has(tool.name)) {
             card.classList.add('is-hidden');
         }
-        syncVisibilityAction(tool.name);
+        syncToolMenuActions(tool.name);
         return card;
     }
 
@@ -532,6 +563,20 @@
         entry.visibilityAction.textContent = hidden ? 'Show on dashboard' : 'Hide from dashboard';
     }
 
+    function syncToolMenuActions(name) {
+        const entry = state.toolMap.get(name);
+        if (!entry) return;
+        syncVisibilityAction(name);
+        if (entry.autoStartAction) {
+            entry.autoStartAction.textContent = entry.autoStart ? 'Disable Auto Start' : 'Enable Auto Start';
+            entry.autoStartAction.disabled = !!entry.pendingAction;
+        }
+        if (entry.runningAction) {
+            entry.runningAction.textContent = entry.alive ? 'Stop Tool' : 'Start Tool';
+            entry.runningAction.disabled = !!entry.pendingAction;
+        }
+    }
+
     function closeAllToolMenus(exceptCard = null) {
         state.toolMap.forEach(({ card, settingsMenu }) => {
             if (!settingsMenu) return;
@@ -552,10 +597,52 @@
         }
 
         saveHiddenTools();
-        syncVisibilityAction(name);
+        syncToolMenuActions(name);
         renderHiddenToolsMenu();
         enforceCardSpanConstraints();
         requestAnimationFrame(resizeAllCards);
+    }
+
+    async function setToolAutoStart(name, enabled) {
+        const entry = state.toolMap.get(name);
+        if (!entry || entry.pendingAction) return;
+        entry.pendingAction = true;
+        syncToolMenuActions(name);
+        try {
+            const resp = await fetch(`/tools/${encodeURIComponent(name)}/auto-start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            if (!resp.ok) throw new Error('save failed');
+            entry.autoStart = enabled;
+            syncToolMenuActions(name);
+            renderHiddenToolsMenu();
+        } catch {
+            alert('Failed to update Auto Start');
+        } finally {
+            entry.pendingAction = false;
+            syncToolMenuActions(name);
+        }
+    }
+
+    async function toggleToolRunning(name) {
+        const entry = state.toolMap.get(name);
+        if (!entry || entry.pendingAction) return;
+        entry.pendingAction = true;
+        syncToolMenuActions(name);
+        try {
+            const action = entry.alive ? 'kill' : 'launch';
+            const resp = await fetch(`/tools/${encodeURIComponent(name)}/${action}`, { method: 'POST' });
+            if (!resp.ok) throw new Error('request failed');
+            setTimeout(refreshAllStatuses, 400);
+        } catch {
+            alert('Failed to update running state');
+        } finally {
+            entry.pendingAction = false;
+            syncToolMenuActions(name);
+            renderHiddenToolsMenu();
+        }
     }
 
     function setHiddenToolsMenuOpen(open) {
@@ -588,7 +675,7 @@
         els.hiddenToolsMenu.appendChild(label);
 
         if (toolNames.length === 0) {
-            els.hiddenToolsMenu.appendChild(el('div', 'hidden-tools-empty', 'No hidden apps'));
+            els.hiddenToolsMenu.appendChild(el('div', 'hidden-tools-empty', 'No apps'));
             return;
         }
 
@@ -596,6 +683,10 @@
             const row = el('div', 'apps-menu-row');
             const nameLabel = el('span', 'apps-menu-name', name);
             const hidden = state.hiddenTools.has(name);
+            const entry = state.toolMap.get(name);
+            const autoStart = !!(entry && entry.autoStart);
+            const alive = !!(entry && entry.alive);
+            const pendingAction = !!(entry && entry.pendingAction);
             if (hidden) row.classList.add('is-hidden-app');
 
             const settingsBtn = el('button', 'apps-row-settings-btn');
@@ -623,6 +714,36 @@
                 renderHiddenToolsMenu();
             });
             rowMenu.appendChild(toggleBtn);
+
+            const autoStartBtn = el(
+                'button',
+                'apps-row-menu-item',
+                autoStart ? 'Disable Auto Start' : 'Enable Auto Start'
+            );
+            autoStartBtn.type = 'button';
+            autoStartBtn.disabled = pendingAction;
+            autoStartBtn.addEventListener('click', async event => {
+                event.stopPropagation();
+                await setToolAutoStart(name, !autoStart);
+                state.appsRowMenuOpenFor = null;
+                renderHiddenToolsMenu();
+            });
+            rowMenu.appendChild(autoStartBtn);
+
+            const runningBtn = el(
+                'button',
+                'apps-row-menu-item',
+                alive ? 'Stop Tool' : 'Start Tool'
+            );
+            runningBtn.type = 'button';
+            runningBtn.disabled = pendingAction;
+            runningBtn.addEventListener('click', async event => {
+                event.stopPropagation();
+                await toggleToolRunning(name);
+                state.appsRowMenuOpenFor = null;
+                renderHiddenToolsMenu();
+            });
+            rowMenu.appendChild(runningBtn);
 
             settingsBtn.addEventListener('click', event => {
                 event.stopPropagation();
@@ -673,6 +794,7 @@
                 const iframe = document.getElementById(`iframe-${sId}`);
                 const resizeControls = widgetBox ? widgetBox.querySelectorAll('.widget-resize-control') : [];
                 const alive = !!tool.alive;
+                entry.alive = alive;
 
                 card.dataset.alive = alive ? '1' : '0';
                 card.classList.toggle('status-running', alive);
@@ -688,6 +810,7 @@
                 btn.disabled = false;
                 btn.dataset.action = alive ? 'kill' : 'launch';
                 btn.className = alive ? 'btn-status btn-green' : 'btn-status btn-red';
+                syncToolMenuActions(tool.name);
 
                 if (widgetBox && iframe) {
                     if (alive) {
@@ -712,6 +835,7 @@
 
             enforceCardSpanConstraints();
             requestAnimationFrame(resizeAllCards);
+            if (state.hiddenToolsMenuOpen) renderHiddenToolsMenu();
 
         } catch (e) {
             console.error('Refresh failed', e);

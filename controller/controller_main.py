@@ -25,6 +25,42 @@ from fastapi.staticfiles import StaticFiles
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+
+def _manifest_path_for_tool(name: str) -> Path:
+    return BASE_DIR.parent / "tools" / name / "tool.json"
+
+
+def _read_tool_manifest(name: str) -> dict | None:
+    manifest_path = _manifest_path_for_tool(name)
+    if not manifest_path.exists():
+        return None
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _write_tool_manifest(name: str, manifest: dict) -> bool:
+    manifest_path = _manifest_path_for_tool(name)
+    if not manifest_path.exists():
+        return False
+    try:
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+            f.write("\n")
+        return True
+    except Exception:
+        return False
+
+
+def _get_tool_auto_start(name: str) -> bool:
+    manifest = _read_tool_manifest(name)
+    if not manifest:
+        return False
+    return bool(manifest.get("auto_start", False))
+
 def scan_tools():
     """
     Scans tools/ directory for folders with a valid tool.json.
@@ -166,7 +202,10 @@ def dashboard(request: Request):
 
 @app.get("/tools")
 def get_tools():
-    return {"tools": list_tools()}
+    tools = list_tools()
+    for tool in tools:
+        tool["auto_start"] = _get_tool_auto_start(tool["name"])
+    return {"tools": tools}
 
 @app.post("/tools/register")
 def register_tool(payload: dict):
@@ -222,6 +261,27 @@ def kill_tool(name: str):
 @app.get("/tools/{name}/alive")
 def tool_alive(name: str):
     return ProcessManager.is_alive(name)
+
+
+@app.post("/tools/{name}/auto-start")
+def set_tool_auto_start(name: str, payload: dict):
+    tool = get_tool_by_name(name)
+    if not tool:
+        return JSONResponse(status_code=404, content={"detail": "Tool not found."})
+
+    enabled = payload.get("enabled")
+    if not isinstance(enabled, bool):
+        return JSONResponse(status_code=400, content={"detail": "Missing boolean 'enabled' field."})
+
+    manifest = _read_tool_manifest(name)
+    if manifest is None:
+        return JSONResponse(status_code=404, content={"detail": "tool.json not found."})
+
+    manifest["auto_start"] = enabled
+    if not _write_tool_manifest(name, manifest):
+        return JSONResponse(status_code=500, content={"detail": "Failed to update tool.json."})
+
+    return {"name": name, "auto_start": enabled}
 
 
 def _rewrite_widget_content(content: bytes, tool_name: str, content_type: str) -> bytes:
