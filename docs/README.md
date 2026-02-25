@@ -5,3 +5,4 @@ read_when: start here
 - runtime.md - how to run controller and tools
 - tools.md - tool structure and conventions
 - controller.md - controller API surface
+- theme-guidelines.md - canonical HQ color tokens and theme usage rules

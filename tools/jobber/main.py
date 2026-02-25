@@ -578,16 +578,16 @@ def widget_generator():
         <meta charset="utf-8">
         <style>
             :root {{
-                --bg: #ffffff;
-                --text-main: #1b1f24;
-                --text-sub: #6a6f76;
-                --border: #eef0f2;
-                --hover-bg: #f7f8fa;
-                --accent: #0b6efd;
+                --bg: #fff9fd;
+                --text-main: #372f56;
+                --text-sub: #756d95;
+                --border: rgba(143, 119, 171, 0.24);
+                --hover-bg: #f2edf7;
+                --accent: #6b83d9;
             }}
             * {{ box-sizing: border-box; }}
             body {{ 
-                font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
+                font-family: "Manrope", "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
                 background-color: var(--bg);
                 padding: 20px 28px 26px;
                 margin: 0 auto;
@@ -632,7 +632,7 @@ def widget_generator():
             }}
             .col-date {{
                 font-size: 12px;
-                color: #4b5563;
+                color: var(--text-sub);
                 font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
                 margin-left: auto;
                 min-width: 68px;

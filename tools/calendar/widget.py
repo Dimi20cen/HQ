@@ -8,20 +8,26 @@ def widget_html(cal_url: str) -> str:
       <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
       <style>
         :root {
-          --ink: #0b2545;
-          --muted: #5d728a;
-          --line: #c6d8ea;
-          --bg: #f3f8ff;
-          --soft: #ffffff;
-          --accent: #1d6fd8;
-          --accent-strong: #1557ad;
-          --danger: #b4233e;
-          --ok: #1f8a53;
+          --ink: #372f56;
+          --muted: #756d95;
+          --line: rgba(143, 119, 171, 0.28);
+          --bg: #fdf5fb;
+          --soft: #fff9fd;
+          --accent: #7d8cc3;
+          --accent-strong: #6f7eb2;
+          --danger: #b66a91;
+          --ok: #3b9d72;
+          --surface-alt: #f7f9ff;
+          --surface-hover: #f6daed;
+          --outside: #bcaed3;
+          --day-today: #efd8f4;
+          --day-active: #e4ebff;
+          --section-line: #ead8ef;
         }
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+          font-family: "Manrope", "Space Grotesk", "Segoe UI", sans-serif;
           color: var(--ink);
           background: transparent;
         }
@@ -45,7 +51,7 @@ def widget_html(cal_url: str) -> str:
         button {
           border: 1px solid var(--line);
           border-radius: 7px;
-          background: #fff;
+          background: var(--soft);
           color: var(--ink);
           padding: 4px 8px;
           cursor: pointer;
@@ -53,15 +59,15 @@ def widget_html(cal_url: str) -> str:
           font-size: 11px;
         }
         button.primary {
-          background: var(--accent);
-          color: #fff;
-          border-color: var(--accent);
+          background: var(--surface-alt);
+          color: var(--ink);
+          border-color: var(--line);
         }
-        button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+        button.primary:hover { background: var(--surface-hover); border-color: var(--line); }
         button.warn {
-          background: #fff;
+          background: var(--soft);
           color: var(--danger);
-          border-color: #f0c2cc;
+          border-color: var(--line);
         }
         .circle-btn {
           width: 26px;
@@ -88,8 +94,8 @@ def widget_html(cal_url: str) -> str:
           align-items: center;
         }
         .link-btn:hover {
-          background: #f7fbff;
-          border-color: #b5cae2;
+          background: var(--surface-alt);
+          border-color: var(--line);
         }
         .external-link-btn {
           width: 26px;
@@ -116,7 +122,7 @@ def widget_html(cal_url: str) -> str:
           color: var(--muted);
         }
         .feedback.ok { color: var(--ok); }
-        .feedback.error { color: #8b2130; }
+        .feedback.error { color: var(--danger); }
 
         .layout {
           margin-top: 6px;
@@ -132,7 +138,7 @@ def widget_html(cal_url: str) -> str:
         .panel {
           border: 1px solid var(--line);
           border-radius: 8px;
-          background: #ffffff;
+          background: var(--soft);
           padding: 4px;
         }
         .calendar-panel {
@@ -174,7 +180,7 @@ def widget_html(cal_url: str) -> str:
           background: transparent;
           color: var(--muted);
         }
-        .month-nav button:hover { background: #e7f1ff; color: var(--accent-strong); }
+        .month-nav button:hover { background: var(--surface-hover); color: var(--accent-strong); }
 
         .weekday-row,
         .day-grid {
@@ -203,17 +209,17 @@ def widget_html(cal_url: str) -> str:
           gap: 1px;
           cursor: pointer;
         }
-        .day:hover { background: #eef5ff; }
+        .day:hover { background: var(--surface-hover); }
         .day.outside {
-          color: #b0b0b0;
+          color: var(--outside);
         }
         .day.today {
-          border-color: #9fbce3;
-          background: #edf4ff;
+          border-color: var(--line);
+          background: var(--day-today);
         }
         .day.active {
           border-color: var(--accent);
-          background: #e1eeff;
+          background: var(--day-active);
         }
         .day-num {
           font-size: 12px;
@@ -237,7 +243,7 @@ def widget_html(cal_url: str) -> str:
         .section {
           margin-top: 6px;
           padding-top: 6px;
-          border-top: 1px solid #dbe8f5;
+          border-top: 1px solid var(--section-line);
         }
         .section-title {
           margin: 0 0 4px;
@@ -249,10 +255,10 @@ def widget_html(cal_url: str) -> str:
         }
 
         .form {
-          border: 1px solid #dbe8f5;
+          border: 1px solid var(--section-line);
           border-radius: 8px;
           padding: 6px;
-          background: #fff;
+          background: var(--soft);
         }
         .field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; }
         .field:last-child { margin-bottom: 0; }
@@ -276,16 +282,16 @@ def widget_html(cal_url: str) -> str:
           padding: 5px 7px;
           font: inherit;
           font-size: 12px;
-          background: #fff;
+          background: var(--soft);
         }
         textarea { min-height: 48px; resize: vertical; }
         .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .hint { color: var(--muted); font-size: 11px; }
 
         .event {
-          border: 1px solid #dbe8f5;
+          border: 1px solid var(--section-line);
           border-radius: 8px;
-          background: #fafdff;
+          background: var(--surface-alt);
           padding: 5px;
           margin-bottom: 5px;
         }

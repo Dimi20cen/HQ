@@ -1,4 +1,58 @@
 ## 2026-02-25
+- Summary: Tuned tool widget theming to be more muted and flat (reduced gradients/shadows and softened accents) while retaining the shared HQ blossom token family.
+- Affected files: `tools/blocker/main.py`, `tools/downloader/main.py`, `tools/jobber/main.py`, `tools/calendar/widget.py`, `tools/meditator/main.py`, `docs/theme-guidelines.md`
+- Migration notes: Tool widgets should default to muted/flat styling unless a tool explicitly needs stronger visual hierarchy.
+- Validation status: `python3 -m py_compile tools/blocker/main.py tools/downloader/main.py tools/jobber/main.py tools/meditator/main.py tools/calendar/widget.py` passed.
+
+## 2026-02-25
+- Summary: Propagated the cherry-blossom HQ theme to built-in tool widgets (calendar, blocker, downloader, jobber, meditator) and expanded theme-guideline scope to include tool UIs.
+- Affected files: `tools/calendar/widget.py`, `tools/blocker/main.py`, `tools/downloader/main.py`, `tools/jobber/main.py`, `tools/meditator/main.py`, `docs/theme-guidelines.md`
+- Migration notes: New tool widgets should start from the shared HQ semantic tokens/colors.
+- Validation status: `python3 -m py_compile tools/blocker/main.py tools/downloader/main.py tools/jobber/main.py tools/meditator/main.py tools/calendar/widget.py` passed.
+
+## 2026-02-25
+- Summary: Updated repo `AGENTS.md` so agents explicitly follow the canonical HQ theme guidelines and semantic color-token usage for dashboard/UI changes.
+- Affected files: `AGENTS.md`
+- Migration notes: None.
+- Validation status: Documentation update only.
+
+## 2026-02-25
+- Summary: Standardized HQ dashboard color usage with semantic theme/status tokens and added a canonical theme guideline document for future UI work.
+- Affected files: `controller/static/dashboard.css`, `docs/theme-guidelines.md`, `docs/README.md`
+- Migration notes: Prefer semantic color tokens over hardcoded hex values for new UI styling.
+- Validation status: `node --check controller/static/dashboard.js` passed (no JS behavior change).
+
+## 2026-02-25
+- Summary: Adjusted the cherry blossom dashboard theme to a more pink-dominant palette based on updated reference art, using stronger sakura pink accents with twilight blue sky tones.
+- Affected files: `controller/static/dashboard.css`
+- Migration notes: None.
+- Validation status: Visual style update only.
+
+## 2026-02-25
+- Summary: Replaced Hanafuda tones with an image-matched cherry blossom palette for the dashboard (sky blue, sakura pink, and cloud white) across surfaces, controls, shadows, and status chips.
+- Affected files: `controller/static/dashboard.css`
+- Migration notes: None.
+- Validation status: Visual style update only.
+
+## 2026-02-25
+- Summary: Rethemed dashboard visuals to a Hanafuda-inspired palette (parchment surfaces, lacquer red, pine green, muted gold, and ink neutrals) while preserving existing layout and interactions.
+- Affected files: `controller/static/dashboard.css`
+- Migration notes: None.
+- Validation status: Visual style update only.
+
+## 2026-02-25
+- Summary: Rebalanced the blossom dashboard theme to a more neutral “sakura steel” look by reducing pink saturation, strengthening neutral surfaces/controls, and simplifying typography to a single sans-serif family.
+- Affected files: `controller/static/dashboard.css`, `controller/templates/dashboard.html`
+- Migration notes: None.
+- Validation status: Visual style update only.
+
+## 2026-02-25
+- Summary: Introduced a blossom-cherry dashboard theme with new color tokens, elevated surface styling, expressive typography, and staggered card entrance animation while preserving current dashboard behavior.
+- Affected files: `controller/static/dashboard.css`, `controller/templates/dashboard.html`, `controller/static/dashboard.js`
+- Migration notes: None.
+- Validation status: `node --check controller/static/dashboard.js` passed.
+
+## 2026-02-25
 - Summary: Improved dashboard mobile/web usability by adding viewport scaling, always-visible status text, larger touch targets, small-screen layout safeguards, coarse-pointer drag reorder fallback, and a dedicated reorder mode panel with explicit up/down controls; added tool `category` support and a dashboard view-model mapping layer for cleaner UI rendering.
 - Affected files: `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `controller/controller_main.py`, `create_tool.py`, `docs/tools.md`, `docs/controller.md`, `docs/dashboard-mobile-web-checklist.md`, `tools/*/tool.json`
 - Migration notes: None.

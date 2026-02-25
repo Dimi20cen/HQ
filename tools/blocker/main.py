@@ -77,26 +77,44 @@ def widget_generator():
     html = f"""
     <!DOCTYPE html>
     <style>
+        :root {{
+            --bg: #fdf5fb;
+            --surface: #fff9fd;
+            --text: #372f56;
+            --muted: #756d95;
+            --border: rgba(143, 119, 171, 0.28);
+            --control-bg: #ffffff;
+            --control-bg-hover: #f2edf7;
+            --status-info: #7d8cc3;
+        }}
         * {{ box-sizing: border-box; }}
         html, body {{ height: 100%; }}
         body {{
-            font-family: sans-serif; padding: 0; margin: 0;
-            font-size: 12px; background: #fff; color: #222;
+            font-family: "Manrope", "Space Grotesk", "Segoe UI", sans-serif; padding: 0; margin: 0;
+            font-size: 12px; background: var(--bg); color: var(--text);
             overflow-x: hidden;
         }}
         .widget-root {{
             width: 100%;
             height: 100%;
             padding: 8px 8px 10px 8px;
+            background: var(--surface);
         }}
         .row {{ display: flex; gap: 6px; margin-bottom: 6px; width: 100%; }}
         input, textarea, button {{
-            font-size: 12px; border: 1px solid #ccc;
-            border-radius: 2px; background: #fafafa; padding: 4px;
+            font-size: 12px; border: 1px solid var(--border);
+            border-radius: 6px; background: var(--control-bg); padding: 4px;
+            color: var(--text);
         }}
         .time-input {{ flex: 1; min-width: 0; }}
-        button {{ padding: 4px 10px; cursor: pointer; background: #f2f2f2; }}
-        button:hover {{ background: #e6e6e6; }}
+        button {{
+            padding: 4px 10px;
+            cursor: pointer;
+            background: var(--control-bg);
+            border-color: var(--border);
+            font-weight: 600;
+        }}
+        button:hover {{ background: var(--control-bg-hover); }}
         textarea {{ width: 100%; height: 70px; resize: vertical; font-family: monospace; }}
     </style>
 

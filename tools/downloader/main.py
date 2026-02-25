@@ -75,7 +75,20 @@ def widget_html():
     <html>
     <head>
         <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #fff; margin: 0; }
+            :root {
+                --bg: #fdf5fb;
+                --surface: #fff9fd;
+                --surface-soft: #f7f9ff;
+                --text: #372f56;
+                --muted: #756d95;
+                --border: rgba(143, 119, 171, 0.28);
+                --control-icon: #755f98;
+                --status-running: #3b9d72;
+                --status-stopped: #b66a91;
+                --status-info: #7d8cc3;
+                --status-info-strong: #6f7eb2;
+            }
+            body { font-family: "Manrope", "Space Grotesk", "Segoe UI", sans-serif; padding: 20px; background: var(--bg); margin: 0; color: var(--text); }
             .container { max-width: 600px; margin: 0 auto; }
 
             /* INPUT AREA */
@@ -85,14 +98,18 @@ def widget_html():
             }
             .input-wrapper {
                 flex: 1; display: flex; 
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-                border-radius: 8px; border: 1px solid #eee; overflow: hidden;
+                box-shadow: none;
+                border-radius: 8px; border: 1px solid var(--border); overflow: hidden;
                 height: 42px; /* Fixed height to match button roughly */
+                background: var(--surface);
             }
-            input { flex: 1; padding: 12px 15px; border: none; outline: none; font-size: 14px; }
+            input {
+                flex: 1; padding: 12px 15px; border: none; outline: none; font-size: 14px;
+                background: transparent; color: var(--text);
+            }
             select { 
-                padding: 0 15px; border: none; border-left: 1px solid #eee; 
-                background: #fdfdfd; font-size: 13px; color: #555; outline: none; cursor: pointer; font-weight: 500;
+                padding: 0 15px; border: none; border-left: 1px solid var(--border);
+                background: var(--surface-soft); font-size: 13px; color: var(--muted); outline: none; cursor: pointer; font-weight: 500;
             }
             
             /* BUTTON GROUP (Right Side) */
@@ -105,16 +122,17 @@ def widget_html():
 
             button#btn-main { 
                 height: 42px;
-                padding: 0 20px; background: #007bff; color: white; border: none; 
+                padding: 0 20px; background: var(--surface-soft); color: var(--text); border: 1px solid var(--border);
                 border-radius: 8px; font-weight: 600; cursor: pointer; 
-                box-shadow: 0 2px 5px rgba(0,123,255,0.2); transition: transform 0.1s;
+                box-shadow: none; transition: transform 0.1s, background 0.12s ease;
             }
+            button#btn-main:hover { background: #f0ebf7; }
             button#btn-main:active { transform: translateY(2px); }
 
             /* LOGIN TOGGLE */
             .login-wrapper {
                 display: flex; align-items: center; gap: 5px; 
-                font-size: 11px; color: #666; font-weight: 500;
+                font-size: 11px; color: var(--muted); font-weight: 500;
                 padding-right: 2px;
             }
             .login-wrapper input { padding: 0; margin: 0; cursor: pointer; flex: 0; }
@@ -125,29 +143,29 @@ def widget_html():
 
             /* INDIVIDUAL JOB CARD */
             .job-card {
-                background: white; border: 1px solid #eee; border-radius: 8px;
-                padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+                background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+                padding: 12px; box-shadow: none;
                 animation: slideDown 0.3s ease-out;
             }
             @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
             .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-            .job-title { font-size: 13px; font-weight: 600; color: #333; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .job-meta { font-size: 11px; color: #888; }
+            .job-title { font-size: 13px; font-weight: 600; color: var(--text); max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .job-meta { font-size: 11px; color: var(--muted); }
             
-            .progress-track { width: 100%; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
-            .progress-fill { height: 100%; background: #007bff; width: 0%; transition: width 0.5s ease; }
+            .progress-track { width: 100%; height: 6px; background: #ebe6f1; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+            .progress-fill { height: 100%; background: var(--status-info); width: 0%; transition: width 0.5s ease; }
             
             .job-actions { display: flex; justify-content: flex-end; gap: 15px; align-items: center; }
             
             button.btn-sm { background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
-            .btn-cancel { color: #dc3545; }
+            .btn-cancel { color: var(--status-stopped); }
             
             /* Success State Actions */
             .success-actions { display: none; gap: 10px; align-items: center; }
-            .btn-folder { color: #555; font-weight: 500; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; }
-            .btn-folder:hover { background: #e2e6ea; }
-            .saved-text { color: #28a745; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+            .btn-folder { color: var(--control-icon); font-weight: 500; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f3ebf7; border-radius: 4px; }
+            .btn-folder:hover { background: #eadcf2; }
+            .saved-text { color: var(--status-running); font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 
         </style>
     </head>
@@ -272,14 +290,14 @@ def widget_html():
                     
                     if (data.status === "completed") {
                         fillEl.style.width = "100%";
-                        fillEl.style.background = "#28a745"; 
+                        fillEl.style.background = "var(--status-running)";
                         metaEl.innerText = "";
                         
                         // Switch Actions
                         cancelBtn.style.display = "none";
                         successActions.style.display = "flex";
                     } else if (data.status === "error") {
-                        fillEl.style.background = "#dc3545";
+                        fillEl.style.background = "var(--status-stopped)";
                         metaEl.innerText = "Error";
                         titleEl.innerText = data.error;
                     }
@@ -308,7 +326,7 @@ def widget_html():
 
             function markError(cardId, msg) {
                 const card = document.getElementById(cardId);
-                card.querySelector(".progress-fill").style.background = "#dc3545";
+                card.querySelector(".progress-fill").style.background = "var(--status-stopped)";
                 card.querySelector(".job-title").innerText = msg;
             }
         </script>

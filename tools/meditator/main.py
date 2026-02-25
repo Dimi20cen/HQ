@@ -40,19 +40,26 @@ def widget_html():
   <title>{tool.title}</title>
   <style>
     :root {{
-      --bg: #eef1f5;
-      --panel: #f9fafb;
-      --ink: #0f1724;
-      --muted: #627185;
-      --line: #dde4ee;
-      --focus: #16a34a;
-      --start-a: #f59e0b;
-      --start-b: #ea7c05;
-      --start-ink: #4a2b08;
-      --wheel-bg: #0b1320;
-      --wheel-line: #1f2b3f;
-      --wheel-text: #e8eef8;
-      --wheel-dim: #6f7d93;
+      --bg: #fdf5fb;
+      --panel: #fff9fd;
+      --ink: #372f56;
+      --muted: #756d95;
+      --line: rgba(143, 119, 171, 0.28);
+      --focus: #3b9d72;
+      --start-a: #f3e9f7;
+      --start-b: #e9deef;
+      --start-ink: #4f2140;
+      --wheel-bg: #332b4e;
+      --wheel-line: #4a3f68;
+      --wheel-text: #ece4fa;
+      --wheel-dim: #a89ac8;
+      --surface-soft: #f7f9ff;
+      --surface-card: #ffffff;
+      --control-line: #d8c3e7;
+      --timer-line: #4b3d73;
+      --timer-bg: #2a2340;
+      --timer-text: #f8edff;
+      --success: #3b9d72;
       --item-h: 42px;
       --wheel-h: 198px;
       --wheel-pad: 78px;
@@ -62,10 +69,10 @@ def widget_html():
       margin: 0;
       padding: 10px;
       color: var(--ink);
-      font-family: "Avenir Next", "SF Pro Text", "Segoe UI", sans-serif;
+      font-family: "Manrope", "Avenir Next", "SF Pro Text", "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 100% 100%, #e5f2ff 0%, transparent 44%),
-        radial-gradient(circle at 0% 0%, #f7f9fc 0%, transparent 40%),
+        radial-gradient(circle at 100% 100%, #eff1fb 0%, transparent 44%),
+        radial-gradient(circle at 0% 0%, #f7e9f2 0%, transparent 40%),
         var(--bg);
     }}
     .card {{
@@ -73,24 +80,18 @@ def widget_html():
       margin: 0;
       border-radius: 18px;
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
-      box-shadow:
-        0 14px 30px rgba(15, 23, 36, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      background: var(--panel);
+      box-shadow: none;
       padding: 14px;
       display: grid;
       gap: 12px;
     }}
     .picker-shell {{
       position: relative;
-      background:
-        radial-gradient(circle at 50% 12%, #1a2a42 0%, transparent 40%),
-        linear-gradient(180deg, #101826 0%, var(--wheel-bg) 100%);
+      background: var(--wheel-bg);
       border: 1px solid var(--wheel-line);
       border-radius: 16px;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 12px 24px rgba(8, 15, 28, 0.32);
+      box-shadow: none;
       overflow: hidden;
       transform: translateZ(0);
     }}
@@ -106,11 +107,11 @@ def widget_html():
     }}
     .picker-shell::before {{
       top: 0;
-      background: linear-gradient(180deg, rgba(11, 19, 32, 0.95), rgba(11, 19, 32, 0.15));
+      background: linear-gradient(180deg, rgba(32, 27, 51, 0.85), rgba(32, 27, 51, 0.1));
     }}
     .picker-shell::after {{
       bottom: 0;
-      background: linear-gradient(0deg, rgba(11, 19, 32, 0.95), rgba(11, 19, 32, 0.15));
+      background: linear-gradient(0deg, rgba(32, 27, 51, 0.85), rgba(32, 27, 51, 0.1));
     }}
     .picker-center {{
       position: absolute;
@@ -120,11 +121,9 @@ def widget_html():
       height: var(--item-h);
       transform: translateY(-50%);
       border-radius: 12px;
-      border: 1px solid rgba(142, 182, 255, 0.32);
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
-      box-shadow:
-        0 0 0 1px rgba(142, 182, 255, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(213, 195, 231, 0.28);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: none;
       z-index: 2;
       pointer-events: none;
     }}
@@ -185,8 +184,8 @@ def widget_html():
       flex-wrap: wrap;
     }}
     .controls {{
-      background: #f7f9fc;
-      border: 1px solid #e3e9f1;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
       border-radius: 14px;
       padding: 9px;
     }}
@@ -205,9 +204,9 @@ def widget_html():
     }}
     .live-time {{
       margin: 0;
-      border: 1px solid #31445e;
-      background: #0f1b2d;
-      color: #f8fbff;
+      border: 1px solid var(--timer-line);
+      background: var(--timer-bg);
+      color: var(--timer-text);
       border-radius: 999px;
       padding: 7px 12px;
       font-family: "Menlo", "Consolas", monospace;
@@ -216,7 +215,7 @@ def widget_html():
       letter-spacing: 0.02em;
       min-width: 88px;
       text-align: center;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      box-shadow: none;
     }}
     button {{
       border: 0;
@@ -230,23 +229,25 @@ def widget_html():
     button:hover {{ transform: translateY(-1px); }}
     button:active {{ transform: translateY(0); }}
     #startPauseBtn {{
-      background: linear-gradient(180deg, var(--start-a), var(--start-b));
+      background: var(--start-a);
       color: var(--start-ink);
-      box-shadow: 0 6px 12px rgba(234, 124, 5, 0.2);
+      border: 1px solid var(--control-line);
+      box-shadow: none;
     }}
     #startPauseBtn.running {{
-      filter: saturate(1.15);
-      box-shadow: 0 0 0 2px rgba(234, 124, 5, 0.2), 0 8px 18px rgba(234, 124, 5, 0.34);
+      filter: none;
+      background: var(--start-b);
+      box-shadow: none;
     }}
     button.secondary {{
-      background: #ffffff;
+      background: var(--surface-card);
       color: var(--ink);
-      border: 1px solid #d7deea;
+      border: 1px solid var(--control-line);
       box-shadow: none;
     }}
     .options {{
-      border: 1px solid #e3e9f1;
-      background: #f7f9fc;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
       border-radius: 14px;
       padding: 9px;
       display: grid;
@@ -258,7 +259,7 @@ def widget_html():
       gap: 10px;
       font-size: 0.97rem;
       font-weight: 600;
-      color: #16324f;
+      color: var(--ink);
     }}
     .music-row input[type="checkbox"] {{
       width: 16px;
@@ -266,34 +267,34 @@ def widget_html():
       accent-color: var(--focus);
     }}
     .menu-row {{
-      background: #ffffff;
+      background: var(--surface-card);
       border-radius: 12px;
-      border: 1px solid #d7e0ed;
+      border: 1px solid var(--control-line);
       padding: 8px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      box-shadow: none;
     }}
     .menu-left {{
       font-size: 0.93rem;
-      color: #173250;
+      color: var(--ink);
       font-weight: 620;
     }}
     .menu-right {{
       display: inline-flex;
       align-items: center;
       gap: 0;
-      border: 1px solid #cfdae8;
+      border: 1px solid var(--control-line);
       border-radius: 999px;
-      background: #f7faff;
+      background: var(--surface-soft);
       padding: 6px 10px;
     }}
     .menu-right select {{
       border: 0;
       background: transparent;
-      color: #15314f;
+      color: var(--ink);
       padding: 0;
       font-size: 0.92rem;
       font-weight: 620;
@@ -315,7 +316,7 @@ def widget_html():
       padding: 0 4px;
     }}
     .status.active {{
-      color: #127a44;
+      color: var(--success);
     }}
     .locked {{
       pointer-events: none;

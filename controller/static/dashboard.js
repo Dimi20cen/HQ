@@ -275,6 +275,7 @@
     function createToolCard(tool) {
         const card = el('div', `card status-${tool.status || 'stopped'}`);
         const sId = safeId(tool.id);
+        card.style.setProperty('--enter-index', state.toolMap.size);
 
         card.id = `card-${sId}`;
         card.dataset.name = tool.id;
