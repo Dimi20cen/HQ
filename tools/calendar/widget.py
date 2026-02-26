@@ -789,7 +789,7 @@ def widget_html(cal_url: str) -> str:
         connectBtn.addEventListener('click', async () => {
           setFeedback('Preparing OAuth...');
           try {
-            const result = await jsonFetch('/auth/start');
+            const result = await jsonFetch('/auth/start?format=json');
             if (window.top && window.top !== window) window.top.location.href = result.auth_url;
             else window.location.href = result.auth_url;
           } catch (err) {

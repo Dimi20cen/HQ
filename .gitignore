@@ -28,6 +28,7 @@ updated.xml
 codebase.xml
 repomix.config.json
 shared/
+backups/
 
 # --- Secrets ---
 .env

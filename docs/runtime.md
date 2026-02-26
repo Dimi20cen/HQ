@@ -29,9 +29,11 @@ Docker (LAN deploy)
 - Requires Docker Engine + Compose v2.
 - Uses `docker-compose.yml` in repo root.
 - Expose only controller port `8000`; widget traffic is proxied through controller.
-- Set bind values in `.env`:
-  - `LAN_BIND_IP=192.168.1.119`
-  - `LAN_BIND_PORT=8000`
+- Keep a separate local `.env` on each machine (do not sync `.env` in git).
+- Server `.env` notes:
+  - Keep `LAN_BIND_IP=0.0.0.0`
+  - Set Google OAuth values in server `.env`
+  - Use a server-reachable redirect URI (not `127.0.0.1`), e.g. `http://<server-host>:9010/auth/callback`
 - Start:
   - `docker compose up -d --build`
 - Verify:

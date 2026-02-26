@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 from fastapi import Query
+from fastapi.responses import RedirectResponse
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
@@ -20,8 +21,11 @@ def auth_status():
 
 
 @tool.app.get("/auth/start")
-def auth_start():
-    return auth.auth_start()
+def auth_start(format: str | None = Query(default=None)):
+    result = auth.auth_start()
+    if (format or "").strip().lower() == "json":
+        return result
+    return RedirectResponse(url=result["auth_url"], status_code=302)
 
 
 @tool.app.get("/auth/callback")
