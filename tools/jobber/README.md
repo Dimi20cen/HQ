@@ -17,6 +17,18 @@ Collect job postings and generate cover letters from job pages using the local G
 
 3. Open a job page, click the Jobber extension, then **Refill** and **Generate Letter**.
 
+## Extension endpoint routing
+
+The extension now targets HQ server endpoints first, then falls back to local dev:
+- `http://100.124.230.107:8000/proxy/jobber`
+- `http://dim-inspiron-3585:8000/proxy/jobber`
+- `http://dim-inspiron-3585.tailf98c53.ts.net:8000/proxy/jobber`
+- `http://192.168.1.119:8000/proxy/jobber`
+- `http://127.0.0.1:30001`
+- `http://localhost:30001`
+
+This means saves/checks/generation from your desktop Chrome go to the server by default when HQ is reachable.
+
 ## Config
 
 Edit `jobber.config.json` (paths relative to `tools/jobber` unless absolute):

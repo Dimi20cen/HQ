@@ -3,8 +3,15 @@
   "name": "Jobber",
   "version": "1.0",
   "description": "Extracts job details, saves to Jobber, and generates cover letters.",
-  "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "http://192.168.1.119/*",
+    "http://100.124.230.107/*",
+    "http://dim-inspiron-3585/*",
+    "http://dim-inspiron-3585.tailf98c53.ts.net/*"
+  ],
   "action": {
     "default_popup": "popup.html"
   }

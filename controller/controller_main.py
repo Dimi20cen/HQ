@@ -23,6 +23,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 # --- Path Setup ---
 BASE_DIR = Path(__file__).resolve().parent
@@ -253,6 +254,16 @@ app = FastAPI(
     description="Controller API for managing local utility services.",
     version="0.2.0",
     lifespan=lifespan
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_origin_regex="chrome-extension://.*",
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 

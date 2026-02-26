@@ -1,6 +1,22 @@
 // --- EVENT LISTENERS ---
 
 let statusLocked = false;
+let selectedApiBase = null;
+
+const API_BASE_CANDIDATES = [
+    "http://100.124.230.107:8000/proxy/jobber",
+    "http://dim-inspiron-3585:8000/proxy/jobber",
+    "http://dim-inspiron-3585.tailf98c53.ts.net:8000/proxy/jobber",
+    "http://192.168.1.119:8000/proxy/jobber",
+    "http://127.0.0.1:30001",
+    "http://localhost:30001"
+];
+
+function buildApiUrl(base, path) {
+    const cleanBase = base.replace(/\/+$/, "");
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${cleanBase}${cleanPath}`;
+}
 
 async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 1500) {
     const controller = new AbortController();
@@ -17,6 +33,26 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 1500) {
     } finally {
         clearTimeout(timeoutId);
     }
+}
+
+async function fetchJobber(path, options = {}, timeoutMs = 1500) {
+    const bases = selectedApiBase
+        ? [selectedApiBase, ...API_BASE_CANDIDATES.filter((base) => base !== selectedApiBase)]
+        : [...API_BASE_CANDIDATES];
+
+    let lastError = null;
+
+    for (const base of bases) {
+        try {
+            const result = await fetchJsonWithTimeout(buildApiUrl(base, path), options, timeoutMs);
+            selectedApiBase = base;
+            return result;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error("Jobber endpoint unreachable");
 }
 
 function setStatus(text, color, force = false) {
@@ -36,8 +72,8 @@ function setStatusWithOpen(text, path) {
 
 async function openOutput(path) {
     try {
-        const { data } = await fetchJsonWithTimeout(
-            "http://127.0.0.1:30001/open-output",
+        const { data } = await fetchJobber(
+            "/open-output",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -70,8 +106,8 @@ document.getElementById("deleteBtn").addEventListener("click", async () => {
     setStatus("Deleting...", "#666", true);
     
     try {
-        const { res: response } = await fetchJsonWithTimeout(
-            "http://127.0.0.1:30001/delete",
+        const { res: response } = await fetchJobber(
+            "/delete",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -121,8 +157,8 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
     setStatus("Generating letter...", "#666", true);
 
     try {
-        const { res: response, data } = await fetchJsonWithTimeout(
-            "http://127.0.0.1:30001/generate",
+        const { res: response, data } = await fetchJobber(
+            "/generate",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -190,8 +226,8 @@ async function pollGenerateStatus(jobId) {
 
         let data;
         try {
-            ({ data } = await fetchJsonWithTimeout(
-                `http://127.0.0.1:30001/generate-status/${jobId}`,
+            ({ data } = await fetchJobber(
+                `/generate-status/${jobId}`,
                 {},
                 1500
             ));
@@ -279,8 +315,8 @@ async function runScraper() {
 
 async function sendToJobber(jobData) {
     try {
-        const { res: response } = await fetchJsonWithTimeout(
-            "http://127.0.0.1:30001/save",
+        const { res: response } = await fetchJobber(
+            "/save",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -662,8 +698,8 @@ async function checkDbAndMaybeLoad() {
 
     try {
         // 2. Ask the backend if we have this URL
-        const { data: result } = await fetchJsonWithTimeout(
-            "http://127.0.0.1:30001/check",
+        const { data: result } = await fetchJobber(
+            "/check",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
