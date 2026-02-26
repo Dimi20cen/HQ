@@ -1,0 +1,10 @@
+services:
+  hq:
+    volumes:
+      - ./:/app
+      - ./runtime:/app/runtime
+      - ./logs:/app/logs
+    command: >
+      sh -c "mkdir -p /app/runtime/controller /app/runtime/tools /app/logs
+      && python -m uvicorn controller.controller_main:app --host 0.0.0.0 --port 8000
+      --reload --reload-dir /app/controller --reload-dir /app/tools"
