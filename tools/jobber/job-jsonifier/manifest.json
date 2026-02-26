@@ -3,6 +3,12 @@
   "name": "Jobber",
   "version": "1.0",
   "description": "Extracts job details, saves to Jobber, and generates cover letters.",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "http://127.0.0.1/*",
@@ -13,6 +19,12 @@
     "http://dim-inspiron-3585.tailf98c53.ts.net/*"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
   }
 }
