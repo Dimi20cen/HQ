@@ -1,3 +1,23 @@
+read_when: reviewing notable behavior/UI/documentation changes and validation status
+
+## 2026-02-27
+- Summary: Consolidated repo docs entrypoint to a single root `README.md`, renamed secondary README files to non-README docs, and standardized `read_when` hints on cross-cutting docs.
+- Affected files: `README.md`, `docs/index.md`, `docs/changes.md`, `docs/dashboard-mobile-web-checklist.md`, `tools/calendar/guide.md` (renamed from `tools/calendar/README.md`), `tools/jobber/guide.md` (renamed from `tools/jobber/README.md`)
+- Migration notes: Use root `README.md` as the canonical start page. Tool docs moved to `guide.md` filenames for calendar/jobber.
+- Validation status: `rg --files -g 'README.md'` returns only root `README.md`.
+
+## 2026-02-27
+- Summary: Converted downloader documentation from an unstructured TODO note into a proper `guide.md` with setup, API, lifecycle statuses, and output-path conventions.
+- Affected files: `tools/downloader/guide.md` (renamed from `tools/downloader/README`), `README.md`
+- Migration notes: Refer to `tools/downloader/guide.md` for downloader usage and endpoints.
+- Validation status: Documentation update only.
+
+## 2026-02-27
+- Summary: Completed docs audit follow-up by documenting controller proxy routes, clarifying local-vs-docker DB paths, adding blocker/meditator guides, and removing environment-specific Jobber host assumptions from docs.
+- Affected files: `docs/controller.md`, `docs/runtime.md`, `tools/blocker/guide.md`, `tools/meditator/guide.md`, `tools/jobber/guide.md`, `README.md`
+- Migration notes: Use `/proxy/{name}/{path}` for full tool HTTP proxying; set DB path env vars explicitly when deviating from defaults.
+- Validation status: Documentation update only.
+
 ## 2026-02-25
 - Summary: Added a compact square dashboard top-panel GitHub-style job-application heatmap (last 14 days) with an icon header and no legend/summary text, powered by a controller endpoint that aggregates Jobber DB daily counts.
 - Affected files: `controller/controller_main.py`, `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/controller.md`, `docs/theme-guidelines.md`

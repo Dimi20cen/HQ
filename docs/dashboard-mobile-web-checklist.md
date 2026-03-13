@@ -1,4 +1,5 @@
 # Dashboard Mobile + Web Checklist
+read_when: validating dashboard usability across mobile/desktop and accessibility
 
 Goal: make HQ dashboard reliable and comfortable on both mobile and desktop, while reducing overwhelm.
 

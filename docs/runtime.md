@@ -39,8 +39,17 @@ Docker (LAN deploy)
 - Verify:
   - `curl http://127.0.0.1:8000/tools`
   - `curl http://192.168.1.119:8000/tools`
-- Persistent runtime data:
+
+Database/storage paths
+- Local defaults (without env overrides):
+  - Controller DB: `controller/tools.db`
+  - Calendar DB: `tools/calendar/calendar.db`
+  - Jobber DB: `tools/jobber/jobs.db`
+- Docker Compose runtime paths (configured by env):
   - `runtime/controller/tools.db`
   - `runtime/tools/calendar/calendar.db`
   - `runtime/tools/jobber/jobs.db`
-  - Future tools: `runtime/tools/<tool_name>/...` (auto-created by tool code)
+- Key env overrides:
+  - `CONTROLLER_DB_PATH`
+  - `CALENDAR_DB_PATH`
+  - `JOBBER_DB_PATH`

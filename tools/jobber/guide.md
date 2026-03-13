@@ -1,4 +1,5 @@
 # jobber
+read_when: setting up extension-to-HQ routing and cover-letter generation
 
 Collect job postings and generate cover letters from job pages using the local Gemini CLI.
 
@@ -19,15 +20,12 @@ Collect job postings and generate cover letters from job pages using the local G
 
 ## Extension endpoint routing
 
-The extension now targets HQ server endpoints first, then falls back to local dev:
-- `http://100.124.230.107:8000/proxy/jobber`
-- `http://dim-inspiron-3585:8000/proxy/jobber`
-- `http://dim-inspiron-3585.tailf98c53.ts.net:8000/proxy/jobber`
-- `http://192.168.1.119:8000/proxy/jobber`
-- `http://127.0.0.1:30001`
-- `http://localhost:30001`
+The extension tries API base candidates in order (first success wins):
+- Preferred HQ proxy pattern: `http://<hq-host>:8000/proxy/jobber`
+- Local direct fallbacks: `http://127.0.0.1:30001` and `http://localhost:30001`
 
-This means saves/checks/generation from your desktop Chrome go to the server by default when HQ is reachable.
+Candidate hosts are currently hardcoded in `tools/jobber/job-jsonifier/popup.js` (`API_BASE_CANDIDATES`).
+Update that list for your environment (LAN host, tailnet hostname, local-only setup, etc.).
 
 ## Config
 
