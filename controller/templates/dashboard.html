@@ -54,6 +54,26 @@
     <div id="reorder-panel" class="reorder-panel" hidden></div>
     <div id="hidden-tools-menu" class="hidden-tools-menu" hidden></div>
 </div>
+<section class="projects-board" aria-labelledby="projects-board-title">
+    <div class="projects-board-header">
+        <div>
+            <p class="projects-board-kicker">Publishing</p>
+            <h2 id="projects-board-title">Project Catalog</h2>
+        </div>
+        <div class="projects-board-actions">
+            <button id="project-add-btn" class="projects-board-btn" type="button">New Project</button>
+            <button id="project-export-btn" class="projects-board-btn projects-board-btn-primary" type="button">
+                Export Catalog
+            </button>
+        </div>
+    </div>
+    <p class="projects-board-copy">
+        Manage what the public portfolio sees without exposing private runtime details.
+    </p>
+    <div id="projects-feedback" class="projects-feedback" aria-live="polite"></div>
+    <div id="projects-empty" class="projects-empty" hidden>No projects yet.</div>
+    <div id="projects-list" class="projects-list"></div>
+</section>
 <div id="tools-container" class="grid-container"></div>
 
 <script src="/static/dashboard.js"></script>

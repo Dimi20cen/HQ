@@ -2,6 +2,7 @@
 read_when: start here
 
 HQ is a local tool hub that discovers tools under `tools/`, runs them, and provides a dashboard plus controller API.
+It also owns the private project catalog and can export a sanitized public project feed for portfolio publishing.
 
 ## Cross-Cutting Docs
 
@@ -13,6 +14,8 @@ HQ is a local tool hub that discovers tools under `tools/`, runs them, and provi
   - `read_when: creating or editing tools`
 - `docs/controller.md`
   - `read_when: integrating UI, API clients, or debugging controller routes`
+- `docs/projects.md`
+  - `read_when: managing the project publishing registry for portfolio`
 - `docs/theme-guidelines.md`
   - `read_when: changing dashboard or tool widget UI colors`
 - `docs/changes.md`

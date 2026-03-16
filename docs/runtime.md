@@ -17,6 +17,7 @@ Start a tool directly
 
 Logs
 - Tool stdout/stderr: `logs/<tool>.out.log` and `logs/<tool>.err.log`
+- Project registry: `runtime/projects/projects.json`
 
 Ports
 - Controller default: 8000

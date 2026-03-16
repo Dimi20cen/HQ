@@ -18,6 +18,15 @@ from controller.db import (
 )
 
 from controller.process_manager import ProcessManager
+from controller.projects_registry import (
+    ProjectValidationError,
+    create_project,
+    ensure_projects_store,
+    export_projects,
+    get_project,
+    list_projects,
+    update_project,
+)
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -174,6 +183,7 @@ def scan_tools():
 async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     init_db()
+    ensure_projects_store()
     print("--- Controller Startup ---")
 
     # 1. DYNAMIC DISCOVERY
@@ -278,6 +288,43 @@ def dashboard(request: Request):
 @app.get("/dashboard/job-applications")
 def dashboard_job_applications(days: int = 365):
     return _job_application_counts(days)
+
+
+@app.get("/projects")
+def get_projects():
+    return {"projects": list_projects()}
+
+
+@app.post("/projects")
+def register_project(payload: dict):
+    try:
+        project = create_project(payload)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"project": project}
+
+
+@app.put("/projects/{slug}")
+def save_project(slug: str, payload: dict):
+    if not get_project(slug):
+        return JSONResponse(status_code=404, content={"detail": "Project not found."})
+    try:
+        project = update_project(slug, payload)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"project": project}
+
+
+@app.post("/projects/export")
+def export_project_catalog():
+    try:
+        result = export_projects()
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except OSError as exc:
+        return JSONResponse(status_code=500, content={"detail": str(exc)})
+    return result
+
 
 @app.get("/tools")
 def get_tools():

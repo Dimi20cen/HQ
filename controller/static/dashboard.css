@@ -51,6 +51,222 @@
             grid-auto-rows: 8px;
         }
 
+        .projects-board {
+            background: rgba(255, 249, 253, 0.82);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+            margin-bottom: 18px;
+            backdrop-filter: blur(10px);
+        }
+
+        .projects-board-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .projects-board-kicker {
+            margin: 0 0 4px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .projects-board h2 {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .projects-board-copy {
+            margin: 0 0 12px;
+            color: var(--muted);
+            max-width: 72ch;
+        }
+
+        .projects-board-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .projects-board-btn {
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--control-bg);
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .projects-board-btn-primary {
+            background: var(--bg-accent);
+        }
+
+        .projects-feedback {
+            min-height: 22px;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .projects-feedback.is-error {
+            color: var(--status-stopped);
+        }
+
+        .projects-feedback.is-success {
+            color: var(--status-running);
+        }
+
+        .projects-empty {
+            padding: 14px;
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .projects-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .project-editor {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.64);
+        }
+
+        .project-editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .project-editor-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .project-editor-title strong {
+            font-size: 1rem;
+        }
+
+        .project-editor-title span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .project-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: var(--chip);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .project-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .project-field {
+            display: grid;
+            gap: 5px;
+        }
+
+        .project-field.is-full {
+            grid-column: 1 / -1;
+        }
+
+        .project-field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .project-field input,
+        .project-field select,
+        .project-field textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--control-bg);
+            color: var(--text);
+            font: inherit;
+            padding: 10px 12px;
+        }
+
+        .project-field textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .project-field-inline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--control-bg);
+        }
+
+        .project-field-inline input {
+            width: auto;
+            margin: 0;
+        }
+
+        .project-editor-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .project-editor-save {
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--control-bg);
+            color: var(--text);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .project-editor-meta {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
         .job-activity-board {
             background: var(--card);
             border: 1px solid var(--border);
@@ -816,6 +1032,29 @@
         @media (max-width: 700px) {
             body {
                 margin: 12px;
+            }
+
+            .projects-board {
+                padding: 14px;
+            }
+
+            .projects-board-header,
+            .project-editor-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .projects-board-actions {
+                width: 100%;
+            }
+
+            .projects-board-btn,
+            .project-editor-save {
+                width: 100%;
+            }
+
+            .project-editor-grid {
+                grid-template-columns: 1fr;
             }
 
             .job-activity-board {

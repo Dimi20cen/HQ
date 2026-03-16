@@ -15,6 +15,8 @@
 
     const state = {
         toolMap: new Map(),
+        projects: [],
+        nextProjectDraftId: 1,
         widgetLayout: loadWidgetLayout(),
         activeResize: null,
         dragSource: null,
@@ -42,7 +44,12 @@
         reorderPanel: document.getElementById('reorder-panel'),
         appsMenuBtn: document.getElementById('apps-menu-btn'),
         hiddenToolsMenu: document.getElementById('hidden-tools-menu'),
-        container: document.getElementById('tools-container')
+        container: document.getElementById('tools-container'),
+        projectsList: document.getElementById('projects-list'),
+        projectsEmpty: document.getElementById('projects-empty'),
+        projectsFeedback: document.getElementById('projects-feedback'),
+        projectAddBtn: document.getElementById('project-add-btn'),
+        projectExportBtn: document.getElementById('project-export-btn')
     };
 
     function el(tag, className, text) {
@@ -310,6 +317,206 @@
             }
             console.error('Failed to load job activity', error);
         }
+    }
+
+    function emptyProjectDraft() {
+        return {
+            draft_key: `draft-${state.nextProjectDraftId++}`,
+            slug: '',
+            title: '',
+            public_summary: '',
+            public_mode: 'none',
+            primary_url: '',
+            repo_url: '',
+            sort_order: (state.projects.length + 1) * 10,
+            linked_tools: [],
+            updated_at: ''
+        };
+    }
+
+    function normalizeProjectRecord(rawProject) {
+        return {
+            draft_key: '',
+            slug: String(rawProject?.slug || '').trim(),
+            title: String(rawProject?.title || '').trim(),
+            public_summary: String(rawProject?.public_summary || '').trim(),
+            public_mode: String(rawProject?.public_mode || 'none').trim() || 'none',
+            primary_url: String(rawProject?.primary_url || '').trim(),
+            repo_url: String(rawProject?.repo_url || '').trim(),
+            sort_order: Number.isFinite(Number(rawProject?.sort_order)) ? Number(rawProject.sort_order) : 0,
+            linked_tools: Array.isArray(rawProject?.linked_tools) ? rawProject.linked_tools : [],
+            updated_at: String(rawProject?.updated_at || '').trim()
+        };
+    }
+
+    function setProjectsFeedback(message, tone = '') {
+        if (!els.projectsFeedback) return;
+        els.projectsFeedback.textContent = message || '';
+        els.projectsFeedback.classList.remove('is-error', 'is-success');
+        if (tone === 'error') els.projectsFeedback.classList.add('is-error');
+        if (tone === 'success') els.projectsFeedback.classList.add('is-success');
+    }
+
+    function projectModeLabel(mode) {
+        if (mode === 'docs') return 'Docs';
+        if (mode === 'demo') return 'Demo';
+        if (mode === 'full') return 'Full';
+        return 'Hidden';
+    }
+
+    function renderProjects() {
+        if (!els.projectsList || !els.projectsEmpty) return;
+        els.projectsList.innerHTML = '';
+        const projects = [...state.projects].sort((a, b) => {
+            if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+            return a.title.localeCompare(b.title);
+        });
+        els.projectsEmpty.hidden = projects.length > 0;
+        projects.forEach(project => {
+            els.projectsList.appendChild(createProjectEditor(project));
+        });
+    }
+
+    function createProjectField(labelText, name, type = 'text', value = '', full = false) {
+        const field = el('div', `project-field${full ? ' is-full' : ''}`);
+        const label = el('label', '', labelText);
+        label.htmlFor = name;
+        let control;
+        if (type === 'textarea') {
+            control = el('textarea');
+            control.value = value;
+        } else if (type === 'select') {
+            control = el('select');
+        } else {
+            control = el('input');
+            control.type = type;
+            control.value = value;
+        }
+        control.id = name;
+        control.name = name;
+        field.appendChild(label);
+        field.appendChild(control);
+        return { field, control };
+    }
+
+    function createProjectEditor(project) {
+        const article = el('article', 'project-editor');
+        article.dataset.slug = project.slug;
+        const fieldKey = project.slug || project.draft_key || `draft-${state.nextProjectDraftId++}`;
+        const header = el('div', 'project-editor-header');
+        const titleWrap = el('div', 'project-editor-title');
+        const title = el('strong', '', project.title || 'New Project');
+        const slug = el('span', '', project.slug ? `/${project.slug}` : 'Unsaved draft');
+        const chip = el('span', 'project-chip', projectModeLabel(project.public_mode));
+
+        titleWrap.appendChild(title);
+        titleWrap.appendChild(slug);
+        header.appendChild(titleWrap);
+        header.appendChild(chip);
+        article.appendChild(header);
+
+        const grid = el('div', 'project-editor-grid');
+        const slugField = createProjectField('Slug', `project-slug-${fieldKey}`, 'text', project.slug);
+        slugField.control.disabled = !!project.slug;
+        const titleField = createProjectField('Title', `project-title-${fieldKey}`, 'text', project.title);
+        const summaryField = createProjectField('Public Summary', `project-summary-${fieldKey}`, 'textarea', project.public_summary, true);
+        const modeField = createProjectField('Public Mode', `project-mode-${fieldKey}`, 'select', '', false);
+        ['none', 'docs', 'demo', 'full'].forEach(mode => {
+            const option = document.createElement('option');
+            option.value = mode;
+            option.textContent = projectModeLabel(mode);
+            option.selected = project.public_mode === mode;
+            modeField.control.appendChild(option);
+        });
+        const sortField = createProjectField('Sort Order', `project-order-${fieldKey}`, 'number', String(project.sort_order));
+        const primaryField = createProjectField('Primary URL', `project-primary-${fieldKey}`, 'url', project.primary_url, true);
+        const repoField = createProjectField('Repo URL', `project-repo-${fieldKey}`, 'url', project.repo_url);
+
+        [
+            slugField.field,
+            titleField.field,
+            summaryField.field,
+            modeField.field,
+            sortField.field,
+            primaryField.field,
+            repoField.field
+        ].forEach(node => grid.appendChild(node));
+        article.appendChild(grid);
+
+        const actions = el('div', 'project-editor-actions');
+        const meta = el('div', 'project-editor-meta', project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
+        const saveBtn = el('button', 'project-editor-save', project.slug ? 'Save Project' : 'Create Project');
+        saveBtn.type = 'button';
+        saveBtn.addEventListener('click', async () => {
+            const payload = {
+                slug: slugField.control.value,
+                title: titleField.control.value,
+                public_summary: summaryField.control.value,
+                public_mode: modeField.control.value,
+                sort_order: sortField.control.value,
+                primary_url: primaryField.control.value,
+                repo_url: repoField.control.value,
+                linked_tools: project.linked_tools || []
+            };
+            await saveProjectRecord(project.slug, payload);
+        });
+        actions.appendChild(meta);
+        actions.appendChild(saveBtn);
+        article.appendChild(actions);
+
+        return article;
+    }
+
+    async function saveProjectRecord(existingSlug, payload) {
+        setProjectsFeedback(existingSlug ? 'Saving project...' : 'Creating project...');
+        try {
+            const url = existingSlug ? `/projects/${encodeURIComponent(existingSlug)}` : '/projects';
+            const method = existingSlug ? 'PUT' : 'POST';
+            const resp = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.detail || 'save failed');
+            setProjectsFeedback(`Saved ${data.project.title}.`, 'success');
+            await loadProjects();
+        } catch (error) {
+            setProjectsFeedback(error.message || 'Failed to save project.', 'error');
+        }
+    }
+
+    async function exportProjectsCatalog() {
+        setProjectsFeedback('Exporting project catalog...');
+        try {
+            const resp = await fetch('/projects/export', {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.detail || 'export failed');
+            setProjectsFeedback(`Exported ${data.count} projects to ${data.path}.`, 'success');
+        } catch (error) {
+            setProjectsFeedback(error.message || 'Failed to export projects.', 'error');
+        }
+    }
+
+    async function loadProjects() {
+        if (!els.projectsList) return;
+        try {
+            const resp = await fetch('/projects');
+            const data = await resp.json();
+            state.projects = Array.isArray(data.projects) ? data.projects.map(normalizeProjectRecord) : [];
+            renderProjects();
+        } catch (error) {
+            console.error('Failed to load projects', error);
+            setProjectsFeedback('Failed to load projects.', 'error');
+        }
+    }
+
+    function addProjectDraft() {
+        state.projects = [...state.projects, emptyProjectDraft()];
+        renderProjects();
+        setProjectsFeedback('Fill in the draft project, then save it.');
     }
 
     function canUseDragReorder() {
@@ -1253,6 +1460,18 @@
             setJobActivityCollapsed(!state.jobActivityCollapsed);
         });
     }
+    if (els.projectAddBtn) {
+        els.projectAddBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            addProjectDraft();
+        });
+    }
+    if (els.projectExportBtn) {
+        els.projectExportBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            exportProjectsCatalog();
+        });
+    }
     document.addEventListener('click', event => {
         const inMenu = event.target && event.target.closest('.tool-settings-menu');
         const inButton = event.target && event.target.closest('.tool-settings-btn');
@@ -1284,6 +1503,7 @@
     });
 
     setJobActivityCollapsed(state.jobActivityCollapsed);
+    loadProjects();
     loadDashboard();
     loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
