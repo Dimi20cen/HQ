@@ -12,9 +12,18 @@
     "slug": "sakura",
     "title": "Sakura",
     "public_summary": "Online Catan experience with a custom UI and API stack, exposed publicly through the VPS edge.",
-    "public_mode": "full",
+    "public_mode": "source",
     "primary_url": "https://sakura.dimy.dev",
-    "repo_url": "",
+    "repo_url": "https://github.com/Dimi20cen/sakura",
     "sort_order": 20
+  },
+  {
+    "slug": "jobby",
+    "title": "Jobby",
+    "public_summary": "Private job application manager with AI generation, Gmail thread linking, and browser-assisted capture workflows.",
+    "public_mode": "source",
+    "primary_url": "",
+    "repo_url": "https://github.com/Dimi20cen/Jobby",
+    "sort_order": 40
   }
 ]

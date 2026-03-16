@@ -13,7 +13,7 @@ Stored fields
 - `slug`
 - `title`
 - `public_summary`
-- `public_mode`: `none | demo | full`
+- `public_mode`: `hidden | demo | full | source`
 - `primary_url`
 - `repo_url`
 - `sort_order`
@@ -22,6 +22,8 @@ Stored fields
 Validation rules
 - Any non-empty `primary_url` or `repo_url` must be a full `http` or `https` URL.
 - `demo` and `full` projects must include a valid `primary_url`.
+- `source` projects must include a valid `repo_url`.
+- `source` projects may also keep a `primary_url`, but portfolio will not show it while in `source` mode.
 
 Runtime storage
 - Registry file: `runtime/projects/projects.json`

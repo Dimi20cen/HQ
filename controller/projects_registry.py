@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
-PUBLIC_MODES = {"none", "demo", "full"}
+PUBLIC_MODES = {"hidden", "demo", "full", "source"}
 REQUIRED_FIELDS = {
     "slug",
     "title",
@@ -106,7 +106,7 @@ def normalize_project(payload: dict) -> dict:
     slug = _slugify(str(payload.get("slug") or ""))
     title = str(payload.get("title") or "").strip()
     public_summary = str(payload.get("public_summary") or "").strip()
-    public_mode = str(payload.get("public_mode") or "none").strip().lower()
+    public_mode = str(payload.get("public_mode") or "hidden").strip().lower()
     primary_url = _validate_optional_url("primary_url", str(payload.get("primary_url") or ""))
     repo_url = _validate_optional_url("repo_url", str(payload.get("repo_url") or ""))
 
@@ -130,6 +130,8 @@ def normalize_project(payload: dict) -> dict:
         raise ProjectValidationError(f"public_mode must be one of: {', '.join(sorted(PUBLIC_MODES))}.")
     if public_mode in {"demo", "full"} and not primary_url:
         raise ProjectValidationError("demo/full projects require a public primary_url.")
+    if public_mode == "source" and not repo_url:
+        raise ProjectValidationError("source projects require a public repo_url.")
 
     updated_at = str(payload.get("updated_at") or "").strip() or _now_iso()
 
@@ -197,7 +199,7 @@ def export_projects(destination: Path | None = None) -> dict:
     exported = [
         {field: project.get(field) for field in PUBLIC_EXPORT_FIELDS}
         for project in list_projects()
-        if project["public_mode"] != "none"
+        if project["public_mode"] != "hidden"
     ]
     export_path.write_text(f"{json.dumps(exported, indent=2)}\n", encoding="utf-8")
     return {

@@ -325,7 +325,7 @@
             slug: '',
             title: '',
             public_summary: '',
-            public_mode: 'none',
+            public_mode: 'hidden',
             primary_url: '',
             repo_url: '',
             sort_order: (state.projects.length + 1) * 10,
@@ -340,7 +340,7 @@
             slug: String(rawProject?.slug || '').trim(),
             title: String(rawProject?.title || '').trim(),
             public_summary: String(rawProject?.public_summary || '').trim(),
-            public_mode: String(rawProject?.public_mode || 'none').trim() || 'none',
+            public_mode: String(rawProject?.public_mode || 'hidden').trim() || 'hidden',
             primary_url: String(rawProject?.primary_url || '').trim(),
             repo_url: String(rawProject?.repo_url || '').trim(),
             sort_order: Number.isFinite(Number(rawProject?.sort_order)) ? Number(rawProject.sort_order) : 0,
@@ -360,6 +360,7 @@
     function projectModeLabel(mode) {
         if (mode === 'demo') return 'Demo';
         if (mode === 'full') return 'Full';
+        if (mode === 'source') return 'Source';
         return 'Hidden';
     }
 
@@ -420,7 +421,7 @@
         const titleField = createProjectField('Title', `project-title-${fieldKey}`, 'text', project.title);
         const summaryField = createProjectField('Public Summary', `project-summary-${fieldKey}`, 'textarea', project.public_summary, true);
         const modeField = createProjectField('Public Mode', `project-mode-${fieldKey}`, 'select', '', false);
-        ['none', 'demo', 'full'].forEach(mode => {
+        ['hidden', 'demo', 'full', 'source'].forEach(mode => {
             const option = document.createElement('option');
             option.value = mode;
             option.textContent = projectModeLabel(mode);
