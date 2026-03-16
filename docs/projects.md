@@ -13,11 +13,15 @@ Stored fields
 - `slug`
 - `title`
 - `public_summary`
-- `public_mode`: `none | docs | demo | full`
+- `public_mode`: `none | demo | full`
 - `primary_url`
 - `repo_url`
 - `sort_order`
 - `linked_tools`
+
+Validation rules
+- Any non-empty `primary_url` or `repo_url` must be a full `http` or `https` URL.
+- `demo` and `full` projects must include a valid `primary_url`.
 
 Runtime storage
 - Registry file: `runtime/projects/projects.json`

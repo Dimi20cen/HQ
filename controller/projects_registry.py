@@ -5,9 +5,10 @@ import os
 from copy import deepcopy
 from datetime import datetime, UTC
 from pathlib import Path
+from urllib.parse import urlparse
 
 
-PUBLIC_MODES = {"none", "docs", "demo", "full"}
+PUBLIC_MODES = {"none", "demo", "full"}
 REQUIRED_FIELDS = {
     "slug",
     "title",
@@ -88,6 +89,16 @@ def _now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _validate_optional_url(field_name: str, value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    parsed = urlparse(cleaned)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ProjectValidationError(f"{field_name} must be a full http/https URL.")
+    return cleaned
+
+
 def normalize_project(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ProjectValidationError("Project payload must be an object.")
@@ -96,8 +107,8 @@ def normalize_project(payload: dict) -> dict:
     title = str(payload.get("title") or "").strip()
     public_summary = str(payload.get("public_summary") or "").strip()
     public_mode = str(payload.get("public_mode") or "none").strip().lower()
-    primary_url = str(payload.get("primary_url") or "").strip()
-    repo_url = str(payload.get("repo_url") or "").strip()
+    primary_url = _validate_optional_url("primary_url", str(payload.get("primary_url") or ""))
+    repo_url = _validate_optional_url("repo_url", str(payload.get("repo_url") or ""))
 
     try:
         sort_order = int(payload.get("sort_order", 0))
@@ -117,11 +128,8 @@ def normalize_project(payload: dict) -> dict:
         raise ProjectValidationError("public_summary is required.")
     if public_mode not in PUBLIC_MODES:
         raise ProjectValidationError(f"public_mode must be one of: {', '.join(sorted(PUBLIC_MODES))}.")
-
-    if public_mode in {"demo", "full"} and not primary_url and not repo_url:
-        raise ProjectValidationError(
-            "public projects need at least one public destination: primary_url or repo_url."
-        )
+    if public_mode in {"demo", "full"} and not primary_url:
+        raise ProjectValidationError("demo/full projects require a public primary_url.")
 
     updated_at = str(payload.get("updated_at") or "").strip() or _now_iso()
 

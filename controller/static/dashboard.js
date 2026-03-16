@@ -358,7 +358,6 @@
     }
 
     function projectModeLabel(mode) {
-        if (mode === 'docs') return 'Docs';
         if (mode === 'demo') return 'Demo';
         if (mode === 'full') return 'Full';
         return 'Hidden';
@@ -421,7 +420,7 @@
         const titleField = createProjectField('Title', `project-title-${fieldKey}`, 'text', project.title);
         const summaryField = createProjectField('Public Summary', `project-summary-${fieldKey}`, 'textarea', project.public_summary, true);
         const modeField = createProjectField('Public Mode', `project-mode-${fieldKey}`, 'select', '', false);
-        ['none', 'docs', 'demo', 'full'].forEach(mode => {
+        ['none', 'demo', 'full'].forEach(mode => {
             const option = document.createElement('option');
             option.value = mode;
             option.textContent = projectModeLabel(mode);
