@@ -25,5 +25,23 @@
     "primary_url": "",
     "repo_url": "https://github.com/Dimi20cen/Jobby",
     "sort_order": 40
+  },
+  {
+    "slug": "hermes",
+    "title": "Hermes",
+    "public_summary": "Shared AI gateway that centralizes inference routing for multiple personal apps instead of reimplementing provider integration in each project.",
+    "public_mode": "source",
+    "primary_url": "",
+    "repo_url": "https://github.com/Dimi20cen/hermes",
+    "sort_order": 50
+  },
+  {
+    "slug": "janus",
+    "title": "Janus",
+    "public_summary": "Shared OAuth gateway for personal apps",
+    "public_mode": "source",
+    "primary_url": "",
+    "repo_url": "https://github.com/Dimi20cen/janus",
+    "sort_order": 50
   }
 ]
