@@ -36,6 +36,7 @@ Controller routes
 - `GET /projects`
 - `POST /projects`
 - `PUT /projects/{slug}`
+- `DELETE /projects/{slug}`
 - `POST /projects/export`
 
 Export script

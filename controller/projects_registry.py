@@ -193,6 +193,18 @@ def update_project(slug: str, payload: dict) -> dict:
     raise ProjectValidationError("Project not found.")
 
 
+def delete_project(slug: str) -> dict:
+    target = _slugify(slug)
+    projects = _load_projects_raw()
+    for index, existing in enumerate(projects):
+        if existing["slug"] != target:
+            continue
+        removed = projects.pop(index)
+        _write_projects(projects)
+        return removed
+    raise ProjectValidationError("Project not found.")
+
+
 def export_projects(destination: Path | None = None) -> dict:
     export_path = destination or _export_path()
     export_path.parent.mkdir(parents=True, exist_ok=True)

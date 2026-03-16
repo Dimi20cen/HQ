@@ -7,6 +7,7 @@ Endpoints
 - `GET /projects` list project publishing records
 - `POST /projects` create a project publishing record
 - `PUT /projects/{slug}` update a project publishing record
+- `DELETE /projects/{slug}` delete a project publishing record
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
 - `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)
 - `GET /tools/status-all` batch status check

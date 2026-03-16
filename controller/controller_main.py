@@ -21,6 +21,7 @@ from controller.process_manager import ProcessManager
 from controller.projects_registry import (
     ProjectValidationError,
     create_project,
+    delete_project,
     ensure_projects_store,
     export_projects,
     get_project,
@@ -310,6 +311,17 @@ def save_project(slug: str, payload: dict):
         return JSONResponse(status_code=404, content={"detail": "Project not found."})
     try:
         project = update_project(slug, payload)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"project": project}
+
+
+@app.delete("/projects/{slug}")
+def remove_project(slug: str):
+    if not get_project(slug):
+        return JSONResponse(status_code=404, content={"detail": "Project not found."})
+    try:
+        project = delete_project(slug)
     except ProjectValidationError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     return {"project": project}

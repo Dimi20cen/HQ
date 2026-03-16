@@ -250,7 +250,14 @@
             gap: 8px;
         }
 
-        .project-editor-save {
+        .project-editor-actions-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .project-editor-save,
+        .project-editor-delete {
             min-height: 36px;
             padding: 0 12px;
             border: 1px solid var(--border);
@@ -260,6 +267,12 @@
             font: inherit;
             font-weight: 700;
             cursor: pointer;
+        }
+
+        .project-editor-delete {
+            color: #8a2f3b;
+            border-color: rgba(138, 47, 59, 0.24);
+            background: rgba(255, 240, 242, 0.7);
         }
 
         .project-editor-meta {
@@ -1044,12 +1057,19 @@
                 align-items: stretch;
             }
 
+            .project-editor-actions-right {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
             .projects-board-actions {
                 width: 100%;
             }
 
             .projects-board-btn,
-            .project-editor-save {
+            .project-editor-save,
+            .project-editor-delete {
                 width: 100%;
             }
 

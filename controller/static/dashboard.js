@@ -445,6 +445,7 @@
 
         const actions = el('div', 'project-editor-actions');
         const meta = el('div', 'project-editor-meta', project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
+        const actionsRight = el('div', 'project-editor-actions-right');
         const saveBtn = el('button', 'project-editor-save', project.slug ? 'Save Project' : 'Create Project');
         saveBtn.type = 'button';
         saveBtn.addEventListener('click', async () => {
@@ -460,8 +461,15 @@
             };
             await saveProjectRecord(project.slug, payload);
         });
+        const deleteBtn = el('button', 'project-editor-delete', project.slug ? 'Delete' : 'Remove Draft');
+        deleteBtn.type = 'button';
+        deleteBtn.addEventListener('click', async () => {
+            await deleteProjectRecord(project);
+        });
         actions.appendChild(meta);
-        actions.appendChild(saveBtn);
+        actionsRight.appendChild(deleteBtn);
+        actionsRight.appendChild(saveBtn);
+        actions.appendChild(actionsRight);
         article.appendChild(actions);
 
         return article;
@@ -483,6 +491,31 @@
             await loadProjects();
         } catch (error) {
             setProjectsFeedback(error.message || 'Failed to save project.', 'error');
+        }
+    }
+
+    async function deleteProjectRecord(project) {
+        if (!project?.slug) {
+            state.projects = state.projects.filter(item => item.draft_key !== project?.draft_key);
+            renderProjects();
+            setProjectsFeedback('Removed draft project.', 'success');
+            return;
+        }
+
+        const confirmed = window.confirm(`Delete project "${project.title || project.slug}" from the catalog?`);
+        if (!confirmed) return;
+
+        setProjectsFeedback(`Deleting ${project.title || project.slug}...`);
+        try {
+            const resp = await fetch(`/projects/${encodeURIComponent(project.slug)}`, {
+                method: 'DELETE'
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.detail || 'delete failed');
+            setProjectsFeedback(`Deleted ${data.project.title}.`, 'success');
+            await loadProjects();
+        } catch (error) {
+            setProjectsFeedback(error.message || 'Failed to delete project.', 'error');
         }
     }
 
