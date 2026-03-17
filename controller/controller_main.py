@@ -47,6 +47,7 @@ PROJECT_ACTION_COMMANDS = {
     "stop": "stop_command",
     "logs": "logs_command",
 }
+PROJECT_HEALTH_CACHE: dict[str, dict] = {}
 
 
 def _manifest_path_for_tool(name: str) -> Path:
@@ -188,6 +189,28 @@ def _check_health_target(label: str, url: str) -> dict:
         }
 
 
+def _default_health_check(label: str, url: str) -> dict:
+    if not url:
+        return {
+            "label": label,
+            "url": "",
+            "status": "unconfigured",
+            "ok": False,
+            "http_status": None,
+            "checked_at": _now_iso(),
+            "detail": "No health URL configured.",
+        }
+    return {
+        "label": label,
+        "url": url,
+        "status": "unknown",
+        "ok": False,
+        "http_status": None,
+        "checked_at": "",
+        "detail": "Not checked yet.",
+    }
+
+
 def _summarize_health(snapshot: dict) -> str:
     configured = [
         entry["status"]
@@ -198,8 +221,12 @@ def _summarize_health(snapshot: dict) -> str:
         return "unconfigured"
     if all(status == "healthy" for status in configured):
         return "healthy"
+    if all(status == "unknown" for status in configured):
+        return "unknown"
     if any(status == "healthy" for status in configured):
         return "degraded"
+    if any(status == "unknown" for status in configured):
+        return "unknown"
     return "down"
 
 
@@ -216,6 +243,22 @@ def _project_health_snapshot(project: dict) -> dict:
     }
 
 
+def _project_health_snapshot_from_cache(project: dict) -> dict:
+    cached = PROJECT_HEALTH_CACHE.get(project["slug"])
+    if cached:
+        return cached
+    checks = {
+        "public": _default_health_check("public", str(project.get("health_public_url") or "")),
+        "private": _default_health_check("private", str(project.get("health_private_url") or "")),
+    }
+    return {
+        "slug": project["slug"],
+        "checked_at": "",
+        "summary": _summarize_health(checks),
+        "checks": checks,
+    }
+
+
 def _dependency_status(snapshot: dict | None) -> str:
     if not snapshot:
         return "unknown"
@@ -226,8 +269,10 @@ def _summarize_dependencies(items: list[dict]) -> str:
     if not items:
         return "none"
     statuses = [item["status"] for item in items]
-    if any(status in {"down", "unknown"} for status in statuses):
+    if any(status == "down" for status in statuses):
         return "down"
+    if any(status == "unknown" for status in statuses):
+        return "unknown"
     if any(status in {"degraded", "unconfigured"} for status in statuses):
         return "degraded"
     if all(status == "healthy" for status in statuses):
@@ -255,6 +300,10 @@ def _project_dependency_snapshot(project: dict, project_map: dict[str, dict], sn
 
 
 def _project_ops_summary(health_summary: str, dependency_summary: str) -> str:
+    if health_summary == "unknown":
+        if dependency_summary in {"down", "degraded"}:
+            return "degraded"
+        return "unknown"
     if health_summary == "down":
         return "down"
     if health_summary == "degraded":
@@ -262,18 +311,29 @@ def _project_ops_summary(health_summary: str, dependency_summary: str) -> str:
     if health_summary == "unconfigured":
         if dependency_summary in {"healthy", "none"}:
             return "unconfigured"
+        if dependency_summary == "unknown":
+            return "unknown"
         return "degraded"
     if dependency_summary == "down":
         return "degraded"
+    if dependency_summary == "unknown":
+        return "unknown"
     if dependency_summary == "degraded":
         return "degraded"
     return health_summary
 
 
-def _projects_with_runtime_state() -> list[dict]:
+def _projects_with_runtime_state(refresh_health: bool = False) -> list[dict]:
     projects = list_projects()
     project_map = {project["slug"]: project for project in projects}
-    snapshots = {project["slug"]: _project_health_snapshot(project) for project in projects}
+    if refresh_health:
+        snapshots = {}
+        for project in projects:
+            snapshot = _project_health_snapshot(project)
+            PROJECT_HEALTH_CACHE[project["slug"]] = snapshot
+            snapshots[project["slug"]] = snapshot
+    else:
+        snapshots = {project["slug"]: _project_health_snapshot_from_cache(project) for project in projects}
     decorated = []
     for project in projects:
         dependency_snapshot = _project_dependency_snapshot(project, project_map, snapshots)
@@ -498,6 +558,11 @@ def get_projects():
     return {"projects": _projects_with_runtime_state()}
 
 
+@app.post("/projects/refresh-health")
+def refresh_projects_health():
+    return {"projects": _projects_with_runtime_state(refresh_health=True)}
+
+
 @app.post("/projects")
 def register_project(payload: dict):
     try:
@@ -556,7 +621,9 @@ def check_project_health(slug: str):
     project = get_project(slug)
     if not project:
         return JSONResponse(status_code=404, content={"detail": "Project not found."})
-    return _project_health_snapshot(project)
+    snapshot = _project_health_snapshot(project)
+    PROJECT_HEALTH_CACHE[project["slug"]] = snapshot
+    return snapshot
 
 
 @app.post("/projects/{slug}/action")

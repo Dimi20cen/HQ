@@ -10,6 +10,7 @@ Core ideas
 - Portfolio publish happens through a dedicated `dimy.dev` git clone on the same host as HQ.
 - Public ordering is controlled only by `sort_order`.
 - Health state is observed on demand and not stored as long-term uptime history.
+- `GET /projects` is intentionally fast and returns cached or unchecked health state; the dashboard refreshes health separately in the background.
 - Project actions run only on the same host where HQ is running.
 
 Stored fields
@@ -57,7 +58,9 @@ Runtime storage
 
 Controller routes
 - `GET /projects`
-  - returns each project plus computed `health_snapshot`, `dependency_snapshot`, and `ops_summary`
+  - returns each project plus cached or unchecked `health_snapshot`, `dependency_snapshot`, and `ops_summary`
+- `POST /projects/refresh-health`
+  - computes fresh health for all configured projects and returns the updated project list
 - `POST /projects`
 - `PUT /projects/{slug}`
 - `DELETE /projects/{slug}`

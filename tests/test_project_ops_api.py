@@ -180,7 +180,16 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("No stop command configured", self.read_payload(response)["detail"])
 
-    def test_get_projects_includes_health_and_dependency_state(self):
+    def test_get_projects_returns_cached_unknown_state_without_refresh(self):
+        response = self.main.get_projects()
+
+        payload = self.read_payload(response)
+        by_slug = {item["slug"]: item for item in payload["projects"]}
+        self.assertEqual(by_slug["jobby"]["health_snapshot"]["summary"], "unknown")
+        self.assertEqual(by_slug["jobby"]["dependency_snapshot"]["summary"], "unknown")
+        self.assertEqual(by_slug["jobby"]["ops_summary"], "unknown")
+
+    def test_refresh_projects_health_includes_health_and_dependency_state(self):
         responses = {
             "https://auth.dimy.dev/health": Mock(status_code=200),
             "http://100.124.230.107:8100/health": Mock(status_code=200),
@@ -192,7 +201,7 @@ class ProjectOpsApiTests(unittest.TestCase):
             return responses[url]
 
         with patch.object(self.main.requests, "get", side_effect=fake_get):
-            response = self.main.get_projects()
+            response = self.main.refresh_projects_health()
 
         payload = self.read_payload(response)
         by_slug = {item["slug"]: item for item in payload["projects"]}

@@ -305,6 +305,11 @@
             background: rgba(248, 212, 233, 0.92);
         }
 
+        .project-health-chip.is-unknown {
+            color: var(--status-info);
+            background: rgba(226, 236, 255, 0.95);
+        }
+
         .project-health-chip.is-unconfigured {
             color: var(--status-unconfigured);
             background: rgba(244, 241, 250, 0.95);

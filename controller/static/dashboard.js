@@ -472,8 +472,8 @@
         if (summary === 'healthy') return 'Healthy';
         if (summary === 'degraded') return 'Degraded';
         if (summary === 'down') return 'Down';
+        if (summary === 'unknown') return 'Checking';
         if (summary === 'none') return 'No deps';
-        if (summary === 'unknown') return 'Unknown';
         return 'Unconfigured';
     }
 
@@ -481,6 +481,7 @@
         if (summary === 'healthy') return 'is-healthy';
         if (summary === 'degraded') return 'is-degraded';
         if (summary === 'down') return 'is-down';
+        if (summary === 'unknown') return 'is-unknown';
         return 'is-unconfigured';
     }
 
@@ -489,6 +490,7 @@
         const check = snapshot.checks?.[label];
         if (!check) return `${label}: unavailable`;
         if (check.status === 'unconfigured') return `${label}: unconfigured`;
+        if (check.status === 'unknown') return `${label}: not checked yet`;
         if (check.status === 'healthy') return `${label}: healthy (${check.detail})`;
         return `${label}: down${check.detail ? ` (${check.detail})` : ''}`;
     }
@@ -1202,10 +1204,36 @@
             const data = await resp.json();
             state.projects = Array.isArray(data.projects) ? data.projects.map(normalizeProjectRecord) : [];
             renderProjects();
+            if (options.refreshHealth !== false) {
+                refreshProjectsHealth({ silent: true });
+            }
         } catch (error) {
             console.error('Failed to load projects', error);
             if (!options.silent) {
                 setProjectsFeedback('Failed to load projects.', 'error');
+            }
+        }
+    }
+
+    async function refreshProjectsHealth(options = {}) {
+        if (hasDirtyProjectEditors()) {
+            return;
+        }
+        try {
+            const resp = await fetch('/projects/refresh-health', {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.detail || 'health refresh failed');
+            state.projects = Array.isArray(data.projects) ? data.projects.map(normalizeProjectRecord) : state.projects;
+            renderProjects();
+            if (!options.silent) {
+                setProjectsFeedback('Project health refreshed.', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to refresh project health', error);
+            if (!options.silent) {
+                setProjectsFeedback(error.message || 'Failed to refresh project health.', 'error');
             }
         }
     }
@@ -2211,4 +2239,4 @@
     loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
     setInterval(loadJobActivity, JOB_ACTIVITY_REFRESH_RATE);
-    setInterval(() => loadProjects({ auto: true, silent: true }), PROJECT_REFRESH_RATE);
+    setInterval(() => refreshProjectsHealth({ silent: true }), PROJECT_REFRESH_RATE);

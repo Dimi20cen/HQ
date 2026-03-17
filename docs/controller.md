@@ -5,10 +5,11 @@ Endpoints
 - `GET /dashboard` html dashboard
 - `GET /dashboard/job-applications?days=365` grouped daily job-application counts (from Jobber DB)
 - `GET /projects` list project publishing records plus computed health/dependency state
+- `POST /projects/refresh-health` compute fresh project health/dependency state for all projects
 - `POST /projects` create a project publishing record
 - `PUT /projects/{slug}` update a project publishing record
 - `DELETE /projects/{slug}` delete a project publishing record
-- `POST /projects/{slug}/health-check` run on-demand public/private health checks for a project
+- `POST /projects/{slug}/health-check` run on-demand public/private health checks for a project and refresh its cached snapshot
 - `POST /projects/{slug}/action` run a configured host-local action (`deploy|start|restart|stop|logs`) for a project
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
 - `POST /projects/publish` export the public catalog, update the configured portfolio repo file, commit, and push to the configured branch

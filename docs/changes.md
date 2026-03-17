@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-17
+- Summary: Made project ops cards load immediately by serving cached/unchecked project status from `GET /projects` and moving full health refresh to a separate background endpoint.
+- Affected files: `controller/controller_main.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/controller.md`, `docs/projects.md`, `tests/test_project_ops_api.py`
+- Migration notes: Dashboard health now refreshes through `POST /projects/refresh-health`; initial project loads no longer block on live health checks.
+- Validation status: `python3 -m pytest tests/test_project_ops_api.py`, `python3 -m py_compile controller/controller_main.py`, and `node --check controller/static/dashboard.js` passed.
+
+## 2026-03-17
 - Summary: Refactored project management into ops-first dashboard cards with live computed health/dependency state, inline logs/deploy/restart actions, expandable configuration, and seeded runtime metadata for `hq`, `jobby`, `janus`, and `hermes`.
 - Affected files: `controller/controller_main.py`, `controller/projects_registry.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `runtime/projects/projects.json`, `docs/controller.md`, `docs/projects.md`, `tests/test_projects_registry.py`, `tests/test_project_ops_api.py`
 - Migration notes: Project records now support `depends_on` and `logs_command`. `GET /projects` includes computed `health_snapshot`, `dependency_snapshot`, and `ops_summary`. The dashboard auto-refreshes project health/state unless there are unsaved project edits.
