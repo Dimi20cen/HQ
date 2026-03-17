@@ -8,6 +8,16 @@
     "repo_url": "https://github.com/Dimi20cen/RentPredictor",
     "sort_order": 10,
     "linked_tools": [],
+    "private_url": "",
+    "deployment_host": "",
+    "deployment_location": "",
+    "runtime_path": "",
+    "health_public_url": "",
+    "health_private_url": "",
+    "deploy_command": "",
+    "start_command": "",
+    "restart_command": "",
+    "stop_command": "",
     "updated_at": "2026-03-16T12:55:25Z"
   },
   {
@@ -19,6 +29,16 @@
     "repo_url": "https://github.com/Dimi20cen/sakura",
     "sort_order": 20,
     "linked_tools": [],
+    "private_url": "",
+    "deployment_host": "",
+    "deployment_location": "",
+    "runtime_path": "",
+    "health_public_url": "",
+    "health_private_url": "",
+    "deploy_command": "",
+    "start_command": "",
+    "restart_command": "",
+    "stop_command": "",
     "updated_at": "2026-03-16T12:55:24Z"
   },
   {
@@ -30,7 +50,17 @@
     "repo_url": "https://github.com/Dimi20cen/Jobby",
     "sort_order": 40,
     "linked_tools": [],
-    "updated_at": "2026-03-16T12:55:23Z"
+    "private_url": "",
+    "deployment_host": "srv",
+    "deployment_location": "",
+    "runtime_path": "/srv/stacks/jobby",
+    "health_public_url": "",
+    "health_private_url": "http://100.124.230.107:8001/health",
+    "deploy_command": "git pull --ff-only && /usr/bin/bash /srv/stacks/jobby/bin/deploy.sh",
+    "start_command": "docker compose up -d",
+    "restart_command": "docker compose restart",
+    "stop_command": "docker compose down",
+    "updated_at": "2026-03-17T08:05:12Z"
   },
   {
     "slug": "hermes",
@@ -41,6 +71,16 @@
     "repo_url": "https://github.com/Dimi20cen/hermes",
     "sort_order": 50,
     "linked_tools": [],
+    "private_url": "",
+    "deployment_host": "",
+    "deployment_location": "",
+    "runtime_path": "",
+    "health_public_url": "",
+    "health_private_url": "",
+    "deploy_command": "",
+    "start_command": "",
+    "restart_command": "",
+    "stop_command": "",
     "updated_at": "2026-03-16T12:55:39Z"
   },
   {
@@ -52,6 +92,16 @@
     "repo_url": "https://github.com/Dimi20cen/janus",
     "sort_order": 50,
     "linked_tools": [],
+    "private_url": "",
+    "deployment_host": "",
+    "deployment_location": "",
+    "runtime_path": "",
+    "health_public_url": "",
+    "health_private_url": "",
+    "deploy_command": "",
+    "start_command": "",
+    "restart_command": "",
+    "stop_command": "",
     "updated_at": "2026-03-16T12:55:44Z"
   }
 ]

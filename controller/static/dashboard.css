@@ -183,6 +183,26 @@
             font-size: 12px;
         }
 
+        .project-dirty-badge {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            color: var(--status-busy);
+            background: rgba(255, 243, 227, 0.92);
+            border: 1px solid rgba(188, 143, 90, 0.24);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .project-dirty-badge.is-visible {
+            display: inline-flex;
+        }
+
         .project-chip {
             display: inline-flex;
             align-items: center;
@@ -237,6 +257,37 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
+        }
+
+        .project-section {
+            display: grid;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.44);
+        }
+
+        .project-section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .project-section-title {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .project-section-copy {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
         }
 
         .project-field {
@@ -351,6 +402,14 @@
             gap: 8px;
         }
 
+        .project-action-meta {
+            display: grid;
+            gap: 4px;
+            margin-top: -2px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
         .project-action-btn {
             min-height: 36px;
             padding: 0 12px;
@@ -381,15 +440,75 @@
             color: var(--status-stopped);
         }
 
-        .project-action-output {
-            margin: 0;
+        .project-action-result {
+            display: grid;
+            gap: 8px;
             padding: 12px;
             border-radius: 12px;
             border: 1px solid var(--border);
             background: rgba(255, 255, 255, 0.78);
+        }
+
+        .project-action-result.is-success {
+            border-color: rgba(59, 157, 114, 0.24);
+            background: rgba(221, 244, 232, 0.52);
+        }
+
+        .project-action-result.is-error {
+            border-color: rgba(207, 94, 151, 0.24);
+            background: rgba(248, 212, 233, 0.34);
+        }
+
+        .project-action-result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .project-action-result-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .project-action-result-time {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .project-action-result-body {
+            display: grid;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text);
+        }
+
+        .project-action-result-line {
+            word-break: break-word;
+        }
+
+        .project-action-result-block {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.66);
+        }
+
+        .project-action-result-block-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .project-action-result-block pre {
+            margin: 0;
             color: var(--text);
             font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            overflow-x: auto;
             white-space: pre-wrap;
             word-break: break-word;
         }
