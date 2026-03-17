@@ -32,6 +32,7 @@ Docker (LAN deploy)
 - Uses `docker-compose.yml` in repo root.
 - The HQ image includes `git` so project publish actions can commit/push the mounted portfolio clone.
 - The image also marks `/portfolio-repo` as a Git safe directory for the bind-mounted repo.
+- Host-local project actions should go through the host action runner service instead of running inside the container.
 - Expose only controller port `8000`; widget traffic is proxied through controller.
 - Keep a separate local `.env` on each machine (do not sync `.env` in git).
 - Server `.env` notes:
@@ -43,6 +44,11 @@ Docker (LAN deploy)
     - `HQ_PORTFOLIO_REPO_DIR=/portfolio-repo`
     - `HQ_PORTFOLIO_EXPORT_PATH=/portfolio-repo/data/projects.generated.json`
     - `HQ_PORTFOLIO_BRANCH=main`
+  - To let HQ run host-local project actions from Docker, set:
+    - `HQ_ACTION_RUNNER_URL=http://host.docker.internal:8051`
+    - `HQ_ACTION_RUNNER_TOKEN=<shared-secret>`
+    - `HQ_ACTION_RUNNER_HOST=0.0.0.0`
+    - `HQ_ACTION_RUNNER_PORT=8051`
 - Start:
   - `docker compose up -d --build`
 - Verify:
@@ -62,6 +68,10 @@ Database/storage paths
   - `CONTROLLER_DB_PATH`
   - `CALENDAR_DB_PATH`
   - `JOBBER_DB_PATH`
+  - `HQ_ACTION_RUNNER_URL`
+  - `HQ_ACTION_RUNNER_TOKEN`
+  - `HQ_ACTION_RUNNER_HOST`
+  - `HQ_ACTION_RUNNER_PORT`
   - `HQ_PROJECTS_PATH`
   - `HQ_PROJECTS_EXPORT_PATH`
   - `HQ_PORTFOLIO_EXPORT_PATH`
@@ -75,3 +85,14 @@ Project catalog export sync
 - Without that env var, HQ auto-detects a sibling local repo at `../dimy.dev/data/projects.generated.json` when present.
 - In Docker, `HQ_PORTFOLIO_REPO_HOST_DIR` should mount the host portfolio repo into `/portfolio-repo`, while `HQ_PORTFOLIO_REPO_DIR` should stay `/portfolio-repo` inside the container.
 - `POST /projects/publish` assumes that mounted repo is a dedicated publish clone with working GitHub push auth.
+
+Host action runner
+- Sample user unit: `ops/systemd/hq-action-runner.service`
+- Install on `srv`:
+  - `mkdir -p ~/.config/systemd/user`
+  - `cp ops/systemd/hq-action-runner.service ~/.config/systemd/user/hq-action-runner.service`
+  - `systemctl --user daemon-reload`
+  - `systemctl --user enable --now hq-action-runner.service`
+- Health check:
+  - `curl http://127.0.0.1:8051/health`
+- HQ Docker reaches the runner through `http://host.docker.internal:8051`.

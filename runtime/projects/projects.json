@@ -56,7 +56,7 @@
     "deployment_location": "Server laptop over LAN and Tailscale",
     "runtime_path": "/srv/stacks/hq",
     "health_public_url": "",
-    "health_private_url": "http://100.124.230.107:8000/projects",
+    "health_private_url": "http://127.0.0.1:8000/projects",
     "deploy_command": "git pull --ff-only && /usr/bin/bash /srv/stacks/hq/bin/deploy.sh",
     "start_command": "docker compose up -d --build",
     "restart_command": "docker compose restart",

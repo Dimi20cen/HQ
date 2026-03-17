@@ -11,7 +11,7 @@ Core ideas
 - Public ordering is controlled only by `sort_order`.
 - Health state is observed on demand and not stored as long-term uptime history.
 - `GET /projects` is intentionally fast and returns cached or unchecked health state; the dashboard refreshes health separately in the background.
-- Project actions run only on the same host where HQ is running.
+- Project actions run on the same host where HQ is deployed, ideally through the host action runner when HQ itself is containerized.
 
 Stored fields
 - `slug`
@@ -42,6 +42,7 @@ Validation rules
 - `source` projects may also keep a `primary_url`, but portfolio will not show it while in `source` mode.
 - Action commands are optional plain shell-command strings.
 - `depends_on` stores explicit project slugs for dependency-aware status in HQ.
+- In Docker deployments, project actions should execute through the host action runner so commands can access host paths, Docker Compose, and systemd/journalctl.
 
 Runtime storage
 - Registry file: `runtime/projects/projects.json`

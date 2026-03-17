@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-17
+- Summary: Added a host action runner pattern for Docker-deployed HQ so project actions can execute on `srv` instead of inside the HQ container, and wired the controller to forward actions to that runner when configured.
+- Affected files: `controller/controller_main.py`, `docker-compose.yml`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `ops/systemd/hq-action-runner.service`, `host_runner/server.py`, `runtime/projects/projects.json`, `tests/test_project_ops_api.py`
+- Migration notes: Configure `HQ_ACTION_RUNNER_URL` and `HQ_ACTION_RUNNER_TOKEN` in `/srv/stacks/hq/.env`, install the sample `hq-action-runner.service` user unit on `srv`, and keep the HQ container talking to the runner through `host.docker.internal`.
+- Validation status: `python3 -m pytest tests/test_project_ops_api.py`, `python3 -m py_compile controller/controller_main.py host_runner/server.py`, and `node --check controller/static/dashboard.js` passed.
+
+## 2026-03-17
 - Summary: Made project ops cards load immediately by serving cached/unchecked project status from `GET /projects` and moving full health refresh to a separate background endpoint.
 - Affected files: `controller/controller_main.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/controller.md`, `docs/projects.md`, `tests/test_project_ops_api.py`
 - Migration notes: Dashboard health now refreshes through `POST /projects/refresh-health`; initial project loads no longer block on live health checks.

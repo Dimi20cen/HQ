@@ -1,0 +1,16 @@
+[Unit]
+Description=HQ Host Action Runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/stacks/hq
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/srv/stacks/hq/.env
+ExecStart=/usr/bin/python3 /srv/stacks/hq/host_runner/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

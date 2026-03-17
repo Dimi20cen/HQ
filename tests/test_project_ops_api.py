@@ -18,6 +18,8 @@ class ProjectOpsApiTests(unittest.TestCase):
             self.tempdir.name, "projects.generated.json"
         )
         os.environ["CONTROLLER_DB_PATH"] = os.path.join(self.tempdir.name, "tools.db")
+        os.environ.pop("HQ_ACTION_RUNNER_URL", None)
+        os.environ.pop("HQ_ACTION_RUNNER_TOKEN", None)
         sys.modules["psutil"] = types.SimpleNamespace(
             pid_exists=lambda _pid: False,
             Process=lambda _pid: None,
@@ -125,6 +127,8 @@ class ProjectOpsApiTests(unittest.TestCase):
         os.environ.pop("HQ_PROJECTS_PATH", None)
         os.environ.pop("HQ_PROJECTS_EXPORT_PATH", None)
         os.environ.pop("CONTROLLER_DB_PATH", None)
+        os.environ.pop("HQ_ACTION_RUNNER_URL", None)
+        os.environ.pop("HQ_ACTION_RUNNER_TOKEN", None)
         sys.modules.pop("psutil", None)
         fastapi_templating.Jinja2Templates = self.prev_fastapi_jinja_templates
         starlette_templating.Jinja2Templates = self.prev_starlette_jinja_templates
@@ -171,6 +175,46 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertEqual(payload["action"], "logs")
         self.assertIn("recent logs", payload["stdout"])
         self.assertEqual(run_mock.call_args.kwargs["cwd"], "/srv/stacks/hermes")
+
+    def test_project_action_uses_host_runner_when_configured(self):
+        os.environ["HQ_ACTION_RUNNER_URL"] = "http://runner.local:8051"
+        os.environ["HQ_ACTION_RUNNER_TOKEN"] = "runner-token"
+
+        runner_response = Mock(
+            status_code=200,
+            json=Mock(
+                return_value={
+                    "ok": True,
+                    "action": "restart",
+                    "command": "docker compose restart",
+                    "cwd": "/srv/stacks/jobby",
+                    "exit_code": 0,
+                    "stdout": "runner ok\n",
+                    "stderr": "",
+                    "detail": "Command completed successfully.",
+                    "ran_at": "2026-03-17T13:00:00Z",
+                }
+            ),
+        )
+
+        with patch.object(self.main.requests, "post", return_value=runner_response) as post_mock:
+            response = self.main.run_project_action("jobby", {"action": "restart"})
+
+        payload = self.read_payload(response)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["stdout"], "runner ok\n")
+        self.assertEqual(
+            post_mock.call_args.args[0],
+            "http://runner.local:8051/run",
+        )
+        self.assertEqual(
+            post_mock.call_args.kwargs["headers"]["Authorization"],
+            "Bearer runner-token",
+        )
+        self.assertEqual(
+            post_mock.call_args.kwargs["json"]["cwd"],
+            "/srv/stacks/jobby",
+        )
 
     def test_project_action_rejects_missing_command(self):
         self.registry.update_project("jobby", {"stop_command": ""})

@@ -323,6 +323,14 @@ def _project_ops_summary(health_summary: str, dependency_summary: str) -> str:
     return health_summary
 
 
+def _action_runner_url() -> str:
+    return str(os.getenv("HQ_ACTION_RUNNER_URL") or "").strip()
+
+
+def _action_runner_token() -> str:
+    return str(os.getenv("HQ_ACTION_RUNNER_TOKEN") or "").strip()
+
+
 def _projects_with_runtime_state(refresh_health: bool = False) -> list[dict]:
     projects = list_projects()
     project_map = {project["slug"]: project for project in projects}
@@ -352,16 +360,7 @@ def _projects_with_runtime_state(refresh_health: bool = False) -> list[dict]:
     return decorated
 
 
-def _run_project_command(project: dict, action: str) -> dict:
-    command_field = PROJECT_ACTION_COMMANDS.get(action)
-    if not command_field:
-        raise ProjectValidationError("Unsupported project action.")
-
-    command = str(project.get(command_field) or "").strip()
-    if not command:
-        raise ProjectValidationError(f"No {action} command configured for this project.")
-    runtime_path = str(project.get("runtime_path") or "").strip() or None
-
+def _run_project_command_local(command: str, runtime_path: str | None, action: str) -> dict:
     started_at = _now_iso()
     try:
         completed = subprocess.run(
@@ -411,6 +410,89 @@ def _run_project_command(project: dict, action: str) -> dict:
         "detail": "Command completed successfully." if completed.returncode == 0 else "Command failed.",
         "ran_at": started_at,
     }
+
+
+def _run_project_command_via_runner(project: dict, command: str, runtime_path: str | None, action: str) -> dict:
+    runner_url = _action_runner_url()
+    if not runner_url:
+        raise ProjectValidationError("Host action runner is not configured.")
+
+    headers = {"Content-Type": "application/json"}
+    token = _action_runner_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    payload = {
+        "slug": project["slug"],
+        "action": action,
+        "command": command,
+        "cwd": runtime_path or "",
+        "timeout_seconds": 600,
+    }
+
+    try:
+        response = requests.post(
+            f"{runner_url.rstrip('/')}/run",
+            headers=headers,
+            json=payload,
+            timeout=610,
+        )
+    except requests.RequestException as exc:
+        return {
+            "ok": False,
+            "action": action,
+            "command": command,
+            "cwd": runtime_path or "",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": str(exc),
+            "detail": f"Host action runner request failed: {exc}",
+            "ran_at": _now_iso(),
+        }
+
+    try:
+        data = response.json()
+    except ValueError:
+        raw = response.text.strip()
+        data = {
+            "ok": False,
+            "action": action,
+            "command": command,
+            "cwd": runtime_path or "",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": raw,
+            "detail": raw or "Host action runner returned a non-JSON response.",
+            "ran_at": _now_iso(),
+        }
+
+    if "action" not in data:
+        data["action"] = action
+    if "command" not in data:
+        data["command"] = command
+    if "cwd" not in data:
+        data["cwd"] = runtime_path or ""
+    if "ran_at" not in data:
+        data["ran_at"] = _now_iso()
+    if response.status_code >= 400 and "ok" not in data:
+        data["ok"] = False
+    return data
+
+
+def _run_project_command(project: dict, action: str) -> dict:
+    command_field = PROJECT_ACTION_COMMANDS.get(action)
+    if not command_field:
+        raise ProjectValidationError("Unsupported project action.")
+
+    command = str(project.get(command_field) or "").strip()
+    if not command:
+        raise ProjectValidationError(f"No {action} command configured for this project.")
+    runtime_path = str(project.get("runtime_path") or "").strip() or None
+
+    runner_url = _action_runner_url()
+    if runner_url:
+        return _run_project_command_via_runner(project, command, runtime_path, action)
+    return _run_project_command_local(command, runtime_path, action)
 
 def scan_tools():
     """
