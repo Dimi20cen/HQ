@@ -2,7 +2,7 @@
   {
     "slug": "aws",
     "title": "aws",
-    "transport": "http",
+    "transport": "none",
     "runner_url": "",
     "runner_socket_path": "",
     "token_env_var": "HQ_ACTION_RUNNER_TOKEN_AWS",
@@ -13,7 +13,7 @@
   {
     "slug": "desk",
     "title": "desk",
-    "transport": "http",
+    "transport": "none",
     "runner_url": "",
     "runner_socket_path": "",
     "token_env_var": "HQ_ACTION_RUNNER_TOKEN_DESK",
