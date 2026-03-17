@@ -31,6 +31,7 @@ Docker (LAN deploy)
 - Requires Docker Engine + Compose v2.
 - Uses `docker-compose.yml` in repo root.
 - The HQ image includes `git` so project publish actions can commit/push the mounted portfolio clone.
+- The image also marks `/portfolio-repo` as a Git safe directory for the bind-mounted repo.
 - Expose only controller port `8000`; widget traffic is proxied through controller.
 - Keep a separate local `.env` on each machine (do not sync `.env` in git).
 - Server `.env` notes:
