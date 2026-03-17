@@ -2,6 +2,8 @@ import json
 import sqlite3
 import os
 import subprocess
+import socket
+import http.client
 import requests
 import psutil
 from pathlib import Path
@@ -327,6 +329,10 @@ def _action_runner_url() -> str:
     return str(os.getenv("HQ_ACTION_RUNNER_URL") or "").strip()
 
 
+def _action_runner_socket_path() -> str:
+    return str(os.getenv("HQ_ACTION_RUNNER_SOCKET_PATH") or "").strip()
+
+
 def _action_runner_token() -> str:
     return str(os.getenv("HQ_ACTION_RUNNER_TOKEN") or "").strip()
 
@@ -413,8 +419,9 @@ def _run_project_command_local(command: str, runtime_path: str | None, action: s
 
 
 def _run_project_command_via_runner(project: dict, command: str, runtime_path: str | None, action: str) -> dict:
+    runner_socket = _action_runner_socket_path()
     runner_url = _action_runner_url()
-    if not runner_url:
+    if not runner_socket and not runner_url:
         raise ProjectValidationError("Host action runner is not configured.")
 
     headers = {"Content-Type": "application/json"}
@@ -431,13 +438,33 @@ def _run_project_command_via_runner(project: dict, command: str, runtime_path: s
     }
 
     try:
-        response = requests.post(
-            f"{runner_url.rstrip('/')}/run",
-            headers=headers,
-            json=payload,
-            timeout=610,
-        )
-    except requests.RequestException as exc:
+        if runner_socket:
+            class UnixHTTPConnection(http.client.HTTPConnection):
+                def __init__(self, socket_path: str):
+                    super().__init__("localhost")
+                    self._socket_path = socket_path
+
+                def connect(self):
+                    self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    self.sock.settimeout(self.timeout)
+                    self.sock.connect(self._socket_path)
+
+            connection = UnixHTTPConnection(runner_socket)
+            connection.timeout = 610
+            connection.request("POST", "/run", body=json.dumps(payload), headers=headers)
+            response = connection.getresponse()
+            raw_body = response.read().decode("utf-8")
+            status_code = response.status
+        else:
+            response = requests.post(
+                f"{runner_url.rstrip('/')}/run",
+                headers=headers,
+                json=payload,
+                timeout=610,
+            )
+            raw_body = response.text
+            status_code = response.status_code
+    except (requests.RequestException, OSError, http.client.HTTPException) as exc:
         return {
             "ok": False,
             "action": action,
@@ -451,9 +478,9 @@ def _run_project_command_via_runner(project: dict, command: str, runtime_path: s
         }
 
     try:
-        data = response.json()
+        data = json.loads(raw_body)
     except ValueError:
-        raw = response.text.strip()
+        raw = raw_body.strip()
         data = {
             "ok": False,
             "action": action,
@@ -474,7 +501,7 @@ def _run_project_command_via_runner(project: dict, command: str, runtime_path: s
         data["cwd"] = runtime_path or ""
     if "ran_at" not in data:
         data["ran_at"] = _now_iso()
-    if response.status_code >= 400 and "ok" not in data:
+    if status_code >= 400 and "ok" not in data:
         data["ok"] = False
     return data
 

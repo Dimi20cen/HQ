@@ -11,7 +11,8 @@ services:
       CONTROLLER_DB_PATH: /app/runtime/controller/tools.db
       CALENDAR_DB_PATH: /app/runtime/tools/calendar/calendar.db
       JOBBER_DB_PATH: /app/runtime/tools/jobber/jobs.db
-      HQ_ACTION_RUNNER_URL: ${HQ_ACTION_RUNNER_URL:-http://host.docker.internal:8051}
+      HQ_ACTION_RUNNER_URL: ${HQ_ACTION_RUNNER_URL:-}
+      HQ_ACTION_RUNNER_SOCKET_PATH: ${HQ_ACTION_RUNNER_SOCKET_PATH:-/app/runtime/action-runner.sock}
       HQ_ACTION_RUNNER_TOKEN: ${HQ_ACTION_RUNNER_TOKEN:-}
       HQ_PORTFOLIO_REPO_DIR: ${HQ_PORTFOLIO_REPO_DIR:-/portfolio-repo}
       HQ_PORTFOLIO_EXPORT_PATH: ${HQ_PORTFOLIO_EXPORT_PATH:-}
@@ -25,5 +26,3 @@ services:
       - ./runtime:/app/runtime
       - ./logs:/app/logs
       - ${HQ_PORTFOLIO_REPO_HOST_DIR:-./runtime/portfolio-repo}:/portfolio-repo
-    extra_hosts:
-      - "host.docker.internal:host-gateway"

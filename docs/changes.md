@@ -3,7 +3,7 @@ read_when: reviewing notable behavior/UI/documentation changes and validation st
 ## 2026-03-17
 - Summary: Added a host action runner pattern for Docker-deployed HQ so project actions can execute on `srv` instead of inside the HQ container, and wired the controller to forward actions to that runner when configured.
 - Affected files: `controller/controller_main.py`, `docker-compose.yml`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `ops/systemd/hq-action-runner.service`, `host_runner/server.py`, `runtime/projects/projects.json`, `tests/test_project_ops_api.py`
-- Migration notes: Configure `HQ_ACTION_RUNNER_URL` and `HQ_ACTION_RUNNER_TOKEN` in `/srv/stacks/hq/.env`, install the sample `hq-action-runner.service` user unit on `srv`, and keep the HQ container talking to the runner through `host.docker.internal`.
+- Migration notes: Configure `HQ_ACTION_RUNNER_SOCKET_HOST_PATH`, `HQ_ACTION_RUNNER_SOCKET_PATH`, and `HQ_ACTION_RUNNER_TOKEN` in `/srv/stacks/hq/.env`, install the sample `hq-action-runner.service` user unit on `srv`, and let the HQ container talk to the runner through the shared `runtime` socket.
 - Validation status: `python3 -m pytest tests/test_project_ops_api.py`, `python3 -m py_compile controller/controller_main.py host_runner/server.py`, and `node --check controller/static/dashboard.js` passed.
 
 ## 2026-03-17

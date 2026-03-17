@@ -19,6 +19,7 @@ class ProjectOpsApiTests(unittest.TestCase):
         )
         os.environ["CONTROLLER_DB_PATH"] = os.path.join(self.tempdir.name, "tools.db")
         os.environ.pop("HQ_ACTION_RUNNER_URL", None)
+        os.environ.pop("HQ_ACTION_RUNNER_SOCKET_PATH", None)
         os.environ.pop("HQ_ACTION_RUNNER_TOKEN", None)
         sys.modules["psutil"] = types.SimpleNamespace(
             pid_exists=lambda _pid: False,
@@ -128,6 +129,7 @@ class ProjectOpsApiTests(unittest.TestCase):
         os.environ.pop("HQ_PROJECTS_EXPORT_PATH", None)
         os.environ.pop("CONTROLLER_DB_PATH", None)
         os.environ.pop("HQ_ACTION_RUNNER_URL", None)
+        os.environ.pop("HQ_ACTION_RUNNER_SOCKET_PATH", None)
         os.environ.pop("HQ_ACTION_RUNNER_TOKEN", None)
         sys.modules.pop("psutil", None)
         fastapi_templating.Jinja2Templates = self.prev_fastapi_jinja_templates
@@ -182,8 +184,8 @@ class ProjectOpsApiTests(unittest.TestCase):
 
         runner_response = Mock(
             status_code=200,
-            json=Mock(
-                return_value={
+            text=json.dumps(
+                {
                     "ok": True,
                     "action": "restart",
                     "command": "docker compose restart",

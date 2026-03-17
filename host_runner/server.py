@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import socketserver
+from pathlib import Path
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +37,14 @@ def _port() -> int:
         return int(raw)
     except ValueError:
         return 8051
+
+
+def _socket_path() -> str:
+    return str(
+        os.getenv("HQ_ACTION_RUNNER_SOCKET_HOST_PATH")
+        or os.getenv("HQ_ACTION_RUNNER_SOCKET_PATH")
+        or ""
+    ).strip()
 
 
 def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
@@ -184,8 +194,22 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
+class ThreadingUnixHTTPServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    daemon_threads = True
+
+
 def main() -> None:
-    server = ThreadingHTTPServer((_host(), _port()), Handler)
+    socket_path = _socket_path()
+    if socket_path:
+        path = Path(socket_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        server = ThreadingUnixHTTPServer(str(path), Handler)
+    else:
+        server = ThreadingHTTPServer((_host(), _port()), Handler)
     server.serve_forever()
 
 

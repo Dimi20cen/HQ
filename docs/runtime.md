@@ -45,10 +45,13 @@ Docker (LAN deploy)
     - `HQ_PORTFOLIO_EXPORT_PATH=/portfolio-repo/data/projects.generated.json`
     - `HQ_PORTFOLIO_BRANCH=main`
   - To let HQ run host-local project actions from Docker, set:
-    - `HQ_ACTION_RUNNER_URL=http://host.docker.internal:8051`
+    - `HQ_ACTION_RUNNER_SOCKET_HOST_PATH=/srv/stacks/hq/runtime/action-runner.sock`
+    - `HQ_ACTION_RUNNER_SOCKET_PATH=/app/runtime/action-runner.sock`
     - `HQ_ACTION_RUNNER_TOKEN=<shared-secret>`
-    - `HQ_ACTION_RUNNER_HOST=0.0.0.0`
-    - `HQ_ACTION_RUNNER_PORT=8051`
+    - optional fallback if you want TCP instead of the shared socket:
+      - `HQ_ACTION_RUNNER_URL=http://127.0.0.1:8051`
+      - `HQ_ACTION_RUNNER_HOST=127.0.0.1`
+      - `HQ_ACTION_RUNNER_PORT=8051`
 - Start:
   - `docker compose up -d --build`
 - Verify:
@@ -69,6 +72,8 @@ Database/storage paths
   - `CALENDAR_DB_PATH`
   - `JOBBER_DB_PATH`
   - `HQ_ACTION_RUNNER_URL`
+  - `HQ_ACTION_RUNNER_SOCKET_HOST_PATH`
+  - `HQ_ACTION_RUNNER_SOCKET_PATH`
   - `HQ_ACTION_RUNNER_TOKEN`
   - `HQ_ACTION_RUNNER_HOST`
   - `HQ_ACTION_RUNNER_PORT`
@@ -94,5 +99,6 @@ Host action runner
   - `systemctl --user daemon-reload`
   - `systemctl --user enable --now hq-action-runner.service`
 - Health check:
-  - `curl http://127.0.0.1:8051/health`
-- HQ Docker reaches the runner through `http://host.docker.internal:8051`.
+  - `curl --unix-socket /srv/stacks/hq/runtime/action-runner.sock http://localhost/health`
+- Preferred transport:
+  - HQ Docker reaches the runner through the shared socket at `/app/runtime/action-runner.sock`.
