@@ -13,12 +13,12 @@
   {
     "slug": "desk",
     "title": "desk",
-    "transport": "none",
-    "runner_url": "",
+    "transport": "http",
+    "runner_url": "http://100.104.120.10:8051",
     "runner_socket_path": "",
     "token_env_var": "HQ_ACTION_RUNNER_TOKEN_DESK",
     "location": "Personal workstation over Tailscale",
-    "notes": "Install a runner on desk and point this at its Tailscale URL.",
+    "notes": "Remote runner reachable over Tailscale.",
     "updated_at": "2026-03-17T14:00:00Z"
   },
   {
