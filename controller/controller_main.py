@@ -517,7 +517,8 @@ def _run_project_command(project: dict, action: str) -> dict:
     runtime_path = str(project.get("runtime_path") or "").strip() or None
 
     runner_url = _action_runner_url()
-    if runner_url:
+    runner_socket = _action_runner_socket_path()
+    if runner_socket or runner_url:
         return _run_project_command_via_runner(project, command, runtime_path, action)
     return _run_project_command_local(command, runtime_path, action)
 

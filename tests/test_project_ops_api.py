@@ -218,6 +218,31 @@ class ProjectOpsApiTests(unittest.TestCase):
             "/srv/stacks/jobby",
         )
 
+    def test_project_action_uses_host_runner_socket_when_configured(self):
+        os.environ["HQ_ACTION_RUNNER_SOCKET_PATH"] = "/app/runtime/action-runner.sock"
+
+        with patch.object(
+            self.main,
+            "_run_project_command_via_runner",
+            return_value={
+                "ok": True,
+                "action": "logs",
+                "command": "docker compose logs --tail 100",
+                "cwd": "/srv/stacks/jobby",
+                "exit_code": 0,
+                "stdout": "runner socket ok\n",
+                "stderr": "",
+                "detail": "Command completed successfully.",
+                "ran_at": "2026-03-17T13:00:00Z",
+            },
+        ) as via_runner_mock:
+            response = self.main.run_project_action("jobby", {"action": "logs"})
+
+        payload = self.read_payload(response)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["stdout"], "runner socket ok\n")
+        via_runner_mock.assert_called_once()
+
     def test_project_action_rejects_missing_command(self):
         self.registry.update_project("jobby", {"stop_command": ""})
 
