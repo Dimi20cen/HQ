@@ -62,6 +62,19 @@
         return node;
     }
 
+    async function readJsonResponse(resp) {
+        const raw = await resp.text();
+        if (!raw) return {};
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return {
+                detail: raw,
+                stderr: raw
+            };
+        }
+    }
+
     function safeId(name) {
         return name.replace(/[^a-zA-Z0-9_-]+/g, '_');
     }
@@ -1074,7 +1087,7 @@
             const resp = await fetch(`/projects/${encodeURIComponent(slug)}/health-check`, {
                 method: 'POST'
             });
-            const data = await resp.json();
+            const data = await readJsonResponse(resp);
             if (!resp.ok) throw new Error(data?.detail || 'health check failed');
             updateProjectState(slug, { health_snapshot: data });
             setProjectsFeedback(`Checked ${slug} health.`, 'success');
@@ -1106,7 +1119,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action })
             });
-            const data = await resp.json();
+            const data = await readJsonResponse(resp);
             if (!resp.ok) {
                 updateProjectState(slug, { action_result: data });
                 throw new Error(data?.detail || data?.stderr || `${action} failed`);

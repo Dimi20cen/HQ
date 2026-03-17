@@ -387,6 +387,18 @@ def _run_project_command(project: dict, action: str) -> dict:
             "detail": "Command timed out after 600 seconds.",
             "ran_at": started_at,
         }
+    except OSError as exc:
+        return {
+            "ok": False,
+            "action": action,
+            "command": command,
+            "cwd": runtime_path or "",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": str(exc),
+            "detail": str(exc),
+            "ran_at": started_at,
+        }
 
     return {
         "ok": completed.returncode == 0,
@@ -637,6 +649,21 @@ def run_project_action(slug: str, payload: dict):
         result = _run_project_command(project, action)
     except ProjectValidationError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "action": action,
+                "command": "",
+                "cwd": str(project.get("runtime_path") or ""),
+                "exit_code": None,
+                "stdout": "",
+                "stderr": str(exc),
+                "detail": str(exc),
+                "ran_at": _now_iso(),
+            },
+        )
 
     if result["ok"]:
         return result
