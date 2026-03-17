@@ -16,6 +16,7 @@
 
     const state = {
         toolMap: new Map(),
+        hosts: [],
         projects: [],
         nextProjectDraftId: 1,
         widgetLayout: loadWidgetLayout(),
@@ -46,6 +47,9 @@
         appsMenuBtn: document.getElementById('apps-menu-btn'),
         hiddenToolsMenu: document.getElementById('hidden-tools-menu'),
         container: document.getElementById('tools-container'),
+        hostsList: document.getElementById('hosts-list'),
+        hostsEmpty: document.getElementById('hosts-empty'),
+        hostsFeedback: document.getElementById('hosts-feedback'),
         projectsList: document.getElementById('projects-list'),
         projectsEmpty: document.getElementById('projects-empty'),
         projectsFeedback: document.getElementById('projects-feedback'),
@@ -389,12 +393,35 @@
             restart_command: String(rawProject?.restart_command || '').trim(),
             stop_command: String(rawProject?.stop_command || '').trim(),
             logs_command: String(rawProject?.logs_command || '').trim(),
+            host: rawProject?.host || null,
+            host_snapshot: rawProject?.host_snapshot || null,
             health_snapshot: rawProject?.health_snapshot || null,
             dependency_snapshot: rawProject?.dependency_snapshot || { summary: 'none', items: [] },
             ops_summary: String(rawProject?.ops_summary || rawProject?.health_snapshot?.summary || 'unconfigured'),
             action_result: rawProject?.action_result || null,
             updated_at: String(rawProject?.updated_at || '').trim()
         };
+    }
+
+    function normalizeHostRecord(rawHost) {
+        return {
+            slug: String(rawHost?.slug || '').trim(),
+            title: String(rawHost?.title || rawHost?.slug || '').trim(),
+            transport: String(rawHost?.transport || 'none').trim() || 'none',
+            runner_url: String(rawHost?.runner_url || '').trim(),
+            runner_socket_path: String(rawHost?.runner_socket_path || '').trim(),
+            token_env_var: String(rawHost?.token_env_var || '').trim(),
+            location: String(rawHost?.location || '').trim(),
+            notes: String(rawHost?.notes || '').trim(),
+            runner_snapshot: rawHost?.runner_snapshot || null,
+            updated_at: String(rawHost?.updated_at || '').trim()
+        };
+    }
+
+    function getHostRecord(slug) {
+        const target = String(slug || '').trim();
+        if (!target) return null;
+        return state.hosts.find(host => host.slug === target) || null;
     }
 
     function setProjectsFeedback(message, tone = '') {
@@ -496,6 +523,73 @@
         if (summary === 'down') return 'is-down';
         if (summary === 'unknown') return 'is-unknown';
         return 'is-unconfigured';
+    }
+
+    function setHostsFeedback(message, tone = '') {
+        if (!els.hostsFeedback) return;
+        els.hostsFeedback.textContent = message || '';
+        els.hostsFeedback.classList.remove('is-error', 'is-success');
+        if (tone === 'error') els.hostsFeedback.classList.add('is-error');
+        if (tone === 'success') els.hostsFeedback.classList.add('is-success');
+    }
+
+    function runnerHealthLine(host) {
+        const snapshot = host?.runner_snapshot;
+        if (!snapshot) return 'Runner: not checked yet';
+        const detail = String(snapshot.detail || '').trim();
+        if (snapshot.status === 'unconfigured') return 'Runner: unconfigured';
+        if (snapshot.status === 'unknown') return 'Runner: checking';
+        if (snapshot.status === 'healthy') return `Runner: healthy${detail ? ` (${detail})` : ''}`;
+        return `Runner: down${detail ? ` (${detail})` : ''}`;
+    }
+
+    function renderHosts() {
+        if (!els.hostsList || !els.hostsEmpty) return;
+        els.hostsList.innerHTML = '';
+        const hosts = [...state.hosts].sort((a, b) => a.title.localeCompare(b.title));
+        els.hostsEmpty.hidden = hosts.length > 0;
+        hosts.forEach(host => {
+            const card = el('article', 'host-card');
+            const header = el('div', 'host-card-header');
+            const titleWrap = el('div', 'host-card-title');
+            titleWrap.appendChild(el('strong', '', host.title || host.slug));
+            titleWrap.appendChild(el('span', '', host.slug ? `/${host.slug}` : 'Unknown host'));
+            header.appendChild(titleWrap);
+            header.appendChild(
+                el(
+                    'span',
+                    `project-health-chip ${projectHealthClass(host.runner_snapshot?.status)}`,
+                    projectHealthLabel(host.runner_snapshot?.status)
+                )
+            );
+            card.appendChild(header);
+
+            if (host.notes) {
+                card.appendChild(el('p', 'host-card-copy', host.notes));
+            }
+
+            const meta = el('div', 'host-card-meta');
+            [
+                host.transport ? `Transport: ${host.transport}` : '',
+                host.location ? `Where: ${host.location}` : '',
+                host.runner_snapshot?.endpoint ? `Endpoint: ${host.runner_snapshot.endpoint}` : ''
+            ].filter(Boolean).forEach(line => meta.appendChild(el('span', 'host-card-fact', line)));
+            if (meta.childNodes.length) {
+                card.appendChild(meta);
+            }
+
+            const health = el('div', 'host-card-health');
+            health.appendChild(el('div', 'host-card-health-line', runnerHealthLine(host)));
+            health.appendChild(
+                el(
+                    'div',
+                    'host-card-health-line',
+                    `Last checked: ${formatCheckedAt(host.runner_snapshot?.checked_at)}`
+                )
+            );
+            card.appendChild(health);
+            els.hostsList.appendChild(card);
+        });
     }
 
     function projectSurfaceHealthLine(label, snapshot) {
@@ -657,8 +751,10 @@
             summaryMeta.appendChild(el('p', 'project-card-copy', project.public_summary));
         }
         const facts = el('div', 'project-card-facts');
+        const hostRecord = project.host || getHostRecord(project.deployment_host);
         [
             project.deployment_host ? `Host: ${project.deployment_host}` : '',
+            hostRecord?.transport ? `Runner: ${hostRecord.transport}` : '',
             project.deployment_location ? `Where: ${project.deployment_location}` : '',
             project.runtime_path ? `Path: ${project.runtime_path}` : ''
         ].filter(Boolean).forEach(line => facts.appendChild(el('span', 'project-card-fact', line)));
@@ -684,13 +780,14 @@
         const repoField = createProjectField('Repo URL', `project-repo-${fieldKey}`, 'url', project.repo_url);
         const privateField = createProjectField('Private URL', `project-private-${fieldKey}`, 'url', project.private_url, true);
         const hostField = createProjectField('Deployment Host', `project-host-${fieldKey}`, 'select', '', false);
-        [
-            { value: '', label: 'Select host' },
-            { value: 'srv', label: 'srv' },
-            { value: 'aws', label: 'aws' },
-            { value: 'desk', label: 'desk' },
-            { value: 'vercel', label: 'vercel' }
-        ].forEach(optionConfig => {
+        const hostOptions = [{ value: '', label: 'Select host' }];
+        state.hosts.forEach(host => {
+            hostOptions.push({ value: host.slug, label: host.title || host.slug });
+        });
+        if (project.deployment_host && !hostOptions.some(option => option.value === project.deployment_host)) {
+            hostOptions.push({ value: project.deployment_host, label: project.deployment_host });
+        }
+        hostOptions.forEach(optionConfig => {
             const option = document.createElement('option');
             option.value = optionConfig.value;
             option.textContent = optionConfig.label;
@@ -740,6 +837,14 @@
         });
 
         const dependencyRow = el('div', 'project-dependency-row');
+        const hostSnapshot = project.host_snapshot || hostRecord?.runner_snapshot || null;
+        const hostSummary = hostSnapshot?.status || (project.deployment_host ? 'unknown' : 'unconfigured');
+        const hostChip = el(
+            'span',
+            `project-health-chip ${projectHealthClass(hostSummary)}`,
+            project.deployment_host ? `Runner: ${projectHealthLabel(hostSummary)}` : 'Runner: Unconfigured'
+        );
+        dependencyRow.appendChild(hostChip);
         const dependencySummary = el(
             'span',
             `project-health-chip ${projectHealthClass(project.dependency_snapshot?.summary)}`,
@@ -785,6 +890,15 @@
         healthPanel.appendChild(el('div', 'project-health-line', `Project: ${projectHealthLabel(project.health_snapshot?.summary)}`));
         healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('public', project.health_snapshot)));
         healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('private', project.health_snapshot)));
+        healthPanel.appendChild(
+            el(
+                'div',
+                'project-health-line',
+                project.deployment_host
+                    ? `${project.deployment_host} runner: ${projectHealthLabel(hostSummary)}${hostSnapshot?.detail ? ` (${hostSnapshot.detail})` : ''}`
+                    : 'Runner: no deployment host configured'
+            )
+        );
         healthPanel.appendChild(
             el(
                 'div',
@@ -881,6 +995,15 @@
                         'div',
                         'project-action-result-line',
                         `Command: ${project.action_result.command}`
+                    )
+                );
+            }
+            if (project.action_result.host_slug) {
+                panelBody.appendChild(
+                    el(
+                        'div',
+                        'project-action-result-line',
+                        `Host: ${project.action_result.host_slug}${project.action_result.runner_transport ? ` via ${project.action_result.runner_transport}` : ''}`
                     )
                 );
             }
@@ -1204,6 +1327,44 @@
             setProjectsFeedback(message, 'success');
         } catch (error) {
             setProjectsFeedback(error.message || 'Failed to publish portfolio.', 'error');
+        }
+    }
+
+    async function loadHosts(options = {}) {
+        if (!els.hostsList) return;
+        try {
+            const resp = await fetch('/hosts');
+            const data = await readJsonResponse(resp);
+            if (!resp.ok) throw new Error(data?.detail || 'host load failed');
+            state.hosts = Array.isArray(data.hosts) ? data.hosts.map(normalizeHostRecord) : [];
+            renderHosts();
+            if (options.refreshHealth !== false) {
+                refreshHostsHealth({ silent: true });
+            }
+        } catch (error) {
+            console.error('Failed to load hosts', error);
+            if (!options.silent) {
+                setHostsFeedback(error.message || 'Failed to load hosts.', 'error');
+            }
+        }
+    }
+
+    async function refreshHostsHealth(options = {}) {
+        try {
+            const resp = await fetch('/hosts/refresh-health', { method: 'POST' });
+            const data = await readJsonResponse(resp);
+            if (!resp.ok) throw new Error(data?.detail || 'host health refresh failed');
+            state.hosts = Array.isArray(data.hosts) ? data.hosts.map(normalizeHostRecord) : state.hosts;
+            renderHosts();
+            await loadProjects({ silent: true, refreshHealth: false });
+            if (!options.silent) {
+                setHostsFeedback('Host runner health refreshed.', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to refresh hosts', error);
+            if (!options.silent) {
+                setHostsFeedback(error.message || 'Failed to refresh host runner health.', 'error');
+            }
         }
     }
 
@@ -2247,9 +2408,11 @@
     });
 
     setJobActivityCollapsed(state.jobActivityCollapsed);
+    loadHosts({ silent: true });
     loadProjects({ silent: true });
     loadDashboard();
     loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
     setInterval(loadJobActivity, JOB_ACTIVITY_REFRESH_RATE);
+    setInterval(() => refreshHostsHealth({ silent: true }), PROJECT_REFRESH_RATE);
     setInterval(() => refreshProjectsHealth({ silent: true }), PROJECT_REFRESH_RATE);

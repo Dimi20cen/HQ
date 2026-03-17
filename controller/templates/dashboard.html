@@ -54,6 +54,20 @@
     <div id="reorder-panel" class="reorder-panel" hidden></div>
     <div id="hidden-tools-menu" class="hidden-tools-menu" hidden></div>
 </div>
+<section class="hosts-board" aria-labelledby="hosts-board-title">
+    <div class="hosts-board-header">
+        <div>
+            <p class="projects-board-kicker">Hosts</p>
+            <h2 id="hosts-board-title">Runner Status</h2>
+        </div>
+    </div>
+    <p class="hosts-board-copy">
+        HQ routes project actions through a runner per host, so you can keep one control plane while operating multiple machines.
+    </p>
+    <div id="hosts-feedback" class="projects-feedback" aria-live="polite"></div>
+    <div id="hosts-empty" class="projects-empty" hidden>No hosts configured yet.</div>
+    <div id="hosts-list" class="hosts-list"></div>
+</section>
 <section class="projects-board" aria-labelledby="projects-board-title">
     <div class="projects-board-header">
         <div>

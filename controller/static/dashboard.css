@@ -52,7 +52,8 @@
             grid-auto-rows: 8px;
         }
 
-        .projects-board {
+        .projects-board,
+        .hosts-board {
             background: rgba(255, 249, 253, 0.82);
             border: 1px solid var(--border);
             border-radius: 16px;
@@ -62,7 +63,8 @@
             backdrop-filter: blur(10px);
         }
 
-        .projects-board-header {
+        .projects-board-header,
+        .hosts-board-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -79,12 +81,14 @@
             text-transform: uppercase;
         }
 
-        .projects-board h2 {
+        .projects-board h2,
+        .hosts-board h2 {
             margin: 0;
             font-size: 1.35rem;
         }
 
-        .projects-board-copy {
+        .projects-board-copy,
+        .hosts-board-copy {
             margin: 0 0 12px;
             color: var(--muted);
             max-width: 72ch;
@@ -149,6 +153,82 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 12px;
+        }
+
+        .hosts-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .host-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.64);
+        }
+
+        .host-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .host-card-title {
+            display: grid;
+            gap: 4px;
+        }
+
+        .host-card-title strong {
+            font-size: 1rem;
+        }
+
+        .host-card-title span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .host-card-copy {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .host-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .host-card-fact {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .host-card-health {
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.72);
+            display: grid;
+            gap: 4px;
+        }
+
+        .host-card-health-line {
+            font-size: 12px;
+            color: var(--text);
+            word-break: break-word;
         }
 
         .project-editor {

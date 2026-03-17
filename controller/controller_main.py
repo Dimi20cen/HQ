@@ -22,6 +22,14 @@ from controller.db import (
 
 from controller.process_manager import ProcessManager
 from controller.portfolio_publish import publish_portfolio_catalog
+from controller.hosts_registry import (
+    create_host,
+    delete_host,
+    ensure_hosts_store,
+    get_host,
+    list_hosts,
+    update_host,
+)
 from controller.projects_registry import (
     ProjectValidationError,
     create_project,
@@ -50,6 +58,7 @@ PROJECT_ACTION_COMMANDS = {
     "logs": "logs_command",
 }
 PROJECT_HEALTH_CACHE: dict[str, dict] = {}
+HOST_RUNNER_CACHE: dict[str, dict] = {}
 
 
 def _manifest_path_for_tool(name: str) -> Path:
@@ -333,13 +342,206 @@ def _action_runner_socket_path() -> str:
     return str(os.getenv("HQ_ACTION_RUNNER_SOCKET_PATH") or "").strip()
 
 
-def _action_runner_token() -> str:
-    return str(os.getenv("HQ_ACTION_RUNNER_TOKEN") or "").strip()
+def _action_runner_token(env_var_name: str = "HQ_ACTION_RUNNER_TOKEN") -> str:
+    return str(os.getenv(env_var_name) or "").strip()
+
+
+def _default_runner_snapshot(host: dict | None, *, configured: bool = True) -> dict:
+    slug = str((host or {}).get("slug") or "")
+    title = str((host or {}).get("title") or slug or "host")
+    transport = str((host or {}).get("transport") or "none")
+    detail = "Not checked yet." if configured else "No runner configured."
+    status = "unknown" if configured else "unconfigured"
+    endpoint = ""
+    if transport == "socket":
+        endpoint = str((host or {}).get("runner_socket_path") or "")
+    elif transport == "http":
+        endpoint = str((host or {}).get("runner_url") or "")
+    return {
+        "slug": slug,
+        "title": title,
+        "transport": transport,
+        "endpoint": endpoint,
+        "status": status,
+        "ok": False,
+        "checked_at": "",
+        "detail": detail,
+    }
+
+
+def _legacy_runner_host() -> dict | None:
+    runner_socket = _action_runner_socket_path()
+    runner_url = _action_runner_url()
+    if not runner_socket and not runner_url:
+        return None
+    return {
+        "slug": "local-runner",
+        "title": "local-runner",
+        "transport": "socket" if runner_socket else "http",
+        "runner_socket_path": runner_socket,
+        "runner_url": runner_url,
+        "token_env_var": "HQ_ACTION_RUNNER_TOKEN",
+        "location": "",
+        "notes": "Legacy global runner configuration",
+        "updated_at": "",
+    }
+
+
+def _host_runner_config(host: dict | None) -> dict | None:
+    if not host:
+        return None
+    transport = str(host.get("transport") or "none")
+    runner_socket = str(host.get("runner_socket_path") or "").strip()
+    runner_url = str(host.get("runner_url") or "").strip()
+    token_env_var = str(host.get("token_env_var") or "").strip() or "HQ_ACTION_RUNNER_TOKEN"
+    token = _action_runner_token(token_env_var)
+    if transport == "socket" and runner_socket:
+        return {
+            "slug": str(host.get("slug") or ""),
+            "title": str(host.get("title") or host.get("slug") or ""),
+            "transport": "socket",
+            "runner_socket_path": runner_socket,
+            "runner_url": "",
+            "token": token,
+            "token_env_var": token_env_var,
+        }
+    if transport == "http" and runner_url:
+        return {
+            "slug": str(host.get("slug") or ""),
+            "title": str(host.get("title") or host.get("slug") or ""),
+            "transport": "http",
+            "runner_socket_path": "",
+            "runner_url": runner_url,
+            "token": token,
+            "token_env_var": token_env_var,
+        }
+    return None
+
+
+def _resolve_project_host(project: dict) -> dict | None:
+    host_slug = str(project.get("deployment_host") or "").strip()
+    if host_slug:
+        host = get_host(host_slug)
+        if host:
+            return host
+    return _legacy_runner_host()
+
+
+def _check_host_runner(host: dict | None) -> dict:
+    runner = _host_runner_config(host)
+    if not host:
+        return _default_runner_snapshot(None, configured=False)
+    if not runner:
+        return _default_runner_snapshot(host, configured=False)
+
+    slug = str(host.get("slug") or "")
+    title = str(host.get("title") or slug or "host")
+    transport = str(runner.get("transport") or "none")
+    endpoint = (
+        str(runner.get("runner_socket_path") or "")
+        if transport == "socket"
+        else str(runner.get("runner_url") or "")
+    )
+    checked_at = _now_iso()
+
+    headers = {}
+    token = str(runner.get("token") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        if transport == "socket":
+            class UnixHTTPConnection(http.client.HTTPConnection):
+                def __init__(self, socket_path: str):
+                    super().__init__("localhost")
+                    self._socket_path = socket_path
+
+                def connect(self):
+                    self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    self.sock.settimeout(self.timeout)
+                    self.sock.connect(self._socket_path)
+
+            connection = UnixHTTPConnection(endpoint)
+            connection.timeout = 10
+            connection.request("GET", "/health", headers=headers)
+            response = connection.getresponse()
+            raw_body = response.read().decode("utf-8")
+            status_code = response.status
+        else:
+            response = requests.get(
+                f"{str(runner.get('runner_url') or '').rstrip('/')}/health",
+                headers=headers,
+                timeout=10,
+            )
+            raw_body = response.text
+            status_code = response.status_code
+    except (requests.RequestException, OSError, http.client.HTTPException) as exc:
+        return {
+            "slug": slug,
+            "title": title,
+            "transport": transport,
+            "endpoint": endpoint,
+            "status": "down",
+            "ok": False,
+            "checked_at": checked_at,
+            "detail": str(exc),
+        }
+
+    try:
+        data = json.loads(raw_body) if raw_body.strip() else {}
+    except ValueError:
+        data = {}
+
+    healthy = 200 <= status_code < 400 and bool(data.get("ok", True))
+    detail = str(data.get("detail") or f"HTTP {status_code}")
+    if healthy and str(data.get("service") or "").strip():
+        detail = f"{data['service']} healthy"
+    return {
+        "slug": slug,
+        "title": title,
+        "transport": transport,
+        "endpoint": endpoint,
+        "status": "healthy" if healthy else "down",
+        "ok": healthy,
+        "checked_at": checked_at,
+        "detail": detail,
+    }
+
+
+def _host_snapshot_from_cache(host: dict | None) -> dict:
+    if not host:
+        return _default_runner_snapshot(None, configured=False)
+    cached = HOST_RUNNER_CACHE.get(str(host.get("slug") or ""))
+    if cached:
+        return cached
+    return _default_runner_snapshot(host, configured=bool(_host_runner_config(host)))
+
+
+def _hosts_with_runtime_state(refresh_health: bool = False) -> list[dict]:
+    hosts = list_hosts()
+    decorated = []
+    for host in hosts:
+        if refresh_health:
+            snapshot = _check_host_runner(host)
+            HOST_RUNNER_CACHE[host["slug"]] = snapshot
+        else:
+            snapshot = _host_snapshot_from_cache(host)
+        decorated.append({**host, "runner_snapshot": snapshot})
+    legacy = _legacy_runner_host()
+    if legacy and not any(item["slug"] == legacy["slug"] for item in decorated):
+        decorated.append(
+            {
+                **legacy,
+                "runner_snapshot": _check_host_runner(legacy) if refresh_health else _host_snapshot_from_cache(legacy),
+            }
+        )
+    return decorated
 
 
 def _projects_with_runtime_state(refresh_health: bool = False) -> list[dict]:
     projects = list_projects()
     project_map = {project["slug"]: project for project in projects}
+    host_map = {host["slug"]: host for host in _hosts_with_runtime_state(refresh_health=refresh_health)}
     if refresh_health:
         snapshots = {}
         for project in projects:
@@ -355,6 +557,12 @@ def _projects_with_runtime_state(refresh_health: bool = False) -> list[dict]:
         decorated.append(
             {
                 **project,
+                "host": host_map.get(str(project.get("deployment_host") or "").strip()),
+                "host_snapshot": (
+                    host_map.get(str(project.get("deployment_host") or "").strip(), {}).get("runner_snapshot")
+                    if host_map.get(str(project.get("deployment_host") or "").strip())
+                    else _host_snapshot_from_cache(None)
+                ),
                 "health_snapshot": health_snapshot,
                 "dependency_snapshot": dependency_snapshot,
                 "ops_summary": _project_ops_summary(
@@ -418,19 +626,28 @@ def _run_project_command_local(command: str, runtime_path: str | None, action: s
     }
 
 
-def _run_project_command_via_runner(project: dict, command: str, runtime_path: str | None, action: str) -> dict:
-    runner_socket = _action_runner_socket_path()
-    runner_url = _action_runner_url()
+def _run_project_command_via_runner(
+    project: dict,
+    command: str,
+    runtime_path: str | None,
+    action: str,
+    runner: dict,
+) -> dict:
+    runner_socket = str(runner.get("runner_socket_path") or "").strip()
+    runner_url = str(runner.get("runner_url") or "").strip()
+    runner_slug = str(runner.get("slug") or "")
+    runner_transport = str(runner.get("transport") or "")
     if not runner_socket and not runner_url:
         raise ProjectValidationError("Host action runner is not configured.")
 
     headers = {"Content-Type": "application/json"}
-    token = _action_runner_token()
+    token = str(runner.get("token") or "").strip()
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
     payload = {
         "slug": project["slug"],
+        "host_slug": runner_slug,
         "action": action,
         "command": command,
         "cwd": runtime_path or "",
@@ -469,6 +686,8 @@ def _run_project_command_via_runner(project: dict, command: str, runtime_path: s
             "ok": False,
             "action": action,
             "command": command,
+            "host_slug": runner_slug,
+            "runner_transport": runner_transport,
             "cwd": runtime_path or "",
             "exit_code": None,
             "stdout": "",
@@ -497,6 +716,10 @@ def _run_project_command_via_runner(project: dict, command: str, runtime_path: s
         data["action"] = action
     if "command" not in data:
         data["command"] = command
+    if "host_slug" not in data:
+        data["host_slug"] = runner_slug
+    if "runner_transport" not in data:
+        data["runner_transport"] = runner_transport
     if "cwd" not in data:
         data["cwd"] = runtime_path or ""
     if "ran_at" not in data:
@@ -516,10 +739,22 @@ def _run_project_command(project: dict, action: str) -> dict:
         raise ProjectValidationError(f"No {action} command configured for this project.")
     runtime_path = str(project.get("runtime_path") or "").strip() or None
 
-    runner_url = _action_runner_url()
-    runner_socket = _action_runner_socket_path()
-    if runner_socket or runner_url:
-        return _run_project_command_via_runner(project, command, runtime_path, action)
+    host_slug = str(project.get("deployment_host") or "").strip()
+    host = get_host(host_slug) if host_slug else None
+    if host_slug:
+        if not host:
+            raise ProjectValidationError(f"Unknown deployment host '{host_slug}' for this project.")
+        runner = _host_runner_config(host)
+        if not runner:
+            raise ProjectValidationError(
+                f"Host '{host_slug}' does not have a runner configured for project actions."
+            )
+        return _run_project_command_via_runner(project, command, runtime_path, action, runner)
+
+    host = _resolve_project_host(project)
+    runner = _host_runner_config(host)
+    if runner:
+        return _run_project_command_via_runner(project, command, runtime_path, action, runner)
     return _run_project_command_local(command, runtime_path, action)
 
 def scan_tools():
@@ -569,6 +804,7 @@ async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     init_db()
     ensure_projects_store()
+    ensure_hosts_store()
     print("--- Controller Startup ---")
 
     # 1. DYNAMIC DISCOVERY
@@ -683,6 +919,47 @@ def get_projects():
 @app.post("/projects/refresh-health")
 def refresh_projects_health():
     return {"projects": _projects_with_runtime_state(refresh_health=True)}
+
+
+@app.get("/hosts")
+def get_hosts():
+    return {"hosts": _hosts_with_runtime_state()}
+
+
+@app.post("/hosts/refresh-health")
+def refresh_hosts_health():
+    return {"hosts": _hosts_with_runtime_state(refresh_health=True)}
+
+
+@app.post("/hosts")
+def register_host(payload: dict):
+    try:
+        host = create_host(payload)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"host": host}
+
+
+@app.put("/hosts/{slug}")
+def save_host(slug: str, payload: dict):
+    if not get_host(slug):
+        return JSONResponse(status_code=404, content={"detail": "Host not found."})
+    try:
+        host = update_host(slug, payload)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"host": host}
+
+
+@app.delete("/hosts/{slug}")
+def remove_host(slug: str):
+    if not get_host(slug):
+        return JSONResponse(status_code=404, content={"detail": "Host not found."})
+    try:
+        host = delete_host(slug)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return {"host": host}
 
 
 @app.post("/projects")

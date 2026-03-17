@@ -18,6 +18,7 @@ Start a tool directly
 Logs
 - Tool stdout/stderr: `logs/<tool>.out.log` and `logs/<tool>.err.log`
 - Project registry: `runtime/projects/projects.json`
+- Host registry: `runtime/hosts/hosts.json`
 - Project export: `runtime/projects/projects.generated.json`
 
 Ports
@@ -33,6 +34,7 @@ Docker (LAN deploy)
 - The HQ image includes `git` so project publish actions can commit/push the mounted portfolio clone.
 - The image also marks `/portfolio-repo` as a Git safe directory for the bind-mounted repo.
 - Host-local project actions should go through the host action runner service instead of running inside the container.
+- Multi-host project actions should go through one runner per host, with HQ routing by `deployment_host`.
 - Expose only controller port `8000`; widget traffic is proxied through controller.
 - Keep a separate local `.env` on each machine (do not sync `.env` in git).
 - Server `.env` notes:
@@ -77,7 +79,11 @@ Database/storage paths
   - `HQ_ACTION_RUNNER_TOKEN`
   - `HQ_ACTION_RUNNER_HOST`
   - `HQ_ACTION_RUNNER_PORT`
+  - host-specific runner tokens, for example:
+    - `HQ_ACTION_RUNNER_TOKEN_DESK`
+    - `HQ_ACTION_RUNNER_TOKEN_AWS`
   - `HQ_PROJECTS_PATH`
+  - `HQ_HOSTS_PATH`
   - `HQ_PROJECTS_EXPORT_PATH`
   - `HQ_PORTFOLIO_EXPORT_PATH`
   - `HQ_PORTFOLIO_REPO_HOST_DIR`
@@ -102,3 +108,11 @@ Host action runner
   - `curl --unix-socket /srv/stacks/hq/runtime/action-runner.sock http://localhost/health`
 - Preferred transport:
   - HQ Docker reaches the runner through the shared socket at `/app/runtime/action-runner.sock`.
+- Remote-host transport:
+  - Install the same runner on `desk` or `aws`.
+  - Bind it to a Tailscale-reachable HTTP address.
+  - Add a host record in `runtime/hosts/hosts.json` with:
+    - `transport: "http"`
+    - `runner_url: "http://<tailscale-ip>:8051"`
+    - `token_env_var: "HQ_ACTION_RUNNER_TOKEN_<HOST>"`
+  - Set that token in HQ's `.env` so the controller can authenticate to the remote runner.

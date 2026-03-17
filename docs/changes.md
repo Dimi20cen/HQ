@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-17
+- Summary: Added a real host registry and multi-host runner routing so HQ can target one runner per host, show runner health in the dashboard, and route project actions by `deployment_host` instead of a single global runner setting.
+- Affected files: `controller/controller_main.py`, `controller/hosts_registry.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `controller/templates/dashboard.html`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `runtime/hosts/hosts.json`, `tests/test_hosts_registry.py`, `tests/test_project_ops_api.py`
+- Migration notes: Keep `srv` on the existing socket runner, then add remote host records like `desk` and `aws` with `transport: "http"`, `runner_url`, and a host-specific token env var such as `HQ_ACTION_RUNNER_TOKEN_DESK`. Projects should point `deployment_host` at one of those host slugs.
+- Validation status: `python3 -m pytest tests/test_hosts_registry.py tests/test_project_ops_api.py tests/test_projects_registry.py tests/test_portfolio_publish.py`, `python3 -m py_compile controller/controller_main.py controller/projects_registry.py controller/hosts_registry.py controller/portfolio_publish.py host_runner/server.py`, and `node --check controller/static/dashboard.js` passed.
+
+## 2026-03-17
 - Summary: Added a host action runner pattern for Docker-deployed HQ so project actions can execute on `srv` instead of inside the HQ container, and wired the controller to forward actions to that runner when configured.
 - Affected files: `controller/controller_main.py`, `docker-compose.yml`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `ops/systemd/hq-action-runner.service`, `host_runner/server.py`, `runtime/projects/projects.json`, `tests/test_project_ops_api.py`
 - Migration notes: Configure `HQ_ACTION_RUNNER_SOCKET_HOST_PATH`, `HQ_ACTION_RUNNER_SOCKET_PATH`, and `HQ_ACTION_RUNNER_TOKEN` in `/srv/stacks/hq/.env`, install the sample `hq-action-runner.service` user unit on `srv`, and let the HQ container talk to the runner through the shared `runtime` socket.
