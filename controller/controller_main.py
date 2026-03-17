@@ -1,10 +1,11 @@
 import json
 import sqlite3
 import os
+import subprocess
 import requests
 import psutil
 from pathlib import Path
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from contextlib import asynccontextmanager
 
 from controller.db import (
@@ -38,6 +39,12 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- Path Setup ---
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+PROJECT_ACTION_COMMANDS = {
+    "deploy": "deploy_command",
+    "start": "start_command",
+    "restart": "restart_command",
+    "stop": "stop_command",
+}
 
 
 def _manifest_path_for_tool(name: str) -> Path:
@@ -136,6 +143,123 @@ def _job_application_counts(days: int) -> dict:
         "range_end": end_day.isoformat(),
         "total_count": total_count,
         "max_count": max_count,
+    }
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _check_health_target(label: str, url: str) -> dict:
+    if not url:
+        return {
+            "label": label,
+            "url": "",
+            "status": "unconfigured",
+            "ok": False,
+            "http_status": None,
+            "checked_at": _now_iso(),
+            "detail": "No health URL configured.",
+        }
+
+    try:
+        response = requests.get(url, timeout=5)
+        healthy = 200 <= response.status_code < 400
+        return {
+            "label": label,
+            "url": url,
+            "status": "healthy" if healthy else "down",
+            "ok": healthy,
+            "http_status": response.status_code,
+            "checked_at": _now_iso(),
+            "detail": f"HTTP {response.status_code}",
+        }
+    except requests.RequestException as exc:
+        return {
+            "label": label,
+            "url": url,
+            "status": "down",
+            "ok": False,
+            "http_status": None,
+            "checked_at": _now_iso(),
+            "detail": str(exc),
+        }
+
+
+def _summarize_health(snapshot: dict) -> str:
+    configured = [
+        entry["status"]
+        for entry in snapshot.values()
+        if isinstance(entry, dict) and entry.get("status") != "unconfigured"
+    ]
+    if not configured:
+        return "unconfigured"
+    if all(status == "healthy" for status in configured):
+        return "healthy"
+    if any(status == "healthy" for status in configured):
+        return "degraded"
+    return "down"
+
+
+def _project_health_snapshot(project: dict) -> dict:
+    checks = {
+        "public": _check_health_target("public", str(project.get("health_public_url") or "")),
+        "private": _check_health_target("private", str(project.get("health_private_url") or "")),
+    }
+    return {
+        "slug": project["slug"],
+        "checked_at": _now_iso(),
+        "summary": _summarize_health(checks),
+        "checks": checks,
+    }
+
+
+def _run_project_command(project: dict, action: str) -> dict:
+    command_field = PROJECT_ACTION_COMMANDS.get(action)
+    if not command_field:
+        raise ProjectValidationError("Unsupported project action.")
+
+    command = str(project.get(command_field) or "").strip()
+    if not command:
+        raise ProjectValidationError(f"No {action} command configured for this project.")
+    runtime_path = str(project.get("runtime_path") or "").strip() or None
+
+    started_at = _now_iso()
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=runtime_path,
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        return {
+            "ok": False,
+            "action": action,
+            "command": command,
+            "cwd": runtime_path or "",
+            "exit_code": None,
+            "stdout": stdout,
+            "stderr": stderr,
+            "detail": "Command timed out after 600 seconds.",
+            "ran_at": started_at,
+        }
+
+    return {
+        "ok": completed.returncode == 0,
+        "action": action,
+        "command": command,
+        "cwd": runtime_path or "",
+        "exit_code": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "detail": "Command completed successfully." if completed.returncode == 0 else "Command failed.",
+        "ran_at": started_at,
     }
 
 def scan_tools():
@@ -336,6 +460,31 @@ def export_project_catalog():
     except OSError as exc:
         return JSONResponse(status_code=500, content={"detail": str(exc)})
     return result
+
+
+@app.post("/projects/{slug}/health-check")
+def check_project_health(slug: str):
+    project = get_project(slug)
+    if not project:
+        return JSONResponse(status_code=404, content={"detail": "Project not found."})
+    return _project_health_snapshot(project)
+
+
+@app.post("/projects/{slug}/action")
+def run_project_action(slug: str, payload: dict):
+    project = get_project(slug)
+    if not project:
+        return JSONResponse(status_code=404, content={"detail": "Project not found."})
+
+    action = str(payload.get("action") or "").strip().lower()
+    try:
+        result = _run_project_command(project, action)
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    if result["ok"]:
+        return result
+    return JSONResponse(status_code=500, content=result)
 
 
 @app.get("/tools")

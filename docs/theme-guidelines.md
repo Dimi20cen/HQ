@@ -26,6 +26,7 @@ Standardize HQ visuals around a cherry-blossom palette that stays readable and c
 - `--status-stopped`: `#cf5e97`
 - `--status-busy`: `#bc8f5a`
 - `--status-info`: `#6b83d9`
+- `--status-unconfigured`: `#8d84ab`
 
 Status chip variants:
 - `--chip-running-hidden-bg` / `--chip-running-hidden-text`

@@ -8,6 +8,8 @@ Endpoints
 - `POST /projects` create a project publishing record
 - `PUT /projects/{slug}` update a project publishing record
 - `DELETE /projects/{slug}` delete a project publishing record
+- `POST /projects/{slug}/health-check` run on-demand public/private health checks for a project
+- `POST /projects/{slug}/action` run a configured host-local action (`deploy|start|restart|stop`) for a project
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
 - `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)
 - `GET /tools/status-all` batch status check

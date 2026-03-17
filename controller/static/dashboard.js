@@ -330,6 +330,18 @@
             repo_url: '',
             sort_order: (state.projects.length + 1) * 10,
             linked_tools: [],
+            private_url: '',
+            deployment_host: '',
+            deployment_location: '',
+            runtime_path: '',
+            health_public_url: '',
+            health_private_url: '',
+            deploy_command: '',
+            start_command: '',
+            restart_command: '',
+            stop_command: '',
+            health_snapshot: null,
+            action_result: null,
             updated_at: ''
         };
     }
@@ -345,6 +357,18 @@
             repo_url: String(rawProject?.repo_url || '').trim(),
             sort_order: Number.isFinite(Number(rawProject?.sort_order)) ? Number(rawProject.sort_order) : 0,
             linked_tools: Array.isArray(rawProject?.linked_tools) ? rawProject.linked_tools : [],
+            private_url: String(rawProject?.private_url || '').trim(),
+            deployment_host: String(rawProject?.deployment_host || '').trim(),
+            deployment_location: String(rawProject?.deployment_location || '').trim(),
+            runtime_path: String(rawProject?.runtime_path || '').trim(),
+            health_public_url: String(rawProject?.health_public_url || '').trim(),
+            health_private_url: String(rawProject?.health_private_url || '').trim(),
+            deploy_command: String(rawProject?.deploy_command || '').trim(),
+            start_command: String(rawProject?.start_command || '').trim(),
+            restart_command: String(rawProject?.restart_command || '').trim(),
+            stop_command: String(rawProject?.stop_command || '').trim(),
+            health_snapshot: rawProject?.health_snapshot || null,
+            action_result: rawProject?.action_result || null,
             updated_at: String(rawProject?.updated_at || '').trim()
         };
     }
@@ -362,6 +386,46 @@
         if (mode === 'full') return 'Full';
         if (mode === 'source') return 'Source';
         return 'Hidden';
+    }
+
+    function projectHealthLabel(summary) {
+        if (summary === 'healthy') return 'Healthy';
+        if (summary === 'degraded') return 'Degraded';
+        if (summary === 'down') return 'Down';
+        return 'Unconfigured';
+    }
+
+    function projectHealthClass(summary) {
+        if (summary === 'healthy') return 'is-healthy';
+        if (summary === 'degraded') return 'is-degraded';
+        if (summary === 'down') return 'is-down';
+        return 'is-unconfigured';
+    }
+
+    function projectSurfaceHealthLine(label, snapshot) {
+        if (!snapshot) return `${label}: not checked yet`;
+        const check = snapshot.checks?.[label];
+        if (!check) return `${label}: unavailable`;
+        if (check.status === 'unconfigured') return `${label}: unconfigured`;
+        if (check.status === 'healthy') return `${label}: healthy (${check.detail})`;
+        return `${label}: down${check.detail ? ` (${check.detail})` : ''}`;
+    }
+
+    function projectActionLabel(action) {
+        if (action === 'deploy') return 'Deploy';
+        if (action === 'restart') return 'Restart';
+        if (action === 'start') return 'Start';
+        return 'Stop';
+    }
+
+    function projectFeedbackMessage(project) {
+        if (project.action_result?.ok) {
+            return `${projectActionLabel(project.action_result.action)} finished successfully.`;
+        }
+        if (project.action_result && !project.action_result.ok) {
+            return project.action_result.detail || `${projectActionLabel(project.action_result.action)} failed.`;
+        }
+        return '';
     }
 
     function renderProjects() {
@@ -408,11 +472,19 @@
         const title = el('strong', '', project.title || 'New Project');
         const slug = el('span', '', project.slug ? `/${project.slug}` : 'Unsaved draft');
         const chip = el('span', 'project-chip', projectModeLabel(project.public_mode));
+        const healthChip = el(
+            'span',
+            `project-health-chip ${projectHealthClass(project.health_snapshot?.summary)}`,
+            projectHealthLabel(project.health_snapshot?.summary)
+        );
 
         titleWrap.appendChild(title);
         titleWrap.appendChild(slug);
         header.appendChild(titleWrap);
-        header.appendChild(chip);
+        const headerRight = el('div', 'project-editor-header-right');
+        headerRight.appendChild(chip);
+        headerRight.appendChild(healthChip);
+        header.appendChild(headerRight);
         article.appendChild(header);
 
         const grid = el('div', 'project-editor-grid');
@@ -431,6 +503,36 @@
         const sortField = createProjectField('Sort Order', `project-order-${fieldKey}`, 'number', String(project.sort_order));
         const primaryField = createProjectField('Primary URL', `project-primary-${fieldKey}`, 'url', project.primary_url, true);
         const repoField = createProjectField('Repo URL', `project-repo-${fieldKey}`, 'url', project.repo_url);
+        const privateField = createProjectField('Private URL', `project-private-${fieldKey}`, 'url', project.private_url, true);
+        const hostField = createProjectField('Deployment Host', `project-host-${fieldKey}`, 'text', project.deployment_host);
+        const locationField = createProjectField('Deployment Location', `project-location-${fieldKey}`, 'text', project.deployment_location);
+        const runtimeField = createProjectField('Runtime Path', `project-runtime-${fieldKey}`, 'text', project.runtime_path, true);
+        const healthPublicField = createProjectField('Public Health URL', `project-health-public-${fieldKey}`, 'url', project.health_public_url, true);
+        const healthPrivateField = createProjectField('Private Health URL', `project-health-private-${fieldKey}`, 'url', project.health_private_url, true);
+        const deployField = createProjectField('Deploy Command', `project-deploy-${fieldKey}`, 'text', project.deploy_command, true);
+        const startField = createProjectField('Start Command', `project-start-${fieldKey}`, 'text', project.start_command, true);
+        const restartField = createProjectField('Restart Command', `project-restart-${fieldKey}`, 'text', project.restart_command, true);
+        const stopField = createProjectField('Stop Command', `project-stop-${fieldKey}`, 'text', project.stop_command, true);
+        const currentPayload = () => ({
+            slug: slugField.control.value,
+            title: titleField.control.value,
+            public_summary: summaryField.control.value,
+            public_mode: modeField.control.value,
+            sort_order: sortField.control.value,
+            primary_url: primaryField.control.value,
+            repo_url: repoField.control.value,
+            linked_tools: project.linked_tools || [],
+            private_url: privateField.control.value,
+            deployment_host: hostField.control.value,
+            deployment_location: locationField.control.value,
+            runtime_path: runtimeField.control.value,
+            health_public_url: healthPublicField.control.value,
+            health_private_url: healthPrivateField.control.value,
+            deploy_command: deployField.control.value,
+            start_command: startField.control.value,
+            restart_command: restartField.control.value,
+            stop_command: stopField.control.value
+        });
 
         [
             slugField.field,
@@ -439,9 +541,93 @@
             modeField.field,
             sortField.field,
             primaryField.field,
-            repoField.field
+            repoField.field,
+            privateField.field,
+            hostField.field,
+            locationField.field,
+            runtimeField.field,
+            healthPublicField.field,
+            healthPrivateField.field,
+            deployField.field,
+            startField.field,
+            restartField.field,
+            stopField.field
         ].forEach(node => grid.appendChild(node));
         article.appendChild(grid);
+
+        const opsMeta = el('div', 'project-ops-meta');
+        const opsDetails = [
+            project.deployment_host ? `Host: ${project.deployment_host}` : 'Host: unconfigured',
+            project.deployment_location ? `Location: ${project.deployment_location}` : 'Location: unconfigured',
+            project.runtime_path ? `Runtime: ${project.runtime_path}` : 'Runtime: unconfigured',
+            project.private_url ? `Private URL: ${project.private_url}` : 'Private URL: unconfigured'
+        ];
+        opsDetails.forEach(text => opsMeta.appendChild(el('div', 'project-ops-meta-line', text)));
+        article.appendChild(opsMeta);
+
+        const healthPanel = el('div', 'project-health-panel');
+        healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('public', project.health_snapshot)));
+        healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('private', project.health_snapshot)));
+        healthPanel.appendChild(
+            el(
+                'div',
+                'project-health-line project-health-line-muted',
+                project.health_snapshot?.checked_at
+                    ? `Last checked: ${project.health_snapshot.checked_at}`
+                    : 'Last checked: not yet'
+            )
+        );
+        article.appendChild(healthPanel);
+
+        const actionBar = el('div', 'project-action-bar');
+        const healthBtn = el('button', 'project-action-btn', 'Check Health');
+        healthBtn.type = 'button';
+        healthBtn.disabled = !project.slug || (!healthPublicField.control.value.trim() && !healthPrivateField.control.value.trim());
+        healthBtn.addEventListener('click', async () => {
+            await runProjectHealthCheck(project.slug, currentPayload());
+        });
+        actionBar.appendChild(healthBtn);
+
+        ['deploy', 'start', 'restart', 'stop'].forEach(action => {
+            const button = el('button', 'project-action-btn', projectActionLabel(action));
+            button.type = 'button';
+            const field = ({
+                deploy: deployField,
+                start: startField,
+                restart: restartField,
+                stop: stopField
+            })[action];
+            button.disabled = !project.slug || !field.control.value.trim();
+            button.addEventListener('click', async () => {
+                await runProjectAction(project.slug, action, currentPayload());
+            });
+            actionBar.appendChild(button);
+        });
+        article.appendChild(actionBar);
+
+        const actionFeedback = projectFeedbackMessage(project);
+        if (actionFeedback) {
+            article.appendChild(
+                el(
+                    'div',
+                    `project-action-feedback${project.action_result?.ok ? ' is-success' : ' is-error'}`,
+                    actionFeedback
+                )
+            );
+        }
+
+        if (project.action_result) {
+            const output = el('pre', 'project-action-output');
+            const stdout = String(project.action_result.stdout || '').trim();
+            const stderr = String(project.action_result.stderr || '').trim();
+            const outputParts = [
+                `[${projectActionLabel(project.action_result.action)}] ${project.action_result.command || ''}`,
+                stdout ? `stdout:\n${stdout}` : '',
+                stderr ? `stderr:\n${stderr}` : ''
+            ].filter(Boolean);
+            output.textContent = outputParts.join('\n\n');
+            article.appendChild(output);
+        }
 
         const actions = el('div', 'project-editor-actions');
         const meta = el('div', 'project-editor-meta', project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
@@ -449,17 +635,7 @@
         const saveBtn = el('button', 'project-editor-save', project.slug ? 'Save Project' : 'Create Project');
         saveBtn.type = 'button';
         saveBtn.addEventListener('click', async () => {
-            const payload = {
-                slug: slugField.control.value,
-                title: titleField.control.value,
-                public_summary: summaryField.control.value,
-                public_mode: modeField.control.value,
-                sort_order: sortField.control.value,
-                primary_url: primaryField.control.value,
-                repo_url: repoField.control.value,
-                linked_tools: project.linked_tools || []
-            };
-            await saveProjectRecord(project.slug, payload);
+            await saveProjectRecord(project.slug, currentPayload());
         });
         const deleteBtn = el('button', 'project-editor-delete', project.slug ? 'Delete' : 'Remove Draft');
         deleteBtn.type = 'button';
@@ -475,8 +651,10 @@
         return article;
     }
 
-    async function saveProjectRecord(existingSlug, payload) {
-        setProjectsFeedback(existingSlug ? 'Saving project...' : 'Creating project...');
+    async function saveProjectRecord(existingSlug, payload, options = {}) {
+        if (!options.silent) {
+            setProjectsFeedback(existingSlug ? 'Saving project...' : 'Creating project...');
+        }
         try {
             const url = existingSlug ? `/projects/${encodeURIComponent(existingSlug)}` : '/projects';
             const method = existingSlug ? 'PUT' : 'POST';
@@ -487,10 +665,80 @@
             });
             const data = await resp.json();
             if (!resp.ok) throw new Error(data?.detail || 'save failed');
-            setProjectsFeedback(`Saved ${data.project.title}.`, 'success');
+            if (!options.silent) {
+                setProjectsFeedback(`Saved ${data.project.title}.`, 'success');
+            }
             await loadProjects();
+            return { ok: true, project: data.project };
         } catch (error) {
-            setProjectsFeedback(error.message || 'Failed to save project.', 'error');
+            if (!options.silent) {
+                setProjectsFeedback(error.message || 'Failed to save project.', 'error');
+            }
+            return { ok: false, error: error.message || 'Failed to save project.' };
+        }
+    }
+
+    function updateProjectState(slug, updater) {
+        state.projects = state.projects.map(project => {
+            if (project.slug !== slug) return project;
+            const next = typeof updater === 'function' ? updater(project) : updater;
+            return normalizeProjectRecord({ ...project, ...next });
+        });
+        renderProjects();
+    }
+
+    async function runProjectHealthCheck(slug, payload) {
+        setProjectsFeedback('Checking project health...');
+        const saveResult = await saveProjectRecord(slug, payload, { silent: true });
+        if (!saveResult.ok) {
+            setProjectsFeedback(saveResult.error || 'Failed to save project before health check.', 'error');
+            return;
+        }
+        try {
+            const resp = await fetch(`/projects/${encodeURIComponent(slug)}/health-check`, {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.detail || 'health check failed');
+            updateProjectState(slug, { health_snapshot: data });
+            setProjectsFeedback(`Checked ${slug} health.`, 'success');
+        } catch (error) {
+            setProjectsFeedback(error.message || 'Failed to check project health.', 'error');
+        }
+    }
+
+    async function runProjectAction(slug, action, payload) {
+        setProjectsFeedback(`${projectActionLabel(action)} running...`);
+        const saveResult = await saveProjectRecord(slug, payload, { silent: true });
+        if (!saveResult.ok) {
+            updateProjectState(slug, {
+                action_result: {
+                    ok: false,
+                    action,
+                    command: '',
+                    stdout: '',
+                    stderr: '',
+                    detail: saveResult.error || `Failed to save project before ${action}.`
+                }
+            });
+            setProjectsFeedback(saveResult.error || `Failed to save project before ${action}.`, 'error');
+            return;
+        }
+        try {
+            const resp = await fetch(`/projects/${encodeURIComponent(slug)}/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                updateProjectState(slug, { action_result: data });
+                throw new Error(data?.detail || data?.stderr || `${action} failed`);
+            }
+            updateProjectState(slug, { action_result: data });
+            setProjectsFeedback(`${projectActionLabel(action)} completed.`, 'success');
+        } catch (error) {
+            setProjectsFeedback(error.message || `Failed to ${action} project.`, 'error');
         }
     }
 

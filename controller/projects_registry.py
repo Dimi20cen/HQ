@@ -9,6 +9,13 @@ from urllib.parse import urlparse
 
 
 PUBLIC_MODES = {"hidden", "demo", "full", "source"}
+URL_FIELDS = {
+    "primary_url",
+    "repo_url",
+    "private_url",
+    "health_public_url",
+    "health_private_url",
+}
 REQUIRED_FIELDS = {
     "slug",
     "title",
@@ -18,6 +25,16 @@ REQUIRED_FIELDS = {
     "repo_url",
     "sort_order",
     "linked_tools",
+    "private_url",
+    "deployment_host",
+    "deployment_location",
+    "runtime_path",
+    "health_public_url",
+    "health_private_url",
+    "deploy_command",
+    "start_command",
+    "restart_command",
+    "stop_command",
     "updated_at",
 }
 PUBLIC_EXPORT_FIELDS = (
@@ -109,6 +126,20 @@ def normalize_project(payload: dict) -> dict:
     public_mode = str(payload.get("public_mode") or "hidden").strip().lower()
     primary_url = _validate_optional_url("primary_url", str(payload.get("primary_url") or ""))
     repo_url = _validate_optional_url("repo_url", str(payload.get("repo_url") or ""))
+    private_url = _validate_optional_url("private_url", str(payload.get("private_url") or ""))
+    health_public_url = _validate_optional_url(
+        "health_public_url", str(payload.get("health_public_url") or "")
+    )
+    health_private_url = _validate_optional_url(
+        "health_private_url", str(payload.get("health_private_url") or "")
+    )
+    deployment_host = str(payload.get("deployment_host") or "").strip()
+    deployment_location = str(payload.get("deployment_location") or "").strip()
+    runtime_path = str(payload.get("runtime_path") or "").strip()
+    deploy_command = str(payload.get("deploy_command") or "").strip()
+    start_command = str(payload.get("start_command") or "").strip()
+    restart_command = str(payload.get("restart_command") or "").strip()
+    stop_command = str(payload.get("stop_command") or "").strip()
 
     try:
         sort_order = int(payload.get("sort_order", 0))
@@ -144,6 +175,16 @@ def normalize_project(payload: dict) -> dict:
         "repo_url": repo_url,
         "sort_order": sort_order,
         "linked_tools": linked_tools,
+        "private_url": private_url,
+        "deployment_host": deployment_host,
+        "deployment_location": deployment_location,
+        "runtime_path": runtime_path,
+        "health_public_url": health_public_url,
+        "health_private_url": health_private_url,
+        "deploy_command": deploy_command,
+        "start_command": start_command,
+        "restart_command": restart_command,
+        "stop_command": stop_command,
         "updated_at": updated_at,
     }
 

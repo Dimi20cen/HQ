@@ -16,6 +16,7 @@
             --status-stopped: #cf5e97;
             --status-busy: #bc8f5a;
             --status-info: #6b83d9;
+            --status-unconfigured: #8d84ab;
             --chip-running-hidden-bg: #ddf4e8;
             --chip-running-hidden-text: #216747;
             --chip-running-visible-bg: #cbeddd;
@@ -158,6 +159,14 @@
             gap: 8px;
         }
 
+        .project-editor-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .project-editor-title {
             display: flex;
             flex-direction: column;
@@ -187,6 +196,41 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.08em;
+        }
+
+        .project-health-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .project-health-chip.is-healthy {
+            color: var(--status-running);
+            background: rgba(221, 244, 232, 0.9);
+        }
+
+        .project-health-chip.is-degraded {
+            color: var(--status-busy);
+            background: rgba(255, 243, 227, 0.92);
+        }
+
+        .project-health-chip.is-down {
+            color: var(--status-stopped);
+            background: rgba(248, 212, 233, 0.92);
+        }
+
+        .project-health-chip.is-unconfigured {
+            color: var(--status-unconfigured);
+            background: rgba(244, 241, 250, 0.95);
         }
 
         .project-editor-grid {
@@ -278,6 +322,76 @@
         .project-editor-meta {
             color: var(--muted);
             font-size: 11px;
+        }
+
+        .project-ops-meta,
+        .project-health-panel {
+            display: grid;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.52);
+        }
+
+        .project-ops-meta-line,
+        .project-health-line {
+            font-size: 12px;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .project-health-line-muted {
+            color: var(--muted);
+        }
+
+        .project-action-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .project-action-btn {
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--control-bg);
+            color: var(--text);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .project-action-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .project-action-feedback {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .project-action-feedback.is-success {
+            color: var(--status-running);
+        }
+
+        .project-action-feedback.is-error {
+            color: var(--status-stopped);
+        }
+
+        .project-action-output {
+            margin: 0;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.78);
+            color: var(--text);
+            font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .job-activity-board {
