@@ -48,8 +48,10 @@
         projectsList: document.getElementById('projects-list'),
         projectsEmpty: document.getElementById('projects-empty'),
         projectsFeedback: document.getElementById('projects-feedback'),
+        projectsResult: document.getElementById('projects-result'),
         projectAddBtn: document.getElementById('project-add-btn'),
-        projectExportBtn: document.getElementById('project-export-btn')
+        projectExportBtn: document.getElementById('project-export-btn'),
+        projectPublishBtn: document.getElementById('project-publish-btn')
     };
 
     function el(tag, className, text) {
@@ -379,6 +381,75 @@
         els.projectsFeedback.classList.remove('is-error', 'is-success');
         if (tone === 'error') els.projectsFeedback.classList.add('is-error');
         if (tone === 'success') els.projectsFeedback.classList.add('is-success');
+    }
+
+    function renderProjectsResult(result, tone = 'success') {
+        if (!els.projectsResult) return;
+        if (!result) {
+            els.projectsResult.hidden = true;
+            els.projectsResult.innerHTML = '';
+            return;
+        }
+
+        els.projectsResult.hidden = false;
+        els.projectsResult.innerHTML = '';
+
+        const panel = el(
+            'div',
+            `project-action-result ${tone === 'error' ? 'is-error' : 'is-success'}`
+        );
+        const header = el('div', 'project-action-result-header');
+        header.appendChild(
+            el(
+                'div',
+                'project-action-result-title',
+                result.no_changes ? 'Portfolio already up to date' : 'Portfolio publish result'
+            )
+        );
+        if (result.commit_sha) {
+            header.appendChild(el('div', 'project-action-result-time', result.commit_sha.slice(0, 12)));
+        }
+        panel.appendChild(header);
+
+        const body = el('div', 'project-action-result-body');
+        [
+            result.detail,
+            result.repo_path ? `Repo: ${result.repo_path}` : '',
+            result.branch ? `Branch: ${result.branch}` : '',
+            result.export_relpath ? `File: ${result.export_relpath}` : '',
+            result.origin_url ? `Remote: ${result.origin_url}` : '',
+            result.hq_export_path ? `HQ export: ${result.hq_export_path}` : '',
+            result.commit_message ? `Commit: ${result.commit_message}` : '',
+            result.commit_sha ? `Commit SHA: ${result.commit_sha}` : ''
+        ]
+            .filter(Boolean)
+            .forEach(line => body.appendChild(el('div', 'project-action-result-line', line)));
+
+        const stdout = String(result.stdout || '').trim();
+        const stderr = String(result.stderr || '').trim();
+        if (stdout) {
+            const block = el('div', 'project-action-result-block');
+            block.appendChild(el('span', 'project-action-result-block-label', 'Stdout'));
+            const pre = document.createElement('pre');
+            pre.textContent = stdout;
+            block.appendChild(pre);
+            body.appendChild(block);
+        }
+        if (stderr) {
+            const block = el('div', 'project-action-result-block');
+            block.appendChild(el('span', 'project-action-result-block-label', 'Stderr'));
+            const pre = document.createElement('pre');
+            pre.textContent = stderr;
+            block.appendChild(pre);
+            body.appendChild(block);
+        }
+
+        panel.appendChild(body);
+        els.projectsResult.appendChild(panel);
+    }
+
+    function hasDirtyProjectEditors() {
+        return !!document.querySelector('.project-dirty-badge.is-visible');
     }
 
     function projectModeLabel(mode) {
@@ -915,6 +986,11 @@
     }
 
     async function exportProjectsCatalog() {
+        if (hasDirtyProjectEditors()) {
+            setProjectsFeedback('Save all project changes before exporting the catalog.', 'error');
+            renderProjectsResult(null);
+            return;
+        }
         setProjectsFeedback('Exporting project catalog...');
         try {
             const resp = await fetch('/projects/export', {
@@ -922,9 +998,41 @@
             });
             const data = await resp.json();
             if (!resp.ok) throw new Error(data?.detail || 'export failed');
-            setProjectsFeedback(`Exported ${data.count} projects to ${data.path}.`, 'success');
+            const syncedCopy = Array.isArray(data.synced_paths) && data.synced_paths.length > 0;
+            const message = syncedCopy
+                ? `Exported ${data.count} projects and synced portfolio data to ${data.synced_paths.join(', ')}.`
+                : `Exported ${data.count} projects to ${data.path}.`;
+            setProjectsFeedback(message, 'success');
+            renderProjectsResult(null);
         } catch (error) {
             setProjectsFeedback(error.message || 'Failed to export projects.', 'error');
+            renderProjectsResult(null);
+        }
+    }
+
+    async function publishPortfolioCatalog() {
+        if (hasDirtyProjectEditors()) {
+            setProjectsFeedback('Save all project changes before publishing the portfolio.', 'error');
+            renderProjectsResult(null);
+            return;
+        }
+        setProjectsFeedback('Publishing portfolio catalog...');
+        try {
+            const resp = await fetch('/projects/publish', {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                renderProjectsResult(data, 'error');
+                throw new Error(data?.detail || 'publish failed');
+            }
+            renderProjectsResult(data, 'success');
+            const message = data.no_changes
+                ? 'Portfolio catalog was already up to date.'
+                : `Published portfolio catalog to ${data.branch}.`;
+            setProjectsFeedback(message, 'success');
+        } catch (error) {
+            setProjectsFeedback(error.message || 'Failed to publish portfolio.', 'error');
         }
     }
 
@@ -1898,6 +2006,12 @@
         els.projectExportBtn.addEventListener('click', event => {
             event.stopPropagation();
             exportProjectsCatalog();
+        });
+    }
+    if (els.projectPublishBtn) {
+        els.projectPublishBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            publishPortfolioCatalog();
         });
     }
     document.addEventListener('click', event => {

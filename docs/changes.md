@@ -1,5 +1,11 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
+## 2026-03-17
+- Summary: Added a dedicated portfolio publish flow so HQ can validate a `dimy.dev` repo clone, update `data/projects.generated.json`, commit only that generated file, and push to GitHub for Vercel-triggered deploys; also split dashboard actions into `Export Catalog` and `Publish Portfolio`.
+- Affected files: `controller/portfolio_publish.py`, `controller/controller_main.py`, `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docker-compose.yml`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `tests/test_projects_registry.py`, `tests/test_project_ops_api.py`, `tests/test_portfolio_publish.py`
+- Migration notes: Configure `HQ_PORTFOLIO_REPO_DIR`, `HQ_PORTFOLIO_EXPORT_PATH`, and `HQ_PORTFOLIO_BRANCH` on `srv`, and mount the dedicated `dimy.dev` repo clone into the HQ container.
+- Validation status: `node --check controller/static/dashboard.js`, `python3 -m py_compile controller/controller_main.py controller/projects_registry.py controller/portfolio_publish.py`, and `python3 -m pytest tests/test_projects_registry.py tests/test_project_ops_api.py tests/test_portfolio_publish.py` passed.
+
 ## 2026-02-27
 - Summary: Consolidated repo docs entrypoint to a single root `README.md`, renamed secondary README files to non-README docs, and standardized `read_when` hints on cross-cutting docs.
 - Affected files: `README.md`, `docs/index.md`, `docs/changes.md`, `docs/dashboard-mobile-web-checklist.md`, `tools/calendar/guide.md` (renamed from `tools/calendar/README.md`), `tools/jobber/guide.md` (renamed from `tools/jobber/README.md`)

@@ -51,6 +51,7 @@ PUBLIC_EXPORT_FIELDS = (
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_PROJECTS_PATH = BASE_DIR.parent / "runtime" / "projects" / "projects.json"
 DEFAULT_EXPORT_PATH = BASE_DIR.parent / "runtime" / "projects" / "projects.generated.json"
+DEFAULT_PORTFOLIO_EXPORT_PATH = BASE_DIR.parent.parent / "dimy.dev" / "data" / "projects.generated.json"
 
 
 class ProjectValidationError(ValueError):
@@ -69,6 +70,15 @@ def _export_path() -> Path:
     if configured:
         return Path(configured)
     return DEFAULT_EXPORT_PATH
+
+
+def _portfolio_export_path() -> Path | None:
+    configured = os.getenv("HQ_PORTFOLIO_EXPORT_PATH")
+    if configured:
+        return Path(configured)
+    if DEFAULT_PORTFOLIO_EXPORT_PATH.exists():
+        return DEFAULT_PORTFOLIO_EXPORT_PATH
+    return None
 
 
 def ensure_projects_store() -> Path:
@@ -254,9 +264,20 @@ def export_projects(destination: Path | None = None) -> dict:
         for project in list_projects()
         if project["public_mode"] != "hidden"
     ]
-    export_path.write_text(f"{json.dumps(exported, indent=2)}\n", encoding="utf-8")
+    payload = f"{json.dumps(exported, indent=2)}\n"
+    export_path.write_text(payload, encoding="utf-8")
+
+    synced_paths: list[str] = []
+    portfolio_export_path = _portfolio_export_path()
+    if portfolio_export_path:
+        portfolio_export_path.parent.mkdir(parents=True, exist_ok=True)
+        portfolio_export_path.write_text(payload, encoding="utf-8")
+        synced_paths.append(str(portfolio_export_path))
+
     return {
         "count": len(exported),
         "path": str(export_path),
+        "export_path": str(export_path),
+        "synced_paths": synced_paths,
         "projects": exported,
     }

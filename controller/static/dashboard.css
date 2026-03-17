@@ -129,6 +129,14 @@
             color: var(--status-running);
         }
 
+        .projects-result {
+            margin-bottom: 10px;
+        }
+
+        .projects-result[hidden] {
+            display: none;
+        }
+
         .projects-empty {
             padding: 14px;
             border: 1px dashed var(--border);

@@ -6,6 +6,8 @@ import tempfile
 import types
 import unittest
 from unittest.mock import Mock, patch
+import fastapi.templating as fastapi_templating
+import starlette.templating as starlette_templating
 
 
 class ProjectOpsApiTests(unittest.TestCase):
@@ -22,6 +24,18 @@ class ProjectOpsApiTests(unittest.TestCase):
             NoSuchProcess=Exception,
             AccessDenied=Exception,
         )
+        self.prev_fastapi_jinja_templates = fastapi_templating.Jinja2Templates
+        self.prev_starlette_jinja_templates = starlette_templating.Jinja2Templates
+
+        class FakeTemplates:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def TemplateResponse(self, *args, **kwargs):
+                return {"template": args[0] if args else "", "context": kwargs}
+
+        fastapi_templating.Jinja2Templates = FakeTemplates
+        starlette_templating.Jinja2Templates = FakeTemplates
 
         import controller.db as controller_db
         import controller.projects_registry as projects_registry
@@ -60,6 +74,8 @@ class ProjectOpsApiTests(unittest.TestCase):
         os.environ.pop("HQ_PROJECTS_EXPORT_PATH", None)
         os.environ.pop("CONTROLLER_DB_PATH", None)
         sys.modules.pop("psutil", None)
+        fastapi_templating.Jinja2Templates = self.prev_fastapi_jinja_templates
+        starlette_templating.Jinja2Templates = self.prev_starlette_jinja_templates
 
     def read_payload(self, response):
         if isinstance(response, dict):
@@ -99,6 +115,45 @@ class ProjectOpsApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("No stop command configured", self.read_payload(response)["detail"])
+
+    def test_publish_project_catalog_returns_publish_payload(self):
+        with patch.object(
+            self.main,
+            "publish_portfolio_catalog",
+            return_value={
+                "ok": True,
+                "detail": "Published portfolio catalog to origin.",
+                "repo_path": "/srv/stacks/dimy.dev",
+                "branch": "main",
+                "origin_url": "https://github.com/Dimi20cen/dimy.dev.git",
+                "export_path": "/srv/stacks/dimy.dev/data/projects.generated.json",
+                "export_relpath": "data/projects.generated.json",
+                "hq_export_path": "/srv/stacks/hq/runtime/projects/projects.generated.json",
+                "count": 3,
+                "no_changes": False,
+                "commit_sha": "abc123",
+                "commit_message": "Update portfolio project catalog",
+                "stdout": "ok",
+                "stderr": "",
+            },
+        ):
+            response = self.main.publish_project_catalog()
+
+        payload = self.read_payload(response)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["branch"], "main")
+        self.assertEqual(payload["export_relpath"], "data/projects.generated.json")
+
+    def test_publish_project_catalog_returns_validation_error(self):
+        with patch.object(
+            self.main,
+            "publish_portfolio_catalog",
+            side_effect=self.main.ProjectValidationError("repo is dirty"),
+        ):
+            response = self.main.publish_project_catalog()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("repo is dirty", self.read_payload(response)["detail"])
 
 
 if __name__ == "__main__":

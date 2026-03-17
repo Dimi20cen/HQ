@@ -10,8 +10,10 @@ class ProjectRegistryTests(unittest.TestCase):
         self.tempdir = tempfile.TemporaryDirectory()
         self.projects_path = os.path.join(self.tempdir.name, "projects.json")
         self.export_path = os.path.join(self.tempdir.name, "projects.generated.json")
+        self.portfolio_export_path = os.path.join(self.tempdir.name, "portfolio.generated.json")
         os.environ["HQ_PROJECTS_PATH"] = self.projects_path
         os.environ["HQ_PROJECTS_EXPORT_PATH"] = self.export_path
+        os.environ["HQ_PORTFOLIO_EXPORT_PATH"] = self.portfolio_export_path
 
         import controller.projects_registry as projects_registry
 
@@ -21,6 +23,7 @@ class ProjectRegistryTests(unittest.TestCase):
         self.tempdir.cleanup()
         os.environ.pop("HQ_PROJECTS_PATH", None)
         os.environ.pop("HQ_PROJECTS_EXPORT_PATH", None)
+        os.environ.pop("HQ_PORTFOLIO_EXPORT_PATH", None)
 
     def test_create_project_with_ops_fields(self):
         project = self.registry.create_project(
@@ -78,9 +81,13 @@ class ProjectRegistryTests(unittest.TestCase):
         result = self.registry.export_projects()
 
         self.assertEqual(result["count"], 1)
+        self.assertEqual(result["synced_paths"], [self.portfolio_export_path])
         with open(self.export_path, "r", encoding="utf-8") as fh:
             exported = json.load(fh)
+        with open(self.portfolio_export_path, "r", encoding="utf-8") as fh:
+            portfolio_export = json.load(fh)
         self.assertEqual(exported[0]["slug"], "rentpredictor")
+        self.assertEqual(portfolio_export, exported)
         self.assertNotIn("private_url", exported[0])
         self.assertNotIn("deploy_command", exported[0])
         self.assertNotIn("health_private_url", exported[0])

@@ -19,6 +19,7 @@ from controller.db import (
 )
 
 from controller.process_manager import ProcessManager
+from controller.portfolio_publish import publish_portfolio_catalog
 from controller.projects_registry import (
     ProjectValidationError,
     create_project,
@@ -455,6 +456,17 @@ def remove_project(slug: str):
 def export_project_catalog():
     try:
         result = export_projects()
+    except ProjectValidationError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except OSError as exc:
+        return JSONResponse(status_code=500, content={"detail": str(exc)})
+    return result
+
+
+@app.post("/projects/publish")
+def publish_project_catalog():
+    try:
+        result = publish_portfolio_catalog()
     except ProjectValidationError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     except OSError as exc:

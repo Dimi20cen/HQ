@@ -11,6 +11,7 @@ Endpoints
 - `POST /projects/{slug}/health-check` run on-demand public/private health checks for a project
 - `POST /projects/{slug}/action` run a configured host-local action (`deploy|start|restart|stop`) for a project
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
+- `POST /projects/publish` export the public catalog, update the configured portfolio repo file, commit, and push to the configured branch
 - `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)
 - `GET /tools/status-all` batch status check
 - `POST /tools/{name}/launch` start tool
