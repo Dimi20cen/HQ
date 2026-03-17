@@ -323,6 +323,18 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertEqual(payload["stdout"], "desk ok\n")
         self.assertEqual(post_mock.call_args.kwargs["headers"]["Authorization"], "Bearer desk-token")
 
+    def test_http_runner_without_configured_token_is_treated_as_unconfigured(self):
+        self.hosts_registry.update_host(
+            "desk",
+            {
+                "transport": "http",
+                "runner_url": "http://100.64.0.9:8051",
+            },
+        )
+        os.environ.pop("HQ_ACTION_RUNNER_TOKEN_DESK", None)
+
+        self.assertIsNone(self.main._host_runner_config(self.hosts_registry.get_host("desk")))
+
     def test_get_hosts_returns_cached_runner_state(self):
         response = self.main.get_hosts()
 
@@ -339,6 +351,7 @@ class ProjectOpsApiTests(unittest.TestCase):
                 "runner_url": "http://runner.local:8051",
             },
         )
+        os.environ["HQ_ACTION_RUNNER_TOKEN"] = "runner-token"
         response_ok = Mock(status_code=200, text=json.dumps({"ok": True, "service": "hq-action-runner"}))
 
         with patch.object(self.main.requests, "get", return_value=response_ok) as get_mock:
@@ -364,12 +377,14 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertIn("does not have a runner configured", self.read_payload(response)["detail"])
 
     def test_project_action_rejects_unknown_host(self):
-        self.registry.update_project("jobby", {"deployment_host": "missing-host"})
+        with self.assertRaises(self.registry.ProjectValidationError):
+            self.registry.update_project("jobby", {"deployment_host": "missing-host"})
 
-        response = self.main.run_project_action("jobby", {"action": "logs"})
+    def test_delete_host_rejects_projects_still_assigned(self):
+        response = self.main.remove_host("srv")
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Unknown deployment host", self.read_payload(response)["detail"])
+        self.assertIn("still reference it", self.read_payload(response)["detail"])
 
     def test_project_action_without_deployment_host_runs_locally(self):
         self.registry.update_project("jobby", {"deployment_host": ""})
@@ -400,6 +415,7 @@ class ProjectOpsApiTests(unittest.TestCase):
                 "runner_url": "http://runner.local:8051",
             },
         )
+        os.environ["HQ_ACTION_RUNNER_TOKEN"] = "runner-token"
         responses = {
             "https://auth.dimy.dev/health": Mock(status_code=200),
             "http://100.124.230.107:8100/health": Mock(status_code=200),

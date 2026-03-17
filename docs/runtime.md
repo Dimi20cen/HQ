@@ -111,6 +111,7 @@ Host action runner
 - Remote-host transport:
   - Install the same runner on `desk` or `aws`.
   - Bind it to a Tailscale-reachable HTTP address.
+  - Set `HQ_ACTION_RUNNER_TOKEN`; HTTP mode now refuses to start without it.
   - Add a host record in `runtime/hosts/hosts.json` with:
     - `transport: "http"`
     - `runner_url: "http://<tailscale-ip>:8051"`

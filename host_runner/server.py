@@ -200,6 +200,8 @@ class ThreadingUnixHTTPServer(socketserver.ThreadingMixIn, socketserver.UnixStre
 
 def main() -> None:
     socket_path = _socket_path()
+    if not socket_path and not _runner_token():
+        raise SystemExit("HQ_ACTION_RUNNER_TOKEN is required when the runner is exposed over HTTP.")
     if socket_path:
         path = Path(socket_path)
         path.parent.mkdir(parents=True, exist_ok=True)

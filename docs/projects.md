@@ -124,9 +124,11 @@ Host routing rules
 - `deployment_host` should match a host slug in the host registry.
 - `socket` hosts are intended for same-machine Docker-to-host communication, like HQ on `srv`.
 - `http` hosts are intended for remote runners over Tailscale, like `desk` or `aws`.
+- `http` hosts must define `token_env_var`, and HQ must be able to resolve a non-empty token from that env var before actions will route to the runner.
 - `none` means HQ can still track deployment metadata for that host, but it cannot run actions there.
 - If `deployment_host` is blank, HQ does not use a host runner. Actions run locally inside the controller environment instead.
 - If `deployment_host` is set but does not match a host record, HQ rejects the action instead of falling back.
+- Hosts cannot be deleted while any project still references them via `deployment_host`.
 
 Export script
 ```bash

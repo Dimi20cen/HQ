@@ -9,6 +9,7 @@ Endpoints
 - `POST /hosts` create a host record
 - `PUT /hosts/{slug}` update a host record
 - `DELETE /hosts/{slug}` delete a host record
+  - deletion is rejected while any project still points `deployment_host` at that host
 - `GET /projects` list project publishing records plus computed host/health/dependency state
 - `POST /projects/refresh-health` compute fresh project health/dependency state for all projects
 - `POST /projects` create a project publishing record
@@ -19,6 +20,7 @@ Endpoints
   - HQ first resolves `deployment_host` through the host registry and forwards to that runner when configured
   - if `deployment_host` is missing, HQ runs the action locally in the controller environment instead of routing through a host runner
   - if `deployment_host` is set but unknown, the action fails loudly instead of running on the wrong machine
+  - HTTP runners must have a configured token env var and a non-empty resolved token; otherwise HQ treats them as unconfigured
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
 - `POST /projects/publish` export the public catalog, update the configured portfolio repo file, commit, and push to the configured branch
 - `GET /tools` list tools from DB + manifest UI fields (`auto_start`, `title`, `category`)

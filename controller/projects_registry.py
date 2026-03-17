@@ -186,6 +186,11 @@ def normalize_project(payload: dict) -> dict:
         raise ProjectValidationError("demo/full projects require a public primary_url.")
     if public_mode == "source" and not repo_url:
         raise ProjectValidationError("source projects require a public repo_url.")
+    if deployment_host:
+        from controller.hosts_registry import get_host
+
+        if not get_host(deployment_host):
+            raise ProjectValidationError(f"Unknown deployment_host '{deployment_host}'.")
 
     updated_at = str(payload.get("updated_at") or "").strip() or _now_iso()
 

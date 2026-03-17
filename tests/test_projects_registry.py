@@ -11,19 +11,48 @@ class ProjectRegistryTests(unittest.TestCase):
         self.projects_path = os.path.join(self.tempdir.name, "projects.json")
         self.export_path = os.path.join(self.tempdir.name, "projects.generated.json")
         self.portfolio_export_path = os.path.join(self.tempdir.name, "portfolio.generated.json")
+        self.hosts_path = os.path.join(self.tempdir.name, "hosts.json")
         os.environ["HQ_PROJECTS_PATH"] = self.projects_path
         os.environ["HQ_PROJECTS_EXPORT_PATH"] = self.export_path
         os.environ["HQ_PORTFOLIO_EXPORT_PATH"] = self.portfolio_export_path
+        os.environ["HQ_HOSTS_PATH"] = self.hosts_path
 
         import controller.projects_registry as projects_registry
+        import controller.hosts_registry as hosts_registry
 
         self.registry = importlib.reload(projects_registry)
+        self.hosts_registry = importlib.reload(hosts_registry)
+        self.hosts_registry.create_host(
+            {
+                "slug": "srv",
+                "title": "srv",
+                "transport": "socket",
+                "runner_socket_path": "/app/runtime/action-runner.sock",
+                "runner_url": "",
+                "token_env_var": "HQ_ACTION_RUNNER_TOKEN",
+                "location": "Server laptop",
+                "notes": "",
+            }
+        )
+        self.hosts_registry.create_host(
+            {
+                "slug": "aws",
+                "title": "aws",
+                "transport": "none",
+                "runner_socket_path": "",
+                "runner_url": "",
+                "token_env_var": "",
+                "location": "Lightsail",
+                "notes": "",
+            }
+        )
 
     def tearDown(self):
         self.tempdir.cleanup()
         os.environ.pop("HQ_PROJECTS_PATH", None)
         os.environ.pop("HQ_PROJECTS_EXPORT_PATH", None)
         os.environ.pop("HQ_PORTFOLIO_EXPORT_PATH", None)
+        os.environ.pop("HQ_HOSTS_PATH", None)
 
     def test_create_project_with_ops_fields(self):
         project = self.registry.create_project(
@@ -57,6 +86,33 @@ class ProjectRegistryTests(unittest.TestCase):
         self.assertEqual(project["restart_command"], "docker compose restart")
         self.assertEqual(project["logs_command"], "docker compose logs --tail 100")
         self.assertEqual(project["depends_on"], ["janus", "hermes"])
+
+    def test_create_project_rejects_unknown_deployment_host(self):
+        with self.assertRaises(self.registry.ProjectValidationError):
+            self.registry.create_project(
+                {
+                    "slug": "bad-host",
+                    "title": "Bad Host",
+                    "public_summary": "Broken host reference",
+                    "public_mode": "source",
+                    "primary_url": "",
+                    "repo_url": "https://example.com/bad-host",
+                    "sort_order": 50,
+                    "linked_tools": [],
+                    "depends_on": [],
+                    "private_url": "",
+                    "deployment_host": "missing-host",
+                    "deployment_location": "",
+                    "runtime_path": "",
+                    "health_public_url": "",
+                    "health_private_url": "",
+                    "deploy_command": "",
+                    "start_command": "",
+                    "restart_command": "",
+                    "stop_command": "",
+                    "logs_command": "",
+                }
+            )
 
     def test_export_keeps_public_fields_only(self):
         self.registry.create_project(

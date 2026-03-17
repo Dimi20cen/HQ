@@ -101,6 +101,8 @@ def normalize_host(payload: dict) -> dict:
         raise ProjectValidationError("HTTP runner hosts require a runner_url.")
     if transport == "socket" and not runner_socket_path:
         raise ProjectValidationError("Socket runner hosts require a runner_socket_path.")
+    if transport == "http" and not token_env_var:
+        raise ProjectValidationError("HTTP runner hosts require a token_env_var.")
     if transport != "http":
         runner_url = ""
     if transport != "socket":
@@ -164,6 +166,17 @@ def update_host(slug: str, payload: dict) -> dict:
 
 def delete_host(slug: str) -> dict:
     target = _slugify(slug)
+    from controller.projects_registry import list_projects
+
+    dependents = [
+        project["slug"]
+        for project in list_projects()
+        if str(project.get("deployment_host") or "").strip() == target
+    ]
+    if dependents:
+        raise ProjectValidationError(
+            f"Cannot delete host '{target}' while projects still reference it: {', '.join(sorted(dependents))}."
+        )
     hosts = _load_hosts_raw()
     for index, existing in enumerate(hosts):
         if existing["slug"] != target:

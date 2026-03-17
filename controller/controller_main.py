@@ -379,7 +379,7 @@ def _host_runner_config(host: dict | None) -> dict | None:
             "token": token,
             "token_env_var": token_env_var,
         }
-    if transport == "http" and runner_url:
+    if transport == "http" and runner_url and token_env_var and token:
         return {
             "slug": str(host.get("slug") or ""),
             "title": str(host.get("title") or host.get("slug") or ""),
@@ -901,7 +901,7 @@ def refresh_hosts_health():
 def register_host(payload: dict):
     try:
         host = create_host(payload)
-    except ProjectValidationError as exc:
+    except ValueError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     return {"host": host}
 
@@ -912,7 +912,7 @@ def save_host(slug: str, payload: dict):
         return JSONResponse(status_code=404, content={"detail": "Host not found."})
     try:
         host = update_host(slug, payload)
-    except ProjectValidationError as exc:
+    except ValueError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     return {"host": host}
 
@@ -923,7 +923,7 @@ def remove_host(slug: str):
         return JSONResponse(status_code=404, content={"detail": "Host not found."})
     try:
         host = delete_host(slug)
-    except ProjectValidationError as exc:
+    except ValueError as exc:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
     return {"host": host}
 
