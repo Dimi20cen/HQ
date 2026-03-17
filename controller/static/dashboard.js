@@ -18,6 +18,7 @@
         toolMap: new Map(),
         hosts: [],
         projects: [],
+        openProjectConfigs: new Set(),
         nextProjectDraftId: 1,
         widgetLayout: loadWidgetLayout(),
         activeResize: null,
@@ -623,6 +624,7 @@
 
     function renderProjects() {
         if (!els.projectsList || !els.projectsEmpty) return;
+        captureOpenProjectConfigs();
         els.projectsList.innerHTML = '';
         const projects = [...state.projects].sort((a, b) => {
             if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
@@ -632,6 +634,21 @@
         projects.forEach(project => {
             els.projectsList.appendChild(createProjectEditor(project));
         });
+    }
+
+    function projectEditorKey(project) {
+        return String(project?.slug || project?.draft_key || '').trim();
+    }
+
+    function captureOpenProjectConfigs() {
+        if (!els.projectsList) return;
+        const openKeys = new Set();
+        els.projectsList.querySelectorAll('.project-config-details').forEach(details => {
+            if (!details.open) return;
+            const key = String(details.dataset.projectKey || '').trim();
+            if (key) openKeys.add(key);
+        });
+        state.openProjectConfigs = openKeys;
     }
 
     function createProjectField(labelText, name, type = 'text', value = '', full = false) {
@@ -723,7 +740,7 @@
     function createProjectEditor(project) {
         const article = el('article', 'project-editor project-card');
         article.dataset.slug = project.slug;
-        const fieldKey = project.slug || project.draft_key || `draft-${state.nextProjectDraftId++}`;
+        const fieldKey = projectEditorKey(project) || `draft-${state.nextProjectDraftId++}`;
         const header = el('div', 'project-editor-header');
         const titleWrap = el('div', 'project-editor-title');
         const title = el('strong', '', project.title || 'New Project');
@@ -1040,7 +1057,15 @@
 
         const configDetails = document.createElement('details');
         configDetails.className = 'project-config-details';
-        configDetails.open = !project.slug;
+        configDetails.dataset.projectKey = fieldKey;
+        configDetails.open = !project.slug || state.openProjectConfigs.has(fieldKey);
+        configDetails.addEventListener('toggle', () => {
+            if (configDetails.open) {
+                state.openProjectConfigs.add(fieldKey);
+            } else {
+                state.openProjectConfigs.delete(fieldKey);
+            }
+        });
         const configSummary = el('summary', 'project-config-summary');
         configSummary.appendChild(el('span', 'project-config-summary-title', project.slug ? 'Configuration' : 'Create project'));
         const configSummaryMeta = el(
