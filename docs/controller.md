@@ -17,7 +17,7 @@ Endpoints
 - `POST /projects/{slug}/health-check` run on-demand public/private health checks for a project and refresh its cached snapshot
 - `POST /projects/{slug}/action` run a configured project action (`deploy|start|restart|stop|logs`) for a project
   - HQ first resolves `deployment_host` through the host registry and forwards to that runner when configured
-  - if `deployment_host` is missing, HQ can still fall back to the legacy global runner env vars for compatibility
+  - if `deployment_host` is missing, HQ runs the action locally in the controller environment instead of routing through a host runner
   - if `deployment_host` is set but unknown, the action fails loudly instead of running on the wrong machine
 - `POST /projects/export` write the sanitized public project export to the configured HQ export path
 - `POST /projects/publish` export the public catalog, update the configured portfolio repo file, commit, and push to the configured branch

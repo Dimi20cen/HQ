@@ -329,6 +329,7 @@ class ProjectOpsApiTests(unittest.TestCase):
         payload = self.read_payload(response)
         by_slug = {item["slug"]: item for item in payload["hosts"]}
         self.assertEqual(by_slug["srv"]["runner_snapshot"]["status"], "unconfigured")
+        self.assertNotIn("local-runner", by_slug)
 
     def test_refresh_hosts_health_checks_runner(self):
         self.hosts_registry.update_host(
@@ -369,6 +370,18 @@ class ProjectOpsApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Unknown deployment host", self.read_payload(response)["detail"])
+
+    def test_project_action_without_deployment_host_runs_locally(self):
+        self.registry.update_project("jobby", {"deployment_host": ""})
+        completed = Mock(returncode=0, stdout="local ok\n", stderr="")
+
+        with patch.object(self.main.subprocess, "run", return_value=completed) as run_mock:
+            response = self.main.run_project_action("jobby", {"action": "logs"})
+
+        payload = self.read_payload(response)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["stdout"], "local ok\n")
+        self.assertEqual(run_mock.call_args.kwargs["cwd"], "/srv/stacks/jobby")
 
     def test_get_projects_returns_cached_unknown_state_without_refresh(self):
         response = self.main.get_projects()

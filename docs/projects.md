@@ -125,7 +125,7 @@ Host routing rules
 - `socket` hosts are intended for same-machine Docker-to-host communication, like HQ on `srv`.
 - `http` hosts are intended for remote runners over Tailscale, like `desk` or `aws`.
 - `none` means HQ can still track deployment metadata for that host, but it cannot run actions there.
-- If `deployment_host` is blank, HQ can still fall back to the legacy global runner env vars for compatibility.
+- If `deployment_host` is blank, HQ does not use a host runner. Actions run locally inside the controller environment instead.
 - If `deployment_host` is set but does not match a host record, HQ rejects the action instead of falling back.
 
 Export script

@@ -334,14 +334,6 @@ def _project_ops_summary(health_summary: str, dependency_summary: str) -> str:
     return health_summary
 
 
-def _action_runner_url() -> str:
-    return str(os.getenv("HQ_ACTION_RUNNER_URL") or "").strip()
-
-
-def _action_runner_socket_path() -> str:
-    return str(os.getenv("HQ_ACTION_RUNNER_SOCKET_PATH") or "").strip()
-
-
 def _action_runner_token(env_var_name: str = "HQ_ACTION_RUNNER_TOKEN") -> str:
     return str(os.getenv(env_var_name) or "").strip()
 
@@ -366,24 +358,6 @@ def _default_runner_snapshot(host: dict | None, *, configured: bool = True) -> d
         "ok": False,
         "checked_at": "",
         "detail": detail,
-    }
-
-
-def _legacy_runner_host() -> dict | None:
-    runner_socket = _action_runner_socket_path()
-    runner_url = _action_runner_url()
-    if not runner_socket and not runner_url:
-        return None
-    return {
-        "slug": "local-runner",
-        "title": "local-runner",
-        "transport": "socket" if runner_socket else "http",
-        "runner_socket_path": runner_socket,
-        "runner_url": runner_url,
-        "token_env_var": "HQ_ACTION_RUNNER_TOKEN",
-        "location": "",
-        "notes": "Legacy global runner configuration",
-        "updated_at": "",
     }
 
 
@@ -424,7 +398,7 @@ def _resolve_project_host(project: dict) -> dict | None:
         host = get_host(host_slug)
         if host:
             return host
-    return _legacy_runner_host()
+    return None
 
 
 def _check_host_runner(host: dict | None) -> dict:
@@ -527,14 +501,6 @@ def _hosts_with_runtime_state(refresh_health: bool = False) -> list[dict]:
         else:
             snapshot = _host_snapshot_from_cache(host)
         decorated.append({**host, "runner_snapshot": snapshot})
-    legacy = _legacy_runner_host()
-    if legacy and not any(item["slug"] == legacy["slug"] for item in decorated):
-        decorated.append(
-            {
-                **legacy,
-                "runner_snapshot": _check_host_runner(legacy) if refresh_health else _host_snapshot_from_cache(legacy),
-            }
-        )
     return decorated
 
 
