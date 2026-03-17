@@ -147,7 +147,7 @@
 
         .projects-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 12px;
         }
 
@@ -158,6 +158,10 @@
             border: 1px solid var(--border);
             border-radius: 14px;
             background: rgba(255, 255, 255, 0.64);
+        }
+
+        .project-card {
+            align-content: start;
         }
 
         .project-editor-header {
@@ -189,6 +193,51 @@
         .project-editor-title span {
             color: var(--muted);
             font-size: 12px;
+        }
+
+        .project-card-summary {
+            display: grid;
+            gap: 8px;
+        }
+
+        .project-card-copy {
+            margin: 0;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .project-card-facts,
+        .project-links-row,
+        .project-dependency-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .project-card-fact,
+        .project-link-chip,
+        .project-dependency-copy {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid var(--border);
+            text-decoration: none;
+        }
+
+        .project-link-chip {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .project-dependency-copy {
+            flex: 1 1 220px;
+            justify-content: flex-start;
         }
 
         .project-dirty-badge {
@@ -383,6 +432,58 @@
             font-size: 11px;
         }
 
+        .project-config-details {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.42);
+            overflow: hidden;
+        }
+
+        .project-config-summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .project-config-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .project-config-summary::before {
+            content: "▸";
+            color: var(--muted);
+            font-size: 14px;
+            transition: transform 160ms ease;
+        }
+
+        .project-config-details[open] .project-config-summary::before {
+            transform: rotate(90deg);
+        }
+
+        .project-config-summary-title {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .project-config-summary-meta {
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .project-config-body {
+            display: grid;
+            gap: 10px;
+            padding: 0 12px 12px;
+        }
+
         .project-ops-meta,
         .project-health-panel {
             display: grid;
@@ -428,6 +529,10 @@
             font: inherit;
             font-weight: 700;
             cursor: pointer;
+        }
+
+        .project-action-btn-primary {
+            background: var(--bg-accent);
         }
 
         .project-action-btn:disabled {
@@ -1316,6 +1421,10 @@
 
             .project-editor-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .project-config-summary {
+                flex-wrap: wrap;
             }
 
             .job-activity-board {

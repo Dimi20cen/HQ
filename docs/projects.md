@@ -21,6 +21,7 @@ Stored fields
 - `repo_url`
 - `sort_order`
 - `linked_tools`
+- `depends_on`
 - `private_url`
 - `deployment_host`
 - `deployment_location`
@@ -31,6 +32,7 @@ Stored fields
 - `start_command`
 - `restart_command`
 - `stop_command`
+- `logs_command`
 
 Validation rules
 - Any non-empty URL field must be a full `http` or `https` URL.
@@ -38,6 +40,7 @@ Validation rules
 - `source` projects must include a valid `repo_url`.
 - `source` projects may also keep a `primary_url`, but portfolio will not show it while in `source` mode.
 - Action commands are optional plain shell-command strings.
+- `depends_on` stores explicit project slugs for dependency-aware status in HQ.
 
 Runtime storage
 - Registry file: `runtime/projects/projects.json`
@@ -54,6 +57,7 @@ Runtime storage
 
 Controller routes
 - `GET /projects`
+  - returns each project plus computed `health_snapshot`, `dependency_snapshot`, and `ops_summary`
 - `POST /projects`
 - `PUT /projects/{slug}`
 - `DELETE /projects/{slug}`
@@ -78,11 +82,18 @@ Supported actions:
 - `start`
 - `restart`
 - `stop`
+- `logs`
 
 Health response shape
 - `summary`: `healthy | degraded | down | unconfigured`
 - `checks.public`
 - `checks.private`
+
+Dependency/runtime response additions on `GET /projects`
+- `health_snapshot`
+- `dependency_snapshot.summary`: `healthy | degraded | down | none`
+- `dependency_snapshot.items`
+- `ops_summary`: combined project/dependency status for the dashboard card
 
 Export script
 ```bash

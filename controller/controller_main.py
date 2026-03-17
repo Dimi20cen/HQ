@@ -45,6 +45,7 @@ PROJECT_ACTION_COMMANDS = {
     "start": "start_command",
     "restart": "restart_command",
     "stop": "stop_command",
+    "logs": "logs_command",
 }
 
 
@@ -213,6 +214,82 @@ def _project_health_snapshot(project: dict) -> dict:
         "summary": _summarize_health(checks),
         "checks": checks,
     }
+
+
+def _dependency_status(snapshot: dict | None) -> str:
+    if not snapshot:
+        return "unknown"
+    return str(snapshot.get("summary") or "unknown")
+
+
+def _summarize_dependencies(items: list[dict]) -> str:
+    if not items:
+        return "none"
+    statuses = [item["status"] for item in items]
+    if any(status in {"down", "unknown"} for status in statuses):
+        return "down"
+    if any(status in {"degraded", "unconfigured"} for status in statuses):
+        return "degraded"
+    if all(status == "healthy" for status in statuses):
+        return "healthy"
+    return "degraded"
+
+
+def _project_dependency_snapshot(project: dict, project_map: dict[str, dict], snapshots: dict[str, dict]) -> dict:
+    dependencies = []
+    for dependency_slug in project.get("depends_on") or []:
+        dependency = project_map.get(dependency_slug)
+        snapshot = snapshots.get(dependency_slug)
+        dependencies.append(
+            {
+                "slug": dependency_slug,
+                "title": dependency.get("title") if dependency else dependency_slug,
+                "status": _dependency_status(snapshot),
+                "private_url": dependency.get("private_url") if dependency else "",
+            }
+        )
+    return {
+        "summary": _summarize_dependencies(dependencies),
+        "items": dependencies,
+    }
+
+
+def _project_ops_summary(health_summary: str, dependency_summary: str) -> str:
+    if health_summary == "down":
+        return "down"
+    if health_summary == "degraded":
+        return "degraded"
+    if health_summary == "unconfigured":
+        if dependency_summary in {"healthy", "none"}:
+            return "unconfigured"
+        return "degraded"
+    if dependency_summary == "down":
+        return "degraded"
+    if dependency_summary == "degraded":
+        return "degraded"
+    return health_summary
+
+
+def _projects_with_runtime_state() -> list[dict]:
+    projects = list_projects()
+    project_map = {project["slug"]: project for project in projects}
+    snapshots = {project["slug"]: _project_health_snapshot(project) for project in projects}
+    decorated = []
+    for project in projects:
+        dependency_snapshot = _project_dependency_snapshot(project, project_map, snapshots)
+        health_snapshot = snapshots[project["slug"]]
+        decorated.append(
+            {
+                **project,
+                "health_snapshot": health_snapshot,
+                "dependency_snapshot": dependency_snapshot,
+                "ops_summary": _project_ops_summary(
+                    str(health_snapshot.get("summary") or "unconfigured"),
+                    str(dependency_snapshot.get("summary") or "none"),
+                ),
+            }
+        )
+    return decorated
 
 
 def _run_project_command(project: dict, action: str) -> dict:
@@ -418,7 +495,7 @@ def dashboard_job_applications(days: int = 365):
 
 @app.get("/projects")
 def get_projects():
-    return {"projects": list_projects()}
+    return {"projects": _projects_with_runtime_state()}
 
 
 @app.post("/projects")

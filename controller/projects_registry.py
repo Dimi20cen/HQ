@@ -25,6 +25,7 @@ REQUIRED_FIELDS = {
     "repo_url",
     "sort_order",
     "linked_tools",
+    "depends_on",
     "private_url",
     "deployment_host",
     "deployment_location",
@@ -35,6 +36,7 @@ REQUIRED_FIELDS = {
     "start_command",
     "restart_command",
     "stop_command",
+    "logs_command",
     "updated_at",
 }
 PUBLIC_EXPORT_FIELDS = (
@@ -150,6 +152,7 @@ def normalize_project(payload: dict) -> dict:
     start_command = str(payload.get("start_command") or "").strip()
     restart_command = str(payload.get("restart_command") or "").strip()
     stop_command = str(payload.get("stop_command") or "").strip()
+    logs_command = str(payload.get("logs_command") or "").strip()
 
     try:
         sort_order = int(payload.get("sort_order", 0))
@@ -160,6 +163,16 @@ def normalize_project(payload: dict) -> dict:
     if not isinstance(linked_tools_raw, list):
         raise ProjectValidationError("linked_tools must be an array.")
     linked_tools = [str(item).strip() for item in linked_tools_raw if str(item).strip()]
+    depends_on_raw = payload.get("depends_on") or []
+    if isinstance(depends_on_raw, str):
+        depends_on_raw = [part.strip() for part in depends_on_raw.split(",")]
+    if not isinstance(depends_on_raw, list):
+        raise ProjectValidationError("depends_on must be an array.")
+    depends_on: list[str] = []
+    for item in depends_on_raw:
+        dependency = _slugify(str(item).strip())
+        if dependency and dependency not in depends_on:
+            depends_on.append(dependency)
 
     if not slug:
         raise ProjectValidationError("slug is required.")
@@ -185,6 +198,7 @@ def normalize_project(payload: dict) -> dict:
         "repo_url": repo_url,
         "sort_order": sort_order,
         "linked_tools": linked_tools,
+        "depends_on": depends_on,
         "private_url": private_url,
         "deployment_host": deployment_host,
         "deployment_location": deployment_location,
@@ -195,6 +209,7 @@ def normalize_project(payload: dict) -> dict:
         "start_command": start_command,
         "restart_command": restart_command,
         "stop_command": stop_command,
+        "logs_command": logs_command,
         "updated_at": updated_at,
     }
 

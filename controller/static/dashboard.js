@@ -1,4 +1,5 @@
     const REFRESH_RATE = 2000;
+    const PROJECT_REFRESH_RATE = 45000;
     const JOB_ACTIVITY_DAYS = 14;
     const JOB_ACTIVITY_REFRESH_RATE = 60000;
     const JOB_ACTIVITY_COLLAPSED_STORAGE_KEY = 'dashboard.jobActivityCollapsed.v1';
@@ -332,6 +333,7 @@
             repo_url: '',
             sort_order: (state.projects.length + 1) * 10,
             linked_tools: [],
+            depends_on: [],
             private_url: '',
             deployment_host: '',
             deployment_location: '',
@@ -342,7 +344,10 @@
             start_command: '',
             restart_command: '',
             stop_command: '',
+            logs_command: '',
             health_snapshot: null,
+            dependency_snapshot: { summary: 'none', items: [] },
+            ops_summary: 'unconfigured',
             action_result: null,
             updated_at: ''
         };
@@ -350,7 +355,7 @@
 
     function normalizeProjectRecord(rawProject) {
         return {
-            draft_key: '',
+            draft_key: String(rawProject?.draft_key || '').trim(),
             slug: String(rawProject?.slug || '').trim(),
             title: String(rawProject?.title || '').trim(),
             public_summary: String(rawProject?.public_summary || '').trim(),
@@ -359,6 +364,7 @@
             repo_url: String(rawProject?.repo_url || '').trim(),
             sort_order: Number.isFinite(Number(rawProject?.sort_order)) ? Number(rawProject.sort_order) : 0,
             linked_tools: Array.isArray(rawProject?.linked_tools) ? rawProject.linked_tools : [],
+            depends_on: Array.isArray(rawProject?.depends_on) ? rawProject.depends_on : [],
             private_url: String(rawProject?.private_url || '').trim(),
             deployment_host: String(rawProject?.deployment_host || '').trim(),
             deployment_location: String(rawProject?.deployment_location || '').trim(),
@@ -369,7 +375,10 @@
             start_command: String(rawProject?.start_command || '').trim(),
             restart_command: String(rawProject?.restart_command || '').trim(),
             stop_command: String(rawProject?.stop_command || '').trim(),
+            logs_command: String(rawProject?.logs_command || '').trim(),
             health_snapshot: rawProject?.health_snapshot || null,
+            dependency_snapshot: rawProject?.dependency_snapshot || { summary: 'none', items: [] },
+            ops_summary: String(rawProject?.ops_summary || rawProject?.health_snapshot?.summary || 'unconfigured'),
             action_result: rawProject?.action_result || null,
             updated_at: String(rawProject?.updated_at || '').trim()
         };
@@ -463,6 +472,8 @@
         if (summary === 'healthy') return 'Healthy';
         if (summary === 'degraded') return 'Degraded';
         if (summary === 'down') return 'Down';
+        if (summary === 'none') return 'No deps';
+        if (summary === 'unknown') return 'Unknown';
         return 'Unconfigured';
     }
 
@@ -483,7 +494,9 @@
     }
 
     function projectActionLabel(action) {
+        if (action === 'open') return 'Open';
         if (action === 'deploy') return 'Deploy';
+        if (action === 'logs') return 'Logs';
         if (action === 'restart') return 'Restart';
         if (action === 'start') return 'Start';
         return 'Stop';
@@ -557,6 +570,9 @@
             sort_order: String(payload?.sort_order ?? '').trim(),
             primary_url: String(payload?.primary_url || '').trim(),
             repo_url: String(payload?.repo_url || '').trim(),
+            depends_on: Array.isArray(payload?.depends_on)
+                ? payload.depends_on.map(item => String(item || '').trim()).filter(Boolean)
+                : [],
             private_url: String(payload?.private_url || '').trim(),
             deployment_host: String(payload?.deployment_host || '').trim(),
             deployment_location: String(payload?.deployment_location || '').trim(),
@@ -566,12 +582,37 @@
             deploy_command: String(payload?.deploy_command || '').trim(),
             start_command: String(payload?.start_command || '').trim(),
             restart_command: String(payload?.restart_command || '').trim(),
-            stop_command: String(payload?.stop_command || '').trim()
+            stop_command: String(payload?.stop_command || '').trim(),
+            logs_command: String(payload?.logs_command || '').trim()
         };
     }
 
+    function projectOpenUrl(payload) {
+        const privateUrl = String(payload?.private_url || '').trim();
+        if (privateUrl) return privateUrl;
+        return String(payload?.primary_url || '').trim();
+    }
+
+    function formatCheckedAt(value) {
+        if (!value) return 'not checked yet';
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function dependencyLine(project) {
+        const items = Array.isArray(project.dependency_snapshot?.items) ? project.dependency_snapshot.items : [];
+        if (!items.length) return 'No declared dependencies';
+        return items.map(item => `${item.title} (${projectHealthLabel(item.status).toLowerCase()})`).join(' • ');
+    }
+
     function createProjectEditor(project) {
-        const article = el('article', 'project-editor');
+        const article = el('article', 'project-editor project-card');
         article.dataset.slug = project.slug;
         const fieldKey = project.slug || project.draft_key || `draft-${state.nextProjectDraftId++}`;
         const header = el('div', 'project-editor-header');
@@ -581,8 +622,8 @@
         const chip = el('span', 'project-chip', projectModeLabel(project.public_mode));
         const healthChip = el(
             'span',
-            `project-health-chip ${projectHealthClass(project.health_snapshot?.summary)}`,
-            projectHealthLabel(project.health_snapshot?.summary)
+            `project-health-chip ${projectHealthClass(project.ops_summary)}`,
+            projectHealthLabel(project.ops_summary)
         );
         const dirtyBadge = el('span', 'project-dirty-badge', 'Save required');
 
@@ -595,6 +636,21 @@
         headerRight.appendChild(healthChip);
         header.appendChild(headerRight);
         article.appendChild(header);
+
+        const summaryMeta = el('div', 'project-card-summary');
+        if (project.public_summary) {
+            summaryMeta.appendChild(el('p', 'project-card-copy', project.public_summary));
+        }
+        const facts = el('div', 'project-card-facts');
+        [
+            project.deployment_host ? `Host: ${project.deployment_host}` : '',
+            project.deployment_location ? `Where: ${project.deployment_location}` : '',
+            project.runtime_path ? `Path: ${project.runtime_path}` : ''
+        ].filter(Boolean).forEach(line => facts.appendChild(el('span', 'project-card-fact', line)));
+        if (facts.childNodes.length) {
+            summaryMeta.appendChild(facts);
+        }
+        article.appendChild(summaryMeta);
 
         const slugField = createProjectField('Slug', `project-slug-${fieldKey}`, 'text', project.slug);
         slugField.control.disabled = !!project.slug;
@@ -634,6 +690,14 @@
         const startField = createProjectField('Start Command', `project-start-${fieldKey}`, 'text', project.start_command, true);
         const restartField = createProjectField('Restart Command', `project-restart-${fieldKey}`, 'text', project.restart_command, true);
         const stopField = createProjectField('Stop Command', `project-stop-${fieldKey}`, 'text', project.stop_command, true);
+        const logsField = createProjectField('Logs Command', `project-logs-${fieldKey}`, 'text', project.logs_command, true);
+        const dependsOnField = createProjectField(
+            'Dependencies',
+            `project-depends-on-${fieldKey}`,
+            'text',
+            (project.depends_on || []).join(', '),
+            true
+        );
         const currentPayload = () => ({
             slug: slugField.control.value,
             title: titleField.control.value,
@@ -643,6 +707,10 @@
             primary_url: primaryField.control.value,
             repo_url: repoField.control.value,
             linked_tools: project.linked_tools || [],
+            depends_on: dependsOnField.control.value
+                .split(',')
+                .map(value => value.trim())
+                .filter(Boolean),
             private_url: privateField.control.value,
             deployment_host: hostField.control.value,
             deployment_location: locationField.control.value,
@@ -652,51 +720,83 @@
             deploy_command: deployField.control.value,
             start_command: startField.control.value,
             restart_command: restartField.control.value,
-            stop_command: stopField.control.value
+            stop_command: stopField.control.value,
+            logs_command: logsField.control.value
         });
 
-        const publicSection = createProjectSection('Public', 'What portfolio can safely show.');
-        [
-            slugField.field,
-            titleField.field,
-            summaryField.field,
-            modeField.field,
-            sortField.field,
-            primaryField.field,
-            repoField.field
-        ].forEach(node => publicSection.grid.appendChild(node));
-        article.appendChild(publicSection.section);
+        const dependencyRow = el('div', 'project-dependency-row');
+        const dependencySummary = el(
+            'span',
+            `project-health-chip ${projectHealthClass(project.dependency_snapshot?.summary)}`,
+            `Deps: ${projectHealthLabel(project.dependency_snapshot?.summary)}`
+        );
+        dependencyRow.appendChild(dependencySummary);
+        dependencyRow.appendChild(el('span', 'project-dependency-copy', dependencyLine(project)));
+        article.appendChild(dependencyRow);
 
-        const runtimeSection = createProjectSection('Runtime', 'Where the project lives and how HQ should think about it.');
-        [
-            privateField.field,
-            hostField.field,
-            locationField.field,
-            runtimeField.field
-        ].forEach(node => runtimeSection.grid.appendChild(node));
-        article.appendChild(runtimeSection.section);
+        const linksRow = el('div', 'project-links-row');
+        if (project.private_url) {
+            const privateLink = document.createElement('a');
+            privateLink.className = 'project-link-chip';
+            privateLink.href = project.private_url;
+            privateLink.target = '_blank';
+            privateLink.rel = 'noreferrer';
+            privateLink.textContent = 'Private URL';
+            linksRow.appendChild(privateLink);
+        }
+        if (project.primary_url) {
+            const primaryLink = document.createElement('a');
+            primaryLink.className = 'project-link-chip';
+            primaryLink.href = project.primary_url;
+            primaryLink.target = '_blank';
+            primaryLink.rel = 'noreferrer';
+            primaryLink.textContent = 'Primary URL';
+            linksRow.appendChild(primaryLink);
+        }
+        if (project.repo_url) {
+            const repoLink = document.createElement('a');
+            repoLink.className = 'project-link-chip';
+            repoLink.href = project.repo_url;
+            repoLink.target = '_blank';
+            repoLink.rel = 'noreferrer';
+            repoLink.textContent = 'Repo';
+            linksRow.appendChild(repoLink);
+        }
+        if (linksRow.childNodes.length) {
+            article.appendChild(linksRow);
+        }
 
         const healthPanel = el('div', 'project-health-panel');
+        healthPanel.appendChild(el('div', 'project-health-line', `Project: ${projectHealthLabel(project.health_snapshot?.summary)}`));
         healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('public', project.health_snapshot)));
         healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('private', project.health_snapshot)));
         healthPanel.appendChild(
             el(
                 'div',
-                'project-health-line project-health-line-muted',
-                project.health_snapshot?.checked_at
-                    ? `Last checked: ${project.health_snapshot.checked_at}`
-                    : 'Last checked: not yet'
-                )
+                'project-health-line',
+                `Dependencies: ${dependencyLine(project)}`
+            )
         );
-        const healthSection = createProjectSection('Health', 'Optional public/private checks for the current deployment.');
-        [
-            healthPublicField.field,
-            healthPrivateField.field
-        ].forEach(node => healthSection.grid.appendChild(node));
-        healthSection.section.appendChild(healthPanel);
-        article.appendChild(healthSection.section);
+        healthPanel.appendChild(
+            el(
+                'div',
+                'project-health-line project-health-line-muted',
+                `Last checked: ${formatCheckedAt(project.health_snapshot?.checked_at)}`
+            )
+        );
+        article.appendChild(healthPanel);
 
         const actionBar = el('div', 'project-action-bar');
+        const openBtn = el('button', 'project-action-btn project-action-btn-primary', 'Open');
+        openBtn.type = 'button';
+        openBtn.disabled = !projectOpenUrl(currentPayload());
+        openBtn.addEventListener('click', () => {
+            const target = projectOpenUrl(currentPayload());
+            if (!target) return;
+            window.open(target, '_blank', 'noopener,noreferrer');
+        });
+        actionBar.appendChild(openBtn);
+
         const healthBtn = el('button', 'project-action-btn', 'Check Health');
         healthBtn.type = 'button';
         healthBtn.disabled = !project.slug || (!healthPublicField.control.value.trim() && !healthPrivateField.control.value.trim());
@@ -705,14 +805,13 @@
         });
         actionBar.appendChild(healthBtn);
 
-        ['deploy', 'start', 'restart', 'stop'].forEach(action => {
+        ['deploy', 'restart', 'logs'].forEach(action => {
             const button = el('button', 'project-action-btn', projectActionLabel(action));
             button.type = 'button';
             const field = ({
                 deploy: deployField,
-                start: startField,
                 restart: restartField,
-                stop: stopField
+                logs: logsField
             })[action];
             button.disabled = !project.slug || !field.control.value.trim();
             button.addEventListener('click', async () => {
@@ -720,24 +819,11 @@
             });
             actionBar.appendChild(button);
         });
-        const actionMeta = el(
-            'div',
-            'project-action-meta',
-            project.runtime_path ? `Running in ${project.runtime_path}` : 'Runtime path not configured yet'
-        );
-        const actionsSection = createProjectSection('Actions', 'Host-local commands HQ can run for this project.');
-        [
-            deployField.field,
-            startField.field,
-            restartField.field,
-            stopField.field
-        ].forEach(node => actionsSection.grid.appendChild(node));
-        actionsSection.section.appendChild(actionMeta);
-        actionsSection.section.appendChild(actionBar);
+        article.appendChild(actionBar);
 
         const actionFeedback = projectFeedbackMessage(project);
         if (actionFeedback) {
-            actionsSection.section.appendChild(
+            article.appendChild(
                 el(
                     'div',
                     `project-action-feedback${project.action_result?.ok ? ' is-success' : ' is-error'}`,
@@ -811,9 +897,72 @@
                 panelBody.appendChild(block);
             }
             panel.appendChild(panelBody);
-            actionsSection.section.appendChild(panel);
+            article.appendChild(panel);
         }
-        article.appendChild(actionsSection.section);
+
+        const configDetails = document.createElement('details');
+        configDetails.className = 'project-config-details';
+        configDetails.open = !project.slug;
+        const configSummary = el('summary', 'project-config-summary');
+        configSummary.appendChild(el('span', 'project-config-summary-title', project.slug ? 'Configuration' : 'Create project'));
+        const configSummaryMeta = el(
+            'span',
+            'project-config-summary-meta',
+            project.updated_at ? `Updated ${project.updated_at}` : 'Draft project'
+        );
+        configSummary.appendChild(configSummaryMeta);
+        configSummary.appendChild(dirtyBadge);
+        configDetails.appendChild(configSummary);
+
+        const configBody = el('div', 'project-config-body');
+
+        const publicSection = createProjectSection('Public', 'What portfolio can safely show.');
+        [
+            slugField.field,
+            titleField.field,
+            summaryField.field,
+            modeField.field,
+            sortField.field,
+            primaryField.field,
+            repoField.field
+        ].forEach(node => publicSection.grid.appendChild(node));
+        configBody.appendChild(publicSection.section);
+
+        const runtimeSection = createProjectSection('Runtime', 'Where the project lives and how HQ should think about it.');
+        [
+            privateField.field,
+            hostField.field,
+            locationField.field,
+            runtimeField.field,
+            dependsOnField.field
+        ].forEach(node => runtimeSection.grid.appendChild(node));
+        configBody.appendChild(runtimeSection.section);
+
+        const healthSection = createProjectSection('Health', 'Optional public/private checks for the current deployment.');
+        [
+            healthPublicField.field,
+            healthPrivateField.field
+        ].forEach(node => healthSection.grid.appendChild(node));
+        configBody.appendChild(healthSection.section);
+
+        const actionMeta = el(
+            'div',
+            'project-action-meta',
+            project.runtime_path ? `Running in ${project.runtime_path}` : 'Runtime path not configured yet'
+        );
+        const actionsSection = createProjectSection('Actions', 'Host-local commands HQ can run for this project.');
+        [
+            deployField.field,
+            startField.field,
+            restartField.field,
+            stopField.field,
+            logsField.field
+        ].forEach(node => actionsSection.grid.appendChild(node));
+        actionsSection.section.appendChild(actionMeta);
+        configBody.appendChild(actionsSection.section);
+
+        configDetails.appendChild(configBody);
+        article.appendChild(configDetails);
 
         const actions = el('div', 'project-editor-actions');
         const meta = el('div', 'project-editor-meta', project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
@@ -842,6 +991,7 @@
             sortField.control,
             primaryField.control,
             repoField.control,
+            dependsOnField.control,
             privateField.control,
             hostField.control,
             locationField.control,
@@ -851,7 +1001,8 @@
             deployField.control,
             startField.control,
             restartField.control,
-            stopField.control
+            stopField.control,
+            logsField.control
         ];
         const updateDirtyState = () => {
             const isDirty = JSON.stringify(normalizeProjectPayload(currentPayload())) !== savedSnapshot;
@@ -859,6 +1010,11 @@
             meta.textContent = isDirty
                 ? 'Save required before this editor matches the stored project record.'
                 : (project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
+            configSummaryMeta.textContent = isDirty
+                ? 'Save required'
+                : (project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
+            openBtn.disabled = !projectOpenUrl(currentPayload());
+            healthBtn.disabled = !project.slug || (!healthPublicField.control.value.trim() && !healthPrivateField.control.value.trim());
         };
         trackedControls.forEach(control => {
             control.addEventListener('input', updateDirtyState);
@@ -1036,8 +1192,11 @@
         }
     }
 
-    async function loadProjects() {
+    async function loadProjects(options = {}) {
         if (!els.projectsList) return;
+        if (options.auto && hasDirtyProjectEditors()) {
+            return;
+        }
         try {
             const resp = await fetch('/projects');
             const data = await resp.json();
@@ -1045,7 +1204,9 @@
             renderProjects();
         } catch (error) {
             console.error('Failed to load projects', error);
-            setProjectsFeedback('Failed to load projects.', 'error');
+            if (!options.silent) {
+                setProjectsFeedback('Failed to load projects.', 'error');
+            }
         }
     }
 
@@ -2045,8 +2206,9 @@
     });
 
     setJobActivityCollapsed(state.jobActivityCollapsed);
-    loadProjects();
+    loadProjects({ silent: true });
     loadDashboard();
     loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
     setInterval(loadJobActivity, JOB_ACTIVITY_REFRESH_RATE);
+    setInterval(() => loadProjects({ auto: true, silent: true }), PROJECT_REFRESH_RATE);

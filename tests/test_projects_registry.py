@@ -36,6 +36,7 @@ class ProjectRegistryTests(unittest.TestCase):
                 "repo_url": "https://example.com/jobby",
                 "sort_order": 40,
                 "linked_tools": ["jobber"],
+                "depends_on": ["janus", "hermes", "janus"],
                 "private_url": "http://100.124.230.107:3000",
                 "deployment_host": "srv",
                 "deployment_location": "Server laptop over Tailscale",
@@ -46,6 +47,7 @@ class ProjectRegistryTests(unittest.TestCase):
                 "start_command": "docker compose up -d",
                 "restart_command": "docker compose restart",
                 "stop_command": "docker compose down",
+                "logs_command": "docker compose logs --tail 100",
             }
         )
 
@@ -53,6 +55,8 @@ class ProjectRegistryTests(unittest.TestCase):
         self.assertEqual(project["private_url"], "http://100.124.230.107:3000")
         self.assertEqual(project["health_private_url"], "http://100.124.230.107:8001/health")
         self.assertEqual(project["restart_command"], "docker compose restart")
+        self.assertEqual(project["logs_command"], "docker compose logs --tail 100")
+        self.assertEqual(project["depends_on"], ["janus", "hermes"])
 
     def test_export_keeps_public_fields_only(self):
         self.registry.create_project(
@@ -65,6 +69,7 @@ class ProjectRegistryTests(unittest.TestCase):
                 "repo_url": "https://example.com/rentpredictor",
                 "sort_order": 10,
                 "linked_tools": [],
+                "depends_on": [],
                 "private_url": "http://100.64.0.1:8501",
                 "deployment_host": "aws",
                 "deployment_location": "Lightsail",
@@ -75,6 +80,7 @@ class ProjectRegistryTests(unittest.TestCase):
                 "start_command": "docker compose up -d",
                 "restart_command": "docker compose restart",
                 "stop_command": "docker compose down",
+                "logs_command": "docker compose logs --tail 100",
             }
         )
 
@@ -91,6 +97,8 @@ class ProjectRegistryTests(unittest.TestCase):
         self.assertNotIn("private_url", exported[0])
         self.assertNotIn("deploy_command", exported[0])
         self.assertNotIn("health_private_url", exported[0])
+        self.assertNotIn("depends_on", exported[0])
+        self.assertNotIn("logs_command", exported[0])
 
 
 if __name__ == "__main__":

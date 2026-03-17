@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-17
+- Summary: Refactored project management into ops-first dashboard cards with live computed health/dependency state, inline logs/deploy/restart actions, expandable configuration, and seeded runtime metadata for `hq`, `jobby`, `janus`, and `hermes`.
+- Affected files: `controller/controller_main.py`, `controller/projects_registry.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `runtime/projects/projects.json`, `docs/controller.md`, `docs/projects.md`, `tests/test_projects_registry.py`, `tests/test_project_ops_api.py`
+- Migration notes: Project records now support `depends_on` and `logs_command`. `GET /projects` includes computed `health_snapshot`, `dependency_snapshot`, and `ops_summary`. The dashboard auto-refreshes project health/state unless there are unsaved project edits.
+- Validation status: `node --check controller/static/dashboard.js`, `python3 -m py_compile controller/controller_main.py controller/projects_registry.py`, and `python3 -m pytest tests/test_projects_registry.py tests/test_project_ops_api.py` passed.
+
+## 2026-03-17
 - Summary: Added a dedicated portfolio publish flow so HQ can validate a `dimy.dev` repo clone, update `data/projects.generated.json`, commit only that generated file, and push to GitHub for Vercel-triggered deploys; also split dashboard actions into `Export Catalog` and `Publish Portfolio`.
 - Affected files: `controller/portfolio_publish.py`, `controller/controller_main.py`, `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docker-compose.yml`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `tests/test_projects_registry.py`, `tests/test_project_ops_api.py`, `tests/test_portfolio_publish.py`
 - Migration notes: Configure `HQ_PORTFOLIO_REPO_HOST_DIR`, `HQ_PORTFOLIO_REPO_DIR`, `HQ_PORTFOLIO_EXPORT_PATH`, and `HQ_PORTFOLIO_BRANCH` on `srv`, and mount the dedicated `dimy.dev` repo clone into the HQ container.

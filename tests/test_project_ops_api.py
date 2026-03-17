@@ -47,6 +47,56 @@ class ProjectOpsApiTests(unittest.TestCase):
 
         self.registry.create_project(
             {
+                "slug": "janus",
+                "title": "Janus",
+                "public_summary": "Shared auth",
+                "public_mode": "source",
+                "primary_url": "",
+                "repo_url": "https://example.com/janus",
+                "sort_order": 30,
+                "linked_tools": [],
+                "depends_on": [],
+                "private_url": "http://100.124.230.107:8100",
+                "deployment_host": "srv",
+                "deployment_location": "Server laptop",
+                "runtime_path": "/srv/stacks/janus",
+                "health_public_url": "https://auth.dimy.dev/health",
+                "health_private_url": "http://100.124.230.107:8100/health",
+                "deploy_command": "/usr/bin/bash /srv/stacks/janus/bin/deploy.sh",
+                "start_command": "docker compose up -d",
+                "restart_command": "docker compose restart",
+                "stop_command": "docker compose down",
+                "logs_command": "docker compose logs --tail 100",
+            }
+        )
+
+        self.registry.create_project(
+            {
+                "slug": "hermes",
+                "title": "Hermes",
+                "public_summary": "AI gateway",
+                "public_mode": "source",
+                "primary_url": "",
+                "repo_url": "https://example.com/hermes",
+                "sort_order": 35,
+                "linked_tools": [],
+                "depends_on": [],
+                "private_url": "http://100.124.230.107:8010",
+                "deployment_host": "srv",
+                "deployment_location": "Server laptop",
+                "runtime_path": "/srv/stacks/hermes",
+                "health_public_url": "",
+                "health_private_url": "http://100.124.230.107:8010/health",
+                "deploy_command": "/usr/bin/bash /srv/stacks/hermes/bin/deploy.sh",
+                "start_command": "",
+                "restart_command": "systemctl --user restart hermes.service",
+                "stop_command": "",
+                "logs_command": "journalctl --user -u hermes.service -n 100 --no-pager",
+            }
+        )
+
+        self.registry.create_project(
+            {
                 "slug": "jobby",
                 "title": "Jobby",
                 "public_summary": "Private workflow app",
@@ -55,6 +105,7 @@ class ProjectOpsApiTests(unittest.TestCase):
                 "repo_url": "https://example.com/jobby",
                 "sort_order": 40,
                 "linked_tools": [],
+                "depends_on": ["janus", "hermes"],
                 "private_url": "http://100.124.230.107:3000",
                 "deployment_host": "srv",
                 "deployment_location": "Server laptop over Tailscale",
@@ -65,6 +116,7 @@ class ProjectOpsApiTests(unittest.TestCase):
                 "start_command": "docker compose up -d",
                 "restart_command": "docker compose restart",
                 "stop_command": "docker compose down",
+                "logs_command": "docker compose logs --tail 100",
             }
         )
 
@@ -108,6 +160,18 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertEqual(run_mock.call_args.kwargs["cwd"], "/srv/stacks/jobby")
         self.assertEqual(payload["cwd"], "/srv/stacks/jobby")
 
+    def test_project_logs_action_runs_configured_command(self):
+        completed = Mock(returncode=0, stdout="recent logs\n", stderr="")
+
+        with patch.object(self.main.subprocess, "run", return_value=completed) as run_mock:
+            response = self.main.run_project_action("hermes", {"action": "logs"})
+
+        payload = self.read_payload(response)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["action"], "logs")
+        self.assertIn("recent logs", payload["stdout"])
+        self.assertEqual(run_mock.call_args.kwargs["cwd"], "/srv/stacks/hermes")
+
     def test_project_action_rejects_missing_command(self):
         self.registry.update_project("jobby", {"stop_command": ""})
 
@@ -115,6 +179,26 @@ class ProjectOpsApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("No stop command configured", self.read_payload(response)["detail"])
+
+    def test_get_projects_includes_health_and_dependency_state(self):
+        responses = {
+            "https://auth.dimy.dev/health": Mock(status_code=200),
+            "http://100.124.230.107:8100/health": Mock(status_code=200),
+            "http://100.124.230.107:8010/health": Mock(status_code=503),
+            "http://100.124.230.107:8001/health": Mock(status_code=200),
+        }
+
+        def fake_get(url, timeout=5):
+            return responses[url]
+
+        with patch.object(self.main.requests, "get", side_effect=fake_get):
+            response = self.main.get_projects()
+
+        payload = self.read_payload(response)
+        by_slug = {item["slug"]: item for item in payload["projects"]}
+        self.assertEqual(by_slug["jobby"]["health_snapshot"]["summary"], "healthy")
+        self.assertEqual(by_slug["jobby"]["dependency_snapshot"]["summary"], "down")
+        self.assertEqual(by_slug["jobby"]["ops_summary"], "degraded")
 
     def test_publish_project_catalog_returns_publish_payload(self):
         with patch.object(
