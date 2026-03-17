@@ -37,7 +37,8 @@ Docker (LAN deploy)
   - Set Google OAuth values in server `.env`
   - Use a server-reachable redirect URI (not `127.0.0.1`), e.g. `http://<server-host>:9010/auth/callback`
   - To let `Export Catalog` sync portfolio data from the container, set:
-    - `HQ_PORTFOLIO_REPO_DIR=/srv/stacks/dimy.dev`
+    - `HQ_PORTFOLIO_REPO_HOST_DIR=/srv/stacks/dimy.dev`
+    - `HQ_PORTFOLIO_REPO_DIR=/portfolio-repo`
     - `HQ_PORTFOLIO_EXPORT_PATH=/portfolio-repo/data/projects.generated.json`
     - `HQ_PORTFOLIO_BRANCH=main`
 - Start:
@@ -62,6 +63,7 @@ Database/storage paths
   - `HQ_PROJECTS_PATH`
   - `HQ_PROJECTS_EXPORT_PATH`
   - `HQ_PORTFOLIO_EXPORT_PATH`
+  - `HQ_PORTFOLIO_REPO_HOST_DIR`
   - `HQ_PORTFOLIO_REPO_DIR`
   - `HQ_PORTFOLIO_BRANCH`
 
@@ -69,5 +71,5 @@ Project catalog export sync
 - `POST /projects/export` always writes the sanitized HQ export JSON.
 - If `HQ_PORTFOLIO_EXPORT_PATH` is set, the same export is also copied into the portfolio repo.
 - Without that env var, HQ auto-detects a sibling local repo at `../dimy.dev/data/projects.generated.json` when present.
-- In Docker, `HQ_PORTFOLIO_REPO_DIR` should mount the host portfolio repo into `/portfolio-repo`.
+- In Docker, `HQ_PORTFOLIO_REPO_HOST_DIR` should mount the host portfolio repo into `/portfolio-repo`, while `HQ_PORTFOLIO_REPO_DIR` should stay `/portfolio-repo` inside the container.
 - `POST /projects/publish` assumes that mounted repo is a dedicated publish clone with working GitHub push auth.

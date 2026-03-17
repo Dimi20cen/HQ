@@ -11,6 +11,7 @@ services:
       CONTROLLER_DB_PATH: /app/runtime/controller/tools.db
       CALENDAR_DB_PATH: /app/runtime/tools/calendar/calendar.db
       JOBBER_DB_PATH: /app/runtime/tools/jobber/jobs.db
+      HQ_PORTFOLIO_REPO_DIR: ${HQ_PORTFOLIO_REPO_DIR:-/portfolio-repo}
       HQ_PORTFOLIO_EXPORT_PATH: ${HQ_PORTFOLIO_EXPORT_PATH:-}
       HQ_PORTFOLIO_BRANCH: ${HQ_PORTFOLIO_BRANCH:-main}
     ports:
@@ -21,4 +22,4 @@ services:
     volumes:
       - ./runtime:/app/runtime
       - ./logs:/app/logs
-      - ${HQ_PORTFOLIO_REPO_DIR:-./runtime/portfolio-repo}:/portfolio-repo
+      - ${HQ_PORTFOLIO_REPO_HOST_DIR:-./runtime/portfolio-repo}:/portfolio-repo

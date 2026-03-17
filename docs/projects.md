@@ -110,7 +110,8 @@ HQ_PORTFOLIO_EXPORT_PATH=/home/dim/Projects/dimy.dev/data/projects.generated.jso
 
 Recommended env for the Docker deployment on `srv`:
 ```bash
-HQ_PORTFOLIO_REPO_DIR=/srv/stacks/dimy.dev
+HQ_PORTFOLIO_REPO_HOST_DIR=/srv/stacks/dimy.dev
+HQ_PORTFOLIO_REPO_DIR=/portfolio-repo
 HQ_PORTFOLIO_EXPORT_PATH=/portfolio-repo/data/projects.generated.json
 HQ_PORTFOLIO_BRANCH=main
 ```
