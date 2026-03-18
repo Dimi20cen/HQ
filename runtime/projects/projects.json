@@ -12,15 +12,15 @@
     "private_url": "",
     "deployment_host": "aws",
     "deployment_location": "AWS Lightsail VPS with Caddy and a local Docker container",
-    "runtime_path": "",
+    "runtime_path": "/home/dim/apps/rentpredictor",
     "health_public_url": "https://rent-predictor.dimy.dev",
     "health_private_url": "",
-    "deploy_command": "",
-    "start_command": "",
-    "restart_command": "",
+    "deploy_command": "./scripts/deploy_vps.sh",
+    "start_command": "SKIP_PULL=1 ./scripts/deploy_vps.sh",
+    "restart_command": "SKIP_PULL=1 ./scripts/deploy_vps.sh",
     "stop_command": "",
-    "logs_command": "",
-    "updated_at": "2026-03-18T11:40:00Z"
+    "logs_command": "docker logs -f --tail 100 rentpredictor",
+    "updated_at": "2026-03-18T14:00:00Z"
   },
   {
     "slug": "sakura",
