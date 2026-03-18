@@ -389,6 +389,14 @@
         return 'is-unconfigured';
     }
 
+    function projectScanFacts(project) {
+        return [
+            projectModeLabel(project.public_mode),
+            project.deployment_host || 'No host',
+            formatCheckedAt(project.health_snapshot?.checked_at)
+        ];
+    }
+
     function setHostsFeedback(message, tone = '') {
         if (!els.hostsFeedback) return;
         els.hostsFeedback.textContent = message || '';
@@ -576,14 +584,21 @@
         rowBtn.className = 'project-row-header';
         rowBtn.type = 'button';
 
+        const heading = el('span', 'project-row-heading');
         const titleSpan = el('span', 'project-row-title', project.title || '—');
+        const summary = el('span', 'project-row-summary');
+        projectScanFacts(project).forEach(fact => {
+            summary.appendChild(el('span', 'project-row-fact', fact));
+        });
+        heading.appendChild(titleSpan);
+        heading.appendChild(summary);
         const healthChip = el(
             'span',
             `project-health-chip ${projectHealthClass(project.ops_summary)}`,
             projectHealthLabel(project.ops_summary)
         );
         const chevron = el('span', 'project-row-chevron', '›');
-        rowBtn.appendChild(titleSpan);
+        rowBtn.appendChild(heading);
         rowBtn.appendChild(healthChip);
         rowBtn.appendChild(chevron);
 
@@ -807,6 +822,7 @@
         return parsed.toLocaleString(undefined, {
             month: 'short',
             day: 'numeric',
+            hour12: false,
             hour: '2-digit',
             minute: '2-digit'
         });
@@ -1190,7 +1206,7 @@
             if (!options.silent) {
                 setProjectsFeedback(`Saved ${data.project.title}.`, 'success');
             }
-            await loadProjects();
+            await loadProjects({ preserveActionResult: true });
             return { ok: true, project: data.project };
         } catch (error) {
             if (!options.silent) {
@@ -1207,6 +1223,23 @@
             return normalizeProjectRecord({ ...project, ...next });
         });
         renderProjects();
+    }
+
+    function mergeProjectUiState(nextProjects, options = {}) {
+        const preserveActionResult = !!options.preserveActionResult;
+        const currentByKey = new Map(
+            state.projects.map(project => [projectEditorKey(project), project])
+        );
+        return nextProjects.map(project => {
+            const current = currentByKey.get(projectEditorKey(project));
+            if (!current) return project;
+            return normalizeProjectRecord({
+                ...project,
+                action_result: preserveActionResult
+                    ? (project.action_result || current.action_result || null)
+                    : (project.action_result || null)
+            });
+        });
     }
 
     async function runProjectHealthCheck(slug, payload) {
@@ -1386,7 +1419,11 @@
         try {
             const resp = await fetch('/projects');
             const data = await resp.json();
-            state.projects = Array.isArray(data.projects) ? data.projects.map(normalizeProjectRecord) : [];
+            state.projects = Array.isArray(data.projects)
+                ? mergeProjectUiState(data.projects.map(normalizeProjectRecord), {
+                    preserveActionResult: !!options.preserveActionResult
+                })
+                : [];
             renderProjects();
             if (options.refreshHealth !== false) {
                 refreshProjectsHealth({ silent: true });
@@ -1409,7 +1446,9 @@
             });
             const data = await resp.json();
             if (!resp.ok) throw new Error(data?.detail || 'health refresh failed');
-            state.projects = Array.isArray(data.projects) ? data.projects.map(normalizeProjectRecord) : state.projects;
+            state.projects = Array.isArray(data.projects)
+                ? mergeProjectUiState(data.projects.map(normalizeProjectRecord))
+                : state.projects;
             renderProjects();
             if (!options.silent) {
                 setProjectsFeedback('Project health refreshed.', 'success');

@@ -278,6 +278,20 @@
             padding: 14px 16px 24px;
         }
 
+        #panel-projects .side-panel-header {
+            padding-top: 14px;
+            padding-bottom: 12px;
+        }
+
+        #panel-projects .side-panel-title-row {
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #panel-projects .projects-board-kicker {
+            margin-bottom: 0;
+        }
+
         /* Projects list in panel: single column */
         .side-panel .projects-list {
             display: flex;
@@ -302,8 +316,8 @@
 
         .project-row-header {
             width: 100%;
-            display: flex;
-            align-items: center;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
             gap: 10px;
             padding: 10px 14px;
             background: transparent;
@@ -318,8 +332,13 @@
             background: rgba(234, 215, 242, 0.4);
         }
 
+        .project-row-heading {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
         .project-row-title {
-            flex: 1 1 auto;
             font-size: 14px;
             font-weight: 700;
             color: var(--text);
@@ -327,6 +346,25 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .project-row-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .project-row-fact {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            padding: 0 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
         }
 
         .project-row-chevron {
@@ -1575,6 +1613,16 @@
             .project-editor-save,
             .project-editor-delete {
                 width: 100%;
+            }
+
+            .project-row-header {
+                grid-template-columns: 1fr auto;
+            }
+
+            .project-row-chevron {
+                grid-column: 2;
+                grid-row: 1 / span 2;
+                align-self: center;
             }
 
             .project-editor-grid {

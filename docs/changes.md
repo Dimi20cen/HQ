@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-18
+- Summary: Restored lightweight scanability to collapsed project rows by showing public mode, deployment host, and last-checked time beneath each project title while keeping the simpler sidebar structure.
+- Affected files: `controller/static/dashboard.css`, `controller/static/dashboard.js`
+- Migration notes: No API or data-shape changes.
+- Validation status: `node --check controller/static/dashboard.js` and `python3 -m pytest tests/test_project_ops_api.py tests/test_projects_registry.py tests/test_hosts_registry.py tests/test_portfolio_publish.py` passed.
+
+## 2026-03-18
 - Summary: Simplified the Projects sidebar by removing the duplicate expanded-card header and repeated summary chips/links/health blocks, consolidating project status into one compact panel, and turning `Public`/`Runtime`/`Health`/`Actions` into individually collapsible sections.
 - Affected files: `controller/static/dashboard.css`, `controller/static/dashboard.js`
 - Migration notes: No API or data-shape changes. Project actions, inline action output, and in-place configuration editing still work from the same Projects panel.

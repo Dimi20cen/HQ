@@ -20,7 +20,7 @@
     "restart_command": "",
     "stop_command": "",
     "logs_command": "",
-    "updated_at": "2026-03-17T08:30:41Z"
+    "updated_at": "2026-03-18T11:40:00Z"
   },
   {
     "slug": "sakura",
@@ -92,7 +92,7 @@
     "restart_command": "docker compose restart",
     "stop_command": "docker compose down",
     "logs_command": "docker compose logs --tail 100",
-    "updated_at": "2026-03-17T08:05:12Z"
+    "updated_at": "2026-03-18T11:39:00Z"
   },
   {
     "slug": "hermes",
@@ -115,7 +115,7 @@
     "restart_command": "systemctl --user restart hermes.service",
     "stop_command": "systemctl --user stop hermes.service",
     "logs_command": "journalctl --user -u hermes.service -n 100 --no-pager",
-    "updated_at": "2026-03-17T17:28:18Z"
+    "updated_at": "2026-03-18T11:16:24Z"
   },
   {
     "slug": "janus",
@@ -138,6 +138,6 @@
     "restart_command": "docker compose restart",
     "stop_command": "docker compose down",
     "logs_command": "docker compose logs --tail 100",
-    "updated_at": "2026-03-17T09:13:54Z"
+    "updated_at": "2026-03-18T11:38:09Z"
   }
 ]
