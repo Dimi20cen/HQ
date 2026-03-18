@@ -1,8 +1,5 @@
     const REFRESH_RATE = 2000;
     const PROJECT_REFRESH_RATE = 45000;
-    const JOB_ACTIVITY_DAYS = 14;
-    const JOB_ACTIVITY_REFRESH_RATE = 60000;
-    const JOB_ACTIVITY_COLLAPSED_STORAGE_KEY = 'dashboard.jobActivityCollapsed.v1';
     const WIDGET_LAYOUT_STORAGE_KEY = 'dashboard.widgetLayout.v1';
     const WIDGET_ORDER_STORAGE_KEY = 'dashboard.widgetOrder.v1';
     const HIDDEN_TOOLS_STORAGE_KEY = 'dashboard.hiddenTools.v1';
@@ -19,6 +16,7 @@
         hosts: [],
         projects: [],
         openProjectConfigs: new Set(),
+        openProjectRows: new Set(),
         nextProjectDraftId: 1,
         widgetLayout: loadWidgetLayout(),
         activeResize: null,
@@ -28,24 +26,20 @@
         hiddenTools: loadHiddenTools(),
         hiddenToolsMenuOpen: false,
         reorderModeOpen: false,
+        activePanelId: null,
+        lastPanelTrigger: null,
         appsRowMenuOpenFor: null,
         dragAutoScrollRaf: 0,
         dragPointer: null,
         settings: { ...DEFAULT_SETTINGS },
-        statusRefreshPromise: null,
-        jobActivityCollapsed: loadJobActivityCollapsed()
+        statusRefreshPromise: null
     };
     const CATEGORY_ORDER = { display: 0, hybrid: 1, background: 2 };
 
     const els = {
-        jobActivityBoard: document.getElementById('job-activity-board'),
-        jobActivityToggle: document.getElementById('job-activity-toggle'),
-        jobActivityGrid: document.getElementById('job-activity-grid'),
-        jobActivityWeekdays: document.getElementById('job-activity-weekdays'),
-        jobActivityTotal: document.getElementById('job-activity-total'),
+        cmdStrip: document.getElementById('cmd-strip'),
         reorderModeBtn: document.getElementById('reorder-mode-btn'),
         reorderPanel: document.getElementById('reorder-panel'),
-        appsMenuBtn: document.getElementById('apps-menu-btn'),
         hiddenToolsMenu: document.getElementById('hidden-tools-menu'),
         container: document.getElementById('tools-container'),
         hostsList: document.getElementById('hosts-list'),
@@ -57,7 +51,19 @@
         projectsResult: document.getElementById('projects-result'),
         projectAddBtn: document.getElementById('project-add-btn'),
         projectExportBtn: document.getElementById('project-export-btn'),
-        projectPublishBtn: document.getElementById('project-publish-btn')
+        projectPublishBtn: document.getElementById('project-publish-btn'),
+        panelBackdrop: document.getElementById('panel-backdrop'),
+        panelProjects: document.getElementById('panel-projects'),
+        panelProjectsClose: document.getElementById('panel-projects-close'),
+        panelHosts: document.getElementById('panel-hosts'),
+        panelHostsClose: document.getElementById('panel-hosts-close'),
+        pillTools: document.getElementById('pill-tools'),
+        pillToolsCount: document.getElementById('pill-tools-count'),
+        pillProjects: document.getElementById('pill-projects'),
+        pillProjectsCount: document.getElementById('pill-projects-count'),
+        pillHosts: document.getElementById('pill-hosts'),
+        pillHostsCount: document.getElementById('pill-hosts-count'),
+        mainStage: document.getElementById('main-stage')
     };
 
     function el(tag, className, text) {
@@ -163,23 +169,6 @@
         }
     }
 
-    function loadJobActivityCollapsed() {
-        try {
-            return localStorage.getItem(JOB_ACTIVITY_COLLAPSED_STORAGE_KEY) === '1';
-        } catch {
-            return false;
-        }
-    }
-
-    function saveJobActivityCollapsed() {
-        try {
-            localStorage.setItem(
-                JOB_ACTIVITY_COLLAPSED_STORAGE_KEY,
-                state.jobActivityCollapsed ? '1' : '0'
-            );
-        } catch {}
-    }
-
     function saveHiddenTools() {
         localStorage.setItem(HIDDEN_TOOLS_STORAGE_KEY, JSON.stringify(Array.from(state.hiddenTools)));
     }
@@ -212,132 +201,6 @@
 
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    function parseIsoDate(value) {
-        if (!value || typeof value !== 'string') return null;
-        const parsed = new Date(`${value}T00:00:00`);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    function toIsoDate(value) {
-        const y = value.getFullYear();
-        const m = String(value.getMonth() + 1).padStart(2, '0');
-        const d = String(value.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
-
-    function addDays(value, days) {
-        const next = new Date(value);
-        next.setDate(next.getDate() + days);
-        return next;
-    }
-
-    function formatLongDate(value) {
-        return value.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    }
-
-    function weekdayInitial(value) {
-        return value.toLocaleDateString(undefined, { weekday: 'short' }).charAt(0);
-    }
-
-    function contributionLevel(count, maxCount) {
-        if (!count || count <= 0) return 0;
-        if (!maxCount || maxCount <= 1) return 4;
-        return clamp(Math.ceil((count / maxCount) * 4), 1, 4);
-    }
-
-    function renderJobActivityBoard(payload) {
-        if (!els.jobActivityBoard || !els.jobActivityGrid) return;
-        const totalEl = els.jobActivityTotal;
-        const weekdaysEl = els.jobActivityWeekdays;
-
-        const end = parseIsoDate(payload?.range_end) || new Date();
-        const start = parseIsoDate(payload?.range_start) || addDays(end, -(JOB_ACTIVITY_DAYS - 1));
-        const rawDays = Array.isArray(payload?.days) ? payload.days : [];
-        const countMap = new Map();
-        rawDays.forEach(item => {
-            if (!item || typeof item.date !== 'string') return;
-            const nextCount = Number(item.count || 0);
-            countMap.set(item.date, nextCount > 0 ? nextCount : 0);
-        });
-
-        const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
-        const cellDays = totalDays;
-        const maxCount = Math.max(0, Number(payload?.max_count || 0));
-        let totalApplied = 0;
-
-        els.jobActivityGrid.innerHTML = '';
-        if (weekdaysEl) weekdaysEl.innerHTML = '';
-
-        if (weekdaysEl) {
-            const labelDays = Math.min(7, cellDays);
-            for (let i = 0; i < labelDays; i++) {
-                const current = addDays(start, i);
-                weekdaysEl.appendChild(el('span', '', weekdayInitial(current)));
-            }
-        }
-
-        for (let i = 0; i < cellDays; i++) {
-            const current = addDays(start, i);
-            const dateKey = toIsoDate(current);
-            const count = countMap.get(dateKey) || 0;
-            const level = contributionLevel(count, maxCount);
-            const cell = el('span', `job-activity-cell level-${level}`);
-            totalApplied += count;
-            cell.title = `${count} application${count === 1 ? '' : 's'} on ${formatLongDate(current)}`;
-            els.jobActivityGrid.appendChild(cell);
-        }
-
-        if (totalEl) {
-            totalEl.textContent = `${totalApplied}`;
-        }
-        els.jobActivityGrid.setAttribute(
-            'aria-label',
-            `${totalApplied} job applications in the last ${totalDays} days`
-        );
-    }
-
-    function setJobActivityCollapsed(collapsed) {
-        state.jobActivityCollapsed = !!collapsed;
-        if (els.jobActivityBoard) {
-            els.jobActivityBoard.classList.toggle('is-collapsed', state.jobActivityCollapsed);
-        }
-        if (els.jobActivityToggle) {
-            els.jobActivityToggle.setAttribute('aria-expanded', state.jobActivityCollapsed ? 'false' : 'true');
-            els.jobActivityToggle.setAttribute(
-                'aria-label',
-                state.jobActivityCollapsed
-                    ? 'Expand job applications panel'
-                    : 'Collapse job applications panel'
-            );
-        }
-        saveJobActivityCollapsed();
-    }
-
-    async function loadJobActivity() {
-        if (!els.jobActivityBoard) return;
-        try {
-            const resp = await fetch(`/dashboard/job-applications?days=${JOB_ACTIVITY_DAYS}`);
-            if (!resp.ok) throw new Error('failed');
-            const data = await resp.json();
-            renderJobActivityBoard(data || {});
-        } catch (error) {
-            if (els.jobActivityTotal) {
-                els.jobActivityTotal.textContent = '';
-            }
-            if (els.jobActivityGrid) {
-                els.jobActivityGrid.innerHTML = '';
-            }
-            if (els.jobActivityWeekdays) {
-                els.jobActivityWeekdays.innerHTML = '';
-            }
-            console.error('Failed to load job activity', error);
-        }
     }
 
     function emptyProjectDraft() {
@@ -544,6 +407,213 @@
         return `Runner: down${detail ? ` (${detail})` : ''}`;
     }
 
+    // ── Panel management ────────────────────────────────────────────────────
+
+    function getActivePanelElement() {
+        if (state.activePanelId === 'projects') return els.panelProjects;
+        if (state.activePanelId === 'hosts') return els.panelHosts;
+        return null;
+    }
+
+    function getPanelFocusableElements(panelEl) {
+        if (!panelEl) return [];
+        return Array.from(panelEl.querySelectorAll(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(node => !node.hidden && node.offsetParent !== null);
+    }
+
+    function focusPanelPrimaryControl(panelEl) {
+        const focusables = getPanelFocusableElements(panelEl);
+        const preferred = focusables.find(node => node.classList.contains('side-panel-close'));
+        (preferred || focusables[0] || panelEl)?.focus();
+    }
+
+    function setPanelModalState(isOpen) {
+        document.body.classList.toggle('panel-modal-open', !!isOpen);
+        [els.cmdStrip, els.mainStage].forEach(node => {
+            if (!node) return;
+            node.toggleAttribute('inert', !!isOpen);
+            node.setAttribute('aria-hidden', isOpen ? 'true' : 'false');
+        });
+    }
+
+    function setPanelVisibility(panelEl, isOpen) {
+        if (!panelEl) return;
+        panelEl.hidden = !isOpen;
+        panelEl.toggleAttribute('inert', !isOpen);
+        panelEl.classList.toggle('is-open', !!isOpen);
+        panelEl.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    }
+
+    function openPanel(id, triggerEl = null) {
+        const panelEl = id === 'projects' ? els.panelProjects : els.panelHosts;
+        const otherEl = id === 'projects' ? els.panelHosts : els.panelProjects;
+        if (!panelEl) return;
+        if (state.activePanelId === id) {
+            closePanel();
+            return;
+        }
+        closeAllToolMenus();
+        closeAppsRowMenus();
+        setHiddenToolsMenuOpen(false);
+        setReorderModeOpen(false);
+        if (otherEl) {
+            setPanelVisibility(otherEl, false);
+        }
+        state.lastPanelTrigger = triggerEl || document.activeElement || null;
+        state.activePanelId = id;
+        setPanelVisibility(panelEl, true);
+        if (els.panelBackdrop) els.panelBackdrop.classList.add('is-open');
+        setPanelModalState(true);
+        updatePillActiveStates();
+        requestAnimationFrame(() => focusPanelPrimaryControl(panelEl));
+    }
+
+    function closePanel() {
+        if (!state.activePanelId) return;
+        const panelEl = getActivePanelElement();
+        if (panelEl) {
+            setPanelVisibility(panelEl, false);
+        }
+        if (els.panelBackdrop) els.panelBackdrop.classList.remove('is-open');
+        state.activePanelId = null;
+        setPanelModalState(false);
+        updatePillActiveStates();
+        if (state.lastPanelTrigger && typeof state.lastPanelTrigger.focus === 'function' && state.lastPanelTrigger.isConnected) {
+            state.lastPanelTrigger.focus();
+        }
+        state.lastPanelTrigger = null;
+    }
+
+    function updatePillActiveStates() {
+        if (els.pillProjects) {
+            const active = state.activePanelId === 'projects';
+            els.pillProjects.classList.toggle('is-active', active);
+            els.pillProjects.setAttribute('aria-expanded', String(active));
+        }
+        if (els.pillHosts) {
+            const active = state.activePanelId === 'hosts';
+            els.pillHosts.classList.toggle('is-active', active);
+            els.pillHosts.setAttribute('aria-expanded', String(active));
+        }
+    }
+
+    function aggregateStatusHealth(statuses) {
+        if (!statuses.length) return 'unknown';
+        if (statuses.every(s => s === 'healthy')) return 'healthy';
+        if (statuses.some(s => s === 'down')) return 'down';
+        if (statuses.some(s => s === 'degraded')) return 'degraded';
+        if (statuses.every(s => s === 'unconfigured')) return 'unconfigured';
+        return 'unknown';
+    }
+
+    function pillHealthClass(health) {
+        if (health === 'healthy') return ' pill-healthy';
+        if (health === 'down') return ' pill-stopped';
+        if (health === 'degraded') return ' pill-degraded';
+        return '';
+    }
+
+    function updateStatusPills() {
+        const toolsList = Array.from(state.toolMap.values());
+        const runningTools = toolsList.filter(t => t.alive).length;
+        const totalTools = toolsList.length;
+        if (els.pillToolsCount) {
+            els.pillToolsCount.textContent = totalTools > 0 ? `${runningTools}/${totalTools}` : '0';
+        }
+        if (els.pillTools) {
+            const healthy = totalTools > 0 && runningTools === totalTools;
+            const partial = runningTools > 0 && runningTools < totalTools;
+            els.pillTools.className = 'cmd-pill cmd-pill-action' + (
+                healthy ? ' pill-healthy' :
+                partial ? ' pill-degraded' :
+                totalTools > 0 ? ' pill-stopped' : ''
+            );
+        }
+
+        const projectsCount = state.projects.length;
+        if (els.pillProjectsCount) {
+            els.pillProjectsCount.textContent = String(projectsCount);
+        }
+        const projStatuses = state.projects.map(p => p.ops_summary || 'unknown');
+        const projHealth = aggregateStatusHealth(projStatuses);
+        if (els.pillProjects) {
+            els.pillProjects.className = 'cmd-pill cmd-pill-action' + pillHealthClass(projHealth) +
+                (state.activePanelId === 'projects' ? ' is-active' : '');
+        }
+
+        const hostsCount = state.hosts.length;
+        if (els.pillHostsCount) {
+            els.pillHostsCount.textContent = String(hostsCount);
+        }
+        const hostStatuses = state.hosts.map(h => h.runner_snapshot?.status || 'unknown');
+        const hostsHealth = aggregateStatusHealth(hostStatuses);
+        if (els.pillHosts) {
+            els.pillHosts.className = 'cmd-pill cmd-pill-action' + pillHealthClass(hostsHealth) +
+                (state.activePanelId === 'hosts' ? ' is-active' : '');
+        }
+    }
+
+    // ── Compact project rows (panel-first) ──────────────────────────────────
+
+    function captureOpenProjectRows() {
+        if (!els.projectsList) return;
+        const openKeys = new Set();
+        els.projectsList.querySelectorAll('.project-row.is-expanded').forEach(row => {
+            const key = row.dataset.rowKey;
+            if (key) openKeys.add(key);
+        });
+        state.openProjectRows = openKeys;
+    }
+
+    function createProjectRow(project) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'project-row';
+        const key = projectEditorKey(project);
+        wrapper.dataset.rowKey = key;
+
+        const rowBtn = document.createElement('button');
+        rowBtn.className = 'project-row-header';
+        rowBtn.type = 'button';
+
+        const titleSpan = el('span', 'project-row-title', project.title || '—');
+        const healthChip = el(
+            'span',
+            `project-health-chip ${projectHealthClass(project.ops_summary)}`,
+            projectHealthLabel(project.ops_summary)
+        );
+        const chevron = el('span', 'project-row-chevron', '›');
+        rowBtn.appendChild(titleSpan);
+        rowBtn.appendChild(healthChip);
+        rowBtn.appendChild(chevron);
+
+        const detail = document.createElement('div');
+        detail.className = 'project-row-detail';
+
+        const isExpanded = state.openProjectRows.has(key);
+        if (isExpanded) {
+            wrapper.classList.add('is-expanded');
+            rowBtn.setAttribute('aria-expanded', 'true');
+            detail.appendChild(createProjectEditor(project));
+        } else {
+            rowBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        wrapper.appendChild(rowBtn);
+        wrapper.appendChild(detail);
+
+        rowBtn.addEventListener('click', () => {
+            const nowExpanded = !wrapper.classList.contains('is-expanded');
+            wrapper.classList.toggle('is-expanded', nowExpanded);
+            rowBtn.setAttribute('aria-expanded', String(nowExpanded));
+            if (nowExpanded && !detail.firstChild) {
+                detail.appendChild(createProjectEditor(project));
+            }
+        });
+
+        return wrapper;
+    }
+
     function renderHosts() {
         if (!els.hostsList || !els.hostsEmpty) return;
         els.hostsList.innerHTML = '';
@@ -591,6 +661,7 @@
             card.appendChild(health);
             els.hostsList.appendChild(card);
         });
+        updateStatusPills();
     }
 
     function projectSurfaceHealthLine(label, snapshot) {
@@ -625,6 +696,7 @@
     function renderProjects() {
         if (!els.projectsList || !els.projectsEmpty) return;
         captureOpenProjectConfigs();
+        captureOpenProjectRows();
         els.projectsList.innerHTML = '';
         const projects = [...state.projects].sort((a, b) => {
             if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
@@ -632,8 +704,9 @@
         });
         els.projectsEmpty.hidden = projects.length > 0;
         projects.forEach(project => {
-            els.projectsList.appendChild(createProjectEditor(project));
+            els.projectsList.appendChild(createProjectRow(project));
         });
+        updateStatusPills();
     }
 
     function projectEditorKey(project) {
@@ -1438,9 +1511,13 @@
     }
 
     function addProjectDraft() {
-        state.projects = [...state.projects, emptyProjectDraft()];
+        const draft = emptyProjectDraft();
+        state.projects = [...state.projects, draft];
+        const draftKey = projectEditorKey(draft);
+        state.openProjectRows.add(draftKey);
         renderProjects();
         setProjectsFeedback('Fill in the draft project, then save it.');
+        if (state.activePanelId !== 'projects') openPanel('projects');
     }
 
     function canUseDragReorder() {
@@ -1550,6 +1627,7 @@
             });
 
             renderHiddenToolsMenu();
+            updateStatusPills();
             requestAnimationFrame(resizeAllCards);
             requestAnimationFrame(enforceCardSpanConstraints);
             refreshAllStatuses();
@@ -2012,14 +2090,14 @@
     }
 
     function setHiddenToolsMenuOpen(open) {
-        if (!els.hiddenToolsMenu || !els.appsMenuBtn) return;
+        if (!els.hiddenToolsMenu || !els.pillTools) return;
         state.hiddenToolsMenuOpen = !!open;
         if (!state.hiddenToolsMenuOpen) {
             state.appsRowMenuOpenFor = null;
             renderHiddenToolsMenu();
         }
         els.hiddenToolsMenu.hidden = !state.hiddenToolsMenuOpen;
-        els.appsMenuBtn.setAttribute('aria-expanded', state.hiddenToolsMenuOpen ? 'true' : 'false');
+        els.pillTools.setAttribute('aria-expanded', state.hiddenToolsMenuOpen ? 'true' : 'false');
     }
 
     function setReorderModeOpen(open) {
@@ -2324,6 +2402,7 @@
             requestAnimationFrame(resizeAllCards);
             if (state.hiddenToolsMenuOpen) renderHiddenToolsMenu();
             if (state.reorderModeOpen) renderReorderPanel();
+            updateStatusPills();
 
         } catch (e) {
             console.error('Refresh failed', e);
@@ -2362,8 +2441,8 @@
     document.addEventListener('pointermove', onWidgetResizeMove);
     document.addEventListener('pointerup', stopWidgetResize);
     document.addEventListener('pointercancel', stopWidgetResize);
-    if (els.appsMenuBtn) {
-        els.appsMenuBtn.addEventListener('click', event => {
+    if (els.pillTools) {
+        els.pillTools.addEventListener('click', event => {
             event.stopPropagation();
             closeAllToolMenus();
             setReorderModeOpen(false);
@@ -2378,11 +2457,26 @@
             setReorderModeOpen(!state.reorderModeOpen);
         });
     }
-    if (els.jobActivityToggle) {
-        els.jobActivityToggle.addEventListener('click', event => {
+    if (els.pillProjects) {
+        els.pillProjects.addEventListener('click', event => {
             event.stopPropagation();
-            setJobActivityCollapsed(!state.jobActivityCollapsed);
+            openPanel('projects', event.currentTarget);
         });
+    }
+    if (els.pillHosts) {
+        els.pillHosts.addEventListener('click', event => {
+            event.stopPropagation();
+            openPanel('hosts', event.currentTarget);
+        });
+    }
+    if (els.panelProjectsClose) {
+        els.panelProjectsClose.addEventListener('click', () => closePanel());
+    }
+    if (els.panelHostsClose) {
+        els.panelHostsClose.addEventListener('click', () => closePanel());
+    }
+    if (els.panelBackdrop) {
+        els.panelBackdrop.addEventListener('click', () => closePanel());
     }
     if (els.projectAddBtn) {
         els.projectAddBtn.addEventListener('click', event => {
@@ -2406,11 +2500,14 @@
         const inMenu = event.target && event.target.closest('.tool-settings-menu');
         const inButton = event.target && event.target.closest('.tool-settings-btn');
         const inHiddenToolsMenu = event.target && event.target.closest('#hidden-tools-menu');
-        const inAppsBtn = event.target && event.target.closest('#apps-menu-btn');
+        const inPillTools = event.target && event.target.closest('#pill-tools');
         const inReorderPanel = event.target && event.target.closest('#reorder-panel');
         const inReorderBtn = event.target && event.target.closest('#reorder-mode-btn');
+        const inPanel = event.target && event.target.closest('.side-panel');
+        const inPillProjects = event.target && event.target.closest('#pill-projects');
+        const inPillHosts = event.target && event.target.closest('#pill-hosts');
         if (!inMenu && !inButton) closeAllToolMenus();
-        if (!inHiddenToolsMenu && !inAppsBtn) {
+        if (!inHiddenToolsMenu && !inPillTools) {
             setHiddenToolsMenuOpen(false);
         } else if (!event.target.closest('.apps-row-settings-btn, .apps-row-menu')) {
             closeAppsRowMenus();
@@ -2418,12 +2515,37 @@
         if (!inReorderPanel && !inReorderBtn) {
             setReorderModeOpen(false);
         }
+        if (!inPanel && !inPillProjects && !inPillHosts && state.activePanelId) {
+            closePanel();
+        }
     });
     document.addEventListener('keydown', event => {
+        if (event.key === 'Tab' && state.activePanelId) {
+            const panelEl = getActivePanelElement();
+            const focusables = getPanelFocusableElements(panelEl);
+            if (!focusables.length) {
+                event.preventDefault();
+                panelEl?.focus();
+                return;
+            }
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+                return;
+            }
+            if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+        }
         if (event.key === 'Escape') {
             closeAllToolMenus();
             setHiddenToolsMenuOpen(false);
             setReorderModeOpen(false);
+            if (state.activePanelId) closePanel();
         }
     });
     window.addEventListener('resize', () => {
@@ -2432,12 +2554,9 @@
         requestAnimationFrame(resizeAllCards);
     });
 
-    setJobActivityCollapsed(state.jobActivityCollapsed);
     loadHosts({ silent: true });
     loadProjects({ silent: true });
     loadDashboard();
-    loadJobActivity();
     setInterval(refreshAllStatuses, REFRESH_RATE);
-    setInterval(loadJobActivity, JOB_ACTIVITY_REFRESH_RATE);
     setInterval(() => refreshHostsHealth({ silent: true }), PROJECT_REFRESH_RATE);
     setInterval(() => refreshProjectsHealth({ silent: true }), PROJECT_REFRESH_RATE);

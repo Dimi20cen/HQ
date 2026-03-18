@@ -48,6 +48,19 @@ Status chip variants:
 - Preserve contrast for text and controls; avoid light-on-light combinations for labels or icons.
 - Add new tokens in `:root` before usage and document them in this file.
 
+## Dashboard Layout Tokens
+Added for the tools-first redesign (command strip + slide-over panels):
+
+- `--panel-bg`: `rgba(255, 249, 253, 0.98)` (slide-over panel background)
+- `--panel-shadow`: `-8px 0 40px rgba(110, 90, 158, 0.18)` (panel left-edge shadow)
+- `--backdrop`: `rgba(55, 47, 86, 0.22)` (dim overlay behind open panels)
+- `--cmd-strip-bg`: `rgba(231, 233, 255, 0.92)` (sticky command strip background)
+
+Status pill tokens (used in `.cmd-pill` variants):
+- `--pill-healthy-bg` / `--pill-healthy-text`: green family, mirrors `--status-running`
+- `--pill-stopped-bg` / `--pill-stopped-text`: pink family, mirrors `--status-stopped`
+- `--pill-degraded-bg` / `--pill-degraded-text`: warm amber family, mirrors `--status-busy`
+
 ## Current Scope
 - Dashboard theme lives in `controller/static/dashboard.css`.
 - Tool widget implementations currently aligned in:

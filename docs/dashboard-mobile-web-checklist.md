@@ -46,7 +46,8 @@ Goal: make HQ dashboard reliable and comfortable on both mobile and desktop, whi
 - [ ] Test on real mobile browsers (iOS Safari, Android Chrome if available).
   - [ ] Confirm taps, menus, resize controls, and scrolling behavior.
 - [ ] Accessibility pass.
-  - [ ] Verify keyboard escape/close behavior.
+  - [x] Verify keyboard escape/close behavior.
+  - [x] Ensure closed Projects/Hosts side panels are removed from keyboard navigation (`hidden`/`inert`) and open panels keep focus inside the modal.
   - [ ] Verify focus visibility and label clarity for all icon buttons.
 - [ ] Regression pass.
   - [x] Ensure launch/kill/auto-start/hide/show flows still work.
@@ -60,6 +61,10 @@ Goal: make HQ dashboard reliable and comfortable on both mobile and desktop, whi
   - [x] Runtime endpoint smoke: `GET /dashboard`, `GET /tools`, `GET /tools/status-all` returned `200`.
   - [x] Runtime lifecycle smoke (downloader): `launch -> alive true`, `auto-start true/false`, `kill -> alive false`.
   - [ ] Manual UI breakpoint/device validation (pending).
+- 2026-03-18 (dashboard accessibility follow-up):
+  - [x] Closed Projects/Hosts side panels now use `hidden` and `inert`, preventing off-canvas controls from remaining tabbable.
+  - [x] `Escape` and backdrop close paths route through the same panel shutdown logic.
+  - [ ] Manual browser validation still pending for focus trap behavior and mobile layout.
 
 ## Step Plan I Will Take
 

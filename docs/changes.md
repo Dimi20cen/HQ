@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-18
+- Summary: Redesigned the dashboard into a tools-first command strip with status pills and slide-over Projects/Hosts panels, and fixed the panel accessibility model so closed drawers are `hidden`/`inert` instead of remaining tabbable off-canvas.
+- Affected files: `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/theme-guidelines.md`, `docs/dashboard-mobile-web-checklist.md`
+- Migration notes: The old top-panel job-application heatmap is no longer part of the dashboard UI. Projects and Hosts now open in modal side panels from the command strip.
+- Validation status: `node --check controller/static/dashboard.js` passed. Manual browser validation is still recommended for panel focus trapping and responsive behavior.
+
+## 2026-03-18
 - Summary: Enabled the `aws` host as a real HTTP runner, configured RentPredictor in HQ with AWS deployment metadata/public health, and repaired live GitHub auth for `POST /projects/publish` on `srv`.
 - Affected files: `runtime/hosts/hosts.json`, `runtime/projects/projects.json`, `runtime/projects/projects.generated.json`, `docs/overview.md`, `docs/runtime.md`
 - Migration notes: `aws` now expects `HQ_ACTION_RUNNER_TOKEN_AWS` on the HQ server env and a running `hq-action-runner` service on the Lightsail host.
@@ -61,7 +67,7 @@ read_when: reviewing notable behavior/UI/documentation changes and validation st
 - Validation status: Documentation update only.
 
 ## 2026-02-25
-- Summary: Added a compact square dashboard top-panel GitHub-style job-application heatmap (last 14 days) with an icon header and no legend/summary text, powered by a controller endpoint that aggregates Jobber DB daily counts.
+- Summary: Added a compact square dashboard top-panel GitHub-style job-application heatmap (last 14 days) with an icon header and no legend/summary text, powered by a controller endpoint that aggregates Jobber DB daily counts. This UI was later removed in the 2026-03-18 tools-first redesign.
 - Affected files: `controller/controller_main.py`, `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/controller.md`, `docs/theme-guidelines.md`
 - Migration notes: None. If using a non-default Jobber database path, set `JOBBER_DB_PATH` for the controller process.
 - Validation status: `node --check controller/static/dashboard.js` and `python3 -m py_compile controller/controller_main.py` passed.

@@ -14,85 +14,103 @@
 </head>
 <body>
 
-<section id="job-activity-board" class="job-activity-board" aria-label="Job applications panel">
-    <div class="job-activity-header">
-        <button
-            id="job-activity-toggle"
-            class="job-activity-icon"
-            type="button"
-            aria-label="Collapse job applications panel"
-            aria-expanded="true"
-        >
-            <svg viewBox="0 0 24 24" role="img" aria-label="Job applications">
-                <path d="M9 6V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V6h3.2A1.8 1.8 0 0 1 20 7.8v8.4A1.8 1.8 0 0 1 18.2 18H5.8A1.8 1.8 0 0 1 4 16.2V7.8A1.8 1.8 0 0 1 5.8 6H9Zm1.2 0h3.6V4.8a.6.6 0 0 0-.6-.6h-2.4a.6.6 0 0 0-.6.6V6Zm10.4 5.4v1.8l-4.2 2.1a.9.9 0 0 1-.4.1h-7.2a.9.9 0 0 1-.4-.1L4 13.2v-1.8l4.8 2.4h1.2V12.6h4v1.2h1.2l4.8-2.4Z"/>
-            </svg>
-        </button>
-        <div id="job-activity-total" class="job-activity-total" aria-live="polite"></div>
+<header id="cmd-strip" class="cmd-strip" role="banner">
+    <div class="cmd-strip-left">
+        <div class="apps-menu-btn" aria-hidden="true">
+            <img class="apps-menu-logo" src="/static/logo.png" alt="" aria-hidden="true">
+        </div>
     </div>
-    <div class="job-activity-grid-shell">
-        <div id="job-activity-weekdays" class="job-activity-weekdays" aria-hidden="true"></div>
-        <div id="job-activity-grid" class="job-activity-grid" role="img" aria-label="Daily job applications heatmap"></div>
-    </div>
-</section>
 
-<div class="top-actions">
-    <a
-        class="auth-link-btn"
-        href="https://auth.dimy.dev"
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Open auth service"
-    >
-        Auth
-    </a>
-    <button id="reorder-mode-btn" class="reorder-mode-btn" type="button" aria-label="Open reorder mode" aria-expanded="false">
-        Reorder
-    </button>
-    <button id="apps-menu-btn" class="apps-menu-btn" type="button" aria-label="Open apps menu" aria-expanded="false">
-        <img class="apps-menu-logo" src="/static/logo.png" alt="" aria-hidden="true">
-    </button>
-    <div id="reorder-panel" class="reorder-panel" hidden></div>
-    <div id="hidden-tools-menu" class="hidden-tools-menu" hidden></div>
-</div>
-<section class="hosts-board" aria-labelledby="hosts-board-title">
-    <div class="hosts-board-header">
-        <div>
-            <p class="projects-board-kicker">Hosts</p>
-            <h2 id="hosts-board-title">Runner Status</h2>
+    <div class="cmd-strip-center">
+        <div class="cmd-strip-tools">
+            <button id="pill-tools" class="cmd-pill cmd-pill-action" type="button" aria-label="Open tools menu" aria-expanded="false" aria-controls="hidden-tools-menu">
+                <span class="cmd-pill-count" id="pill-tools-count">—</span>
+                <span class="cmd-pill-label">Tools</span>
+            </button>
+            <div id="hidden-tools-menu" class="hidden-tools-menu" hidden></div>
+        </div>
+        <button id="pill-projects" class="cmd-pill cmd-pill-action" type="button" aria-label="Open projects panel" aria-expanded="false" aria-controls="panel-projects">
+            <span class="cmd-pill-count" id="pill-projects-count">—</span>
+            <span class="cmd-pill-label">Projects</span>
+        </button>
+        <button id="pill-hosts" class="cmd-pill cmd-pill-action" type="button" aria-label="Open hosts panel" aria-expanded="false" aria-controls="panel-hosts">
+            <span class="cmd-pill-count" id="pill-hosts-count">—</span>
+            <span class="cmd-pill-label">Hosts</span>
+        </button>
+    </div>
+
+    <div class="cmd-strip-right">
+        <button id="reorder-mode-btn" class="reorder-mode-btn" type="button" aria-label="Open reorder mode" aria-expanded="false">
+            Reorder
+        </button>
+        <a
+            class="auth-link-btn"
+            href="https://auth.dimy.dev"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open auth service"
+        >Auth</a>
+        <div id="reorder-panel" class="reorder-panel" hidden></div>
+    </div>
+</header>
+
+<div id="panel-backdrop" class="panel-backdrop" aria-hidden="true"></div>
+
+<aside id="panel-projects" class="side-panel" aria-label="Projects panel" aria-hidden="true" aria-modal="true" tabindex="-1" hidden inert>
+    <div class="side-panel-inner">
+        <div class="side-panel-header">
+            <div class="side-panel-title-row">
+                <div>
+                    <p class="projects-board-kicker">Projects</p>
+                    <h2 class="side-panel-title">Project Ops</h2>
+                </div>
+                <button id="panel-projects-close" class="side-panel-close" type="button" aria-label="Close projects panel">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="side-panel-actions">
+                <button id="project-add-btn" class="projects-board-btn" type="button">New Project</button>
+                <button id="project-export-btn" class="projects-board-btn projects-board-btn-primary" type="button">Export Catalog</button>
+                <button id="project-publish-btn" class="projects-board-btn projects-board-btn-primary" type="button">Publish Portfolio</button>
+            </div>
+            <div id="projects-feedback" class="projects-feedback" aria-live="polite"></div>
+            <div id="projects-result" class="projects-result" hidden></div>
+        </div>
+        <div class="side-panel-body">
+            <div id="projects-empty" class="projects-empty" hidden>No projects yet.</div>
+            <div id="projects-list" class="projects-list"></div>
         </div>
     </div>
-    <p class="hosts-board-copy">
-        HQ routes project actions through a runner per host, so you can keep one control plane while operating multiple machines.
-    </p>
-    <div id="hosts-feedback" class="projects-feedback" aria-live="polite"></div>
-    <div id="hosts-empty" class="projects-empty" hidden>No hosts configured yet.</div>
-    <div id="hosts-list" class="hosts-list"></div>
-</section>
-<section class="projects-board" aria-labelledby="projects-board-title">
-    <div class="projects-board-header">
-        <div>
-            <p class="projects-board-kicker">Projects</p>
-            <h2 id="projects-board-title">Project Ops</h2>
+</aside>
+
+<aside id="panel-hosts" class="side-panel" aria-label="Hosts panel" aria-hidden="true" aria-modal="true" tabindex="-1" hidden inert>
+    <div class="side-panel-inner">
+        <div class="side-panel-header">
+            <div class="side-panel-title-row">
+                <div>
+                    <p class="projects-board-kicker">Hosts</p>
+                    <h2 class="side-panel-title">Runner Status</h2>
+                </div>
+                <button id="panel-hosts-close" class="side-panel-close" type="button" aria-label="Close hosts panel">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="hosts-feedback" class="projects-feedback" aria-live="polite"></div>
         </div>
-        <div class="projects-board-actions">
-            <button id="project-add-btn" class="projects-board-btn" type="button">New Project</button>
-            <button id="project-export-btn" class="projects-board-btn projects-board-btn-primary" type="button">
-                Export Catalog
-            </button>
-            <button id="project-publish-btn" class="projects-board-btn projects-board-btn-primary" type="button">
-                Publish Portfolio
-            </button>
+        <div class="side-panel-body">
+            <div id="hosts-empty" class="projects-empty" hidden>No hosts configured yet.</div>
+            <div id="hosts-list" class="hosts-list"></div>
         </div>
     </div>
-    <p class="projects-board-copy">
-        Live project status, dependencies, private runtime controls, and portfolio publishing all in one place.
-    </p>
-    <div id="projects-feedback" class="projects-feedback" aria-live="polite"></div>
-    <div id="projects-result" class="projects-result" hidden></div>
-    <div id="projects-empty" class="projects-empty" hidden>No projects yet.</div>
-    <div id="projects-list" class="projects-list"></div>
-</section>
-<div id="tools-container" class="grid-container"></div>
+</aside>
+
+<main id="main-stage" class="main-stage">
+    <div id="tools-container" class="grid-container"></div>
+</main>
 
 <script src="/static/dashboard.js"></script>
 </body>
