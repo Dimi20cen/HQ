@@ -2,12 +2,12 @@
   {
     "slug": "aws",
     "title": "aws",
-    "transport": "none",
-    "runner_url": "",
+    "transport": "http",
+    "runner_url": "http://100.69.114.39:8051",
     "runner_socket_path": "",
     "token_env_var": "HQ_ACTION_RUNNER_TOKEN_AWS",
     "location": "Lightsail edge host over Tailscale",
-    "notes": "Configure the runner_url once the AWS runner is installed.",
+    "notes": "Remote runner reachable over Tailscale.",
     "updated_at": "2026-03-17T14:00:00Z"
   },
   {
