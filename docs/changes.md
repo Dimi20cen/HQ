@@ -19,6 +19,12 @@ read_when: reviewing notable behavior/UI/documentation changes and validation st
 - Validation status: `node --check controller/static/dashboard.js` passed.
 
 ## 2026-03-18
+- Summary: Stopped clicks inside the expanded project editor from bubbling into the document-level side-panel closer, preventing project action reclicks from closing the whole panel.
+- Affected files: `controller/static/dashboard.js`
+- Migration notes: Applies to interactions inside expanded project cards in the Projects side panel.
+- Validation status: `node --check controller/static/dashboard.js` passed.
+
+## 2026-03-18
 - Summary: Restored lightweight scanability to collapsed project rows by showing public mode, deployment host, and last-checked time beneath each project title while keeping the simpler sidebar structure.
 - Affected files: `controller/static/dashboard.css`, `controller/static/dashboard.js`
 - Migration notes: No API or data-shape changes.

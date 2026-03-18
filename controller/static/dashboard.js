@@ -853,6 +853,9 @@
     function createProjectEditor(project) {
         const article = el('article', 'project-editor project-card');
         article.dataset.slug = project.slug;
+        article.addEventListener('click', event => {
+            event.stopPropagation();
+        });
         const fieldKey = projectEditorKey(project) || `draft-${state.nextProjectDraftId++}`;
         const dirtyBadge = el('span', 'project-dirty-badge', 'Save required');
         const hostRecord = project.host || getHostRecord(project.deployment_host);
