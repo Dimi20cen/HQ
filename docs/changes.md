@@ -1,10 +1,16 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-18
-- Summary: Wired Rent Predictor project actions to the AWS runner by adding its runtime path plus deploy, start/restart, and logs commands so HQ can operate it from the dashboard.
+- Summary: Wired Rent Predictor project actions to the AWS runner by adding its runtime path plus deploy, start/restart, and logs commands so HQ can operate it from the dashboard, and corrected the AWS path/log command after live validation.
 - Affected files: `runtime/projects/projects.json`
-- Migration notes: Assumes the AWS runner host exposes the app repo at `/home/dim/apps/rentpredictor` and the container name remains `rentpredictor`.
+- Migration notes: Assumes the AWS runner host exposes the app repo at `/home/ubuntu/apps/rentpredictor` and the container name remains `rentpredictor`.
 - Validation status: `python3 -m json.tool runtime/projects/projects.json` passed.
+
+## 2026-03-18
+- Summary: Kept expanded project rows open while running health checks or actions by updating row-open state immediately instead of waiting for a later DOM capture during rerenders.
+- Affected files: `controller/static/dashboard.js`
+- Migration notes: No API or data-shape changes.
+- Validation status: `node --check controller/static/dashboard.js` passed.
 
 ## 2026-03-18
 - Summary: Restored lightweight scanability to collapsed project rows by showing public mode, deployment host, and last-checked time beneath each project title while keeping the simpler sidebar structure.

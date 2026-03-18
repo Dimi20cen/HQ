@@ -621,6 +621,11 @@
             const nowExpanded = !wrapper.classList.contains('is-expanded');
             wrapper.classList.toggle('is-expanded', nowExpanded);
             rowBtn.setAttribute('aria-expanded', String(nowExpanded));
+            if (nowExpanded) {
+                state.openProjectRows.add(key);
+            } else {
+                state.openProjectRows.delete(key);
+            }
             if (nowExpanded && !detail.firstChild) {
                 detail.appendChild(createProjectEditor(project));
             }
@@ -1243,6 +1248,7 @@
     }
 
     async function runProjectHealthCheck(slug, payload) {
+        state.openProjectRows.add(String(slug || '').trim());
         setProjectsFeedback('Checking project health...');
         const saveResult = await saveProjectRecord(slug, payload, { silent: true });
         if (!saveResult.ok) {
@@ -1263,6 +1269,7 @@
     }
 
     async function runProjectAction(slug, action, payload) {
+        state.openProjectRows.add(String(slug || '').trim());
         setProjectsFeedback(`${projectActionLabel(action)} running...`);
         const saveResult = await saveProjectRecord(slug, payload, { silent: true });
         if (!saveResult.ok) {
