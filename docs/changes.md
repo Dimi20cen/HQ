@@ -7,7 +7,7 @@ read_when: reviewing notable behavior/UI/documentation changes and validation st
 - Validation status: `python3 -m json.tool runtime/projects/projects.json` passed.
 
 ## 2026-03-18
-- Summary: Kept expanded project rows open while running health checks or actions by updating row-open state immediately instead of waiting for a later DOM capture during rerenders.
+- Summary: Kept expanded project rows open while running health checks or actions by updating row-open state immediately and avoiding the save-triggered full rerender inside the same click cycle.
 - Affected files: `controller/static/dashboard.js`
 - Migration notes: No API or data-shape changes.
 - Validation status: `node --check controller/static/dashboard.js` passed.

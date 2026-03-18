@@ -1211,7 +1211,18 @@
             if (!options.silent) {
                 setProjectsFeedback(`Saved ${data.project.title}.`, 'success');
             }
-            await loadProjects({ preserveActionResult: true });
+            if (options.refreshAfterSave === false) {
+                state.projects = state.projects.map(project => {
+                    if (project.slug !== existingSlug) return project;
+                    return normalizeProjectRecord({
+                        ...project,
+                        ...data.project,
+                        action_result: project.action_result || null
+                    });
+                });
+            } else {
+                await loadProjects({ preserveActionResult: true });
+            }
             return { ok: true, project: data.project };
         } catch (error) {
             if (!options.silent) {
@@ -1250,7 +1261,10 @@
     async function runProjectHealthCheck(slug, payload) {
         state.openProjectRows.add(String(slug || '').trim());
         setProjectsFeedback('Checking project health...');
-        const saveResult = await saveProjectRecord(slug, payload, { silent: true });
+        const saveResult = await saveProjectRecord(slug, payload, {
+            silent: true,
+            refreshAfterSave: false
+        });
         if (!saveResult.ok) {
             setProjectsFeedback(saveResult.error || 'Failed to save project before health check.', 'error');
             return;
@@ -1271,7 +1285,10 @@
     async function runProjectAction(slug, action, payload) {
         state.openProjectRows.add(String(slug || '').trim());
         setProjectsFeedback(`${projectActionLabel(action)} running...`);
-        const saveResult = await saveProjectRecord(slug, payload, { silent: true });
+        const saveResult = await saveProjectRecord(slug, payload, {
+            silent: true,
+            refreshAfterSave: false
+        });
         if (!saveResult.ok) {
             updateProjectState(slug, {
                 action_result: {
