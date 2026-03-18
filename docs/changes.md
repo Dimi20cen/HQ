@@ -1,6 +1,12 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
 ## 2026-03-18
+- Summary: Simplified the Projects sidebar by removing the duplicate expanded-card header and repeated summary chips/links/health blocks, consolidating project status into one compact panel, and turning `Public`/`Runtime`/`Health`/`Actions` into individually collapsible sections.
+- Affected files: `controller/static/dashboard.css`, `controller/static/dashboard.js`
+- Migration notes: No API or data-shape changes. Project actions, inline action output, and in-place configuration editing still work from the same Projects panel.
+- Validation status: `node --check controller/static/dashboard.js` passed. Manual dashboard verification is still recommended for project-row scanning, action feedback, and responsive layout.
+
+## 2026-03-18
 - Summary: Redesigned the dashboard into a tools-first command strip with status pills and slide-over Projects/Hosts panels, and fixed the panel accessibility model so closed drawers are `hidden`/`inert` instead of remaining tabbable off-canvas.
 - Affected files: `controller/templates/dashboard.html`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `docs/theme-guidelines.md`, `docs/dashboard-mobile-web-checklist.md`
 - Migration notes: The old top-panel job-application heatmap is no longer part of the dashboard UI. Projects and Hosts now open in modal side panels from the command strip.

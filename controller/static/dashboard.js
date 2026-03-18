@@ -716,7 +716,7 @@
     function captureOpenProjectConfigs() {
         if (!els.projectsList) return;
         const openKeys = new Set();
-        els.projectsList.querySelectorAll('.project-config-details').forEach(details => {
+        els.projectsList.querySelectorAll('.project-section-details').forEach(details => {
             if (!details.open) return;
             const key = String(details.dataset.projectKey || '').trim();
             if (key) openKeys.add(key);
@@ -746,18 +746,26 @@
         return { field, control };
     }
 
-    function createProjectSection(title, copy = '') {
+    function createProjectSection(projectKey, sectionId, title, defaultOpen = false) {
+        const details = document.createElement('details');
+        details.className = 'project-section-details';
+        details.dataset.projectKey = `${projectKey}:${sectionId}`;
+        details.open = state.openProjectConfigs.has(`${projectKey}:${sectionId}`) || defaultOpen;
+        details.addEventListener('toggle', () => {
+            if (details.open) {
+                state.openProjectConfigs.add(`${projectKey}:${sectionId}`);
+            } else {
+                state.openProjectConfigs.delete(`${projectKey}:${sectionId}`);
+            }
+        });
+        const summary = el('summary', 'project-section-summary');
+        summary.appendChild(el('span', 'project-section-title', title));
+        details.appendChild(summary);
         const section = el('section', 'project-section');
-        const header = el('div', 'project-section-header');
-        const titleEl = el('h4', 'project-section-title', title);
-        header.appendChild(titleEl);
-        section.appendChild(header);
-        if (copy) {
-            section.appendChild(el('p', 'project-section-copy', copy));
-        }
         const grid = el('div', 'project-editor-grid');
         section.appendChild(grid);
-        return { section, grid };
+        details.appendChild(section);
+        return { details, grid };
     }
 
     function normalizeProjectPayload(payload) {
@@ -810,48 +818,23 @@
         return items.map(item => `${item.title} (${projectHealthLabel(item.status).toLowerCase()})`).join(' • ');
     }
 
+    function projectStatusSummary(project, hostSummary, hostSnapshot) {
+        return [
+            `Project ${projectHealthLabel(project.health_snapshot?.summary)}`,
+            project.deployment_host
+                ? `${project.deployment_host} runner ${projectHealthLabel(hostSummary)}${hostSnapshot?.detail ? ` (${hostSnapshot.detail})` : ''}`
+                : 'No deployment host configured',
+            `Dependencies: ${dependencyLine(project)}`,
+            `Last checked ${formatCheckedAt(project.health_snapshot?.checked_at)}`
+        ];
+    }
+
     function createProjectEditor(project) {
         const article = el('article', 'project-editor project-card');
         article.dataset.slug = project.slug;
         const fieldKey = projectEditorKey(project) || `draft-${state.nextProjectDraftId++}`;
-        const header = el('div', 'project-editor-header');
-        const titleWrap = el('div', 'project-editor-title');
-        const title = el('strong', '', project.title || 'New Project');
-        const slug = el('span', '', project.slug ? `/${project.slug}` : 'Unsaved draft');
-        const chip = el('span', 'project-chip', projectModeLabel(project.public_mode));
-        const healthChip = el(
-            'span',
-            `project-health-chip ${projectHealthClass(project.ops_summary)}`,
-            projectHealthLabel(project.ops_summary)
-        );
         const dirtyBadge = el('span', 'project-dirty-badge', 'Save required');
-
-        titleWrap.appendChild(title);
-        titleWrap.appendChild(slug);
-        header.appendChild(titleWrap);
-        const headerRight = el('div', 'project-editor-header-right');
-        headerRight.appendChild(dirtyBadge);
-        headerRight.appendChild(chip);
-        headerRight.appendChild(healthChip);
-        header.appendChild(headerRight);
-        article.appendChild(header);
-
-        const summaryMeta = el('div', 'project-card-summary');
-        if (project.public_summary) {
-            summaryMeta.appendChild(el('p', 'project-card-copy', project.public_summary));
-        }
-        const facts = el('div', 'project-card-facts');
         const hostRecord = project.host || getHostRecord(project.deployment_host);
-        [
-            project.deployment_host ? `Host: ${project.deployment_host}` : '',
-            hostRecord?.transport ? `Runner: ${hostRecord.transport}` : '',
-            project.deployment_location ? `Where: ${project.deployment_location}` : '',
-            project.runtime_path ? `Path: ${project.runtime_path}` : ''
-        ].filter(Boolean).forEach(line => facts.appendChild(el('span', 'project-card-fact', line)));
-        if (facts.childNodes.length) {
-            summaryMeta.appendChild(facts);
-        }
-        article.appendChild(summaryMeta);
 
         const slugField = createProjectField('Slug', `project-slug-${fieldKey}`, 'text', project.slug);
         slugField.control.disabled = !!project.slug;
@@ -926,84 +909,47 @@
             logs_command: logsField.control.value
         });
 
-        const dependencyRow = el('div', 'project-dependency-row');
         const hostSnapshot = project.host_snapshot || hostRecord?.runner_snapshot || null;
         const hostSummary = hostSnapshot?.status || (project.deployment_host ? 'unknown' : 'unconfigured');
-        const hostChip = el(
-            'span',
-            `project-health-chip ${projectHealthClass(hostSummary)}`,
-            project.deployment_host ? `Runner: ${projectHealthLabel(hostSummary)}` : 'Runner: Unconfigured'
-        );
-        dependencyRow.appendChild(hostChip);
-        const dependencySummary = el(
-            'span',
-            `project-health-chip ${projectHealthClass(project.dependency_snapshot?.summary)}`,
-            `Deps: ${projectHealthLabel(project.dependency_snapshot?.summary)}`
-        );
-        dependencyRow.appendChild(dependencySummary);
-        dependencyRow.appendChild(el('span', 'project-dependency-copy', dependencyLine(project)));
-        article.appendChild(dependencyRow);
-
-        const linksRow = el('div', 'project-links-row');
-        if (project.private_url) {
-            const privateLink = document.createElement('a');
-            privateLink.className = 'project-link-chip';
-            privateLink.href = project.private_url;
-            privateLink.target = '_blank';
-            privateLink.rel = 'noreferrer';
-            privateLink.textContent = 'Private URL';
-            linksRow.appendChild(privateLink);
-        }
-        if (project.primary_url) {
-            const primaryLink = document.createElement('a');
-            primaryLink.className = 'project-link-chip';
-            primaryLink.href = project.primary_url;
-            primaryLink.target = '_blank';
-            primaryLink.rel = 'noreferrer';
-            primaryLink.textContent = 'Primary URL';
-            linksRow.appendChild(primaryLink);
-        }
-        if (project.repo_url) {
-            const repoLink = document.createElement('a');
-            repoLink.className = 'project-link-chip';
-            repoLink.href = project.repo_url;
-            repoLink.target = '_blank';
-            repoLink.rel = 'noreferrer';
-            repoLink.textContent = 'Repo';
-            linksRow.appendChild(repoLink);
-        }
-        if (linksRow.childNodes.length) {
-            article.appendChild(linksRow);
-        }
-
-        const healthPanel = el('div', 'project-health-panel');
-        healthPanel.appendChild(el('div', 'project-health-line', `Project: ${projectHealthLabel(project.health_snapshot?.summary)}`));
-        healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('public', project.health_snapshot)));
-        healthPanel.appendChild(el('div', 'project-health-line', projectSurfaceHealthLine('private', project.health_snapshot)));
-        healthPanel.appendChild(
+        const statusPanel = el('div', 'project-status-panel');
+        const statusChips = el('div', 'project-status-chips');
+        statusChips.appendChild(
             el(
-                'div',
-                'project-health-line',
-                project.deployment_host
-                    ? `${project.deployment_host} runner: ${projectHealthLabel(hostSummary)}${hostSnapshot?.detail ? ` (${hostSnapshot.detail})` : ''}`
-                    : 'Runner: no deployment host configured'
+                'span',
+                `project-health-chip ${projectHealthClass(project.ops_summary)}`,
+                projectHealthLabel(project.ops_summary)
             )
         );
-        healthPanel.appendChild(
+        statusChips.appendChild(
             el(
-                'div',
-                'project-health-line',
-                `Dependencies: ${dependencyLine(project)}`
+                'span',
+                `project-health-chip ${projectHealthClass(hostSummary)}`,
+                project.deployment_host ? `Runner ${projectHealthLabel(hostSummary)}` : 'Runner Unconfigured'
             )
         );
-        healthPanel.appendChild(
+        statusChips.appendChild(
             el(
-                'div',
-                'project-health-line project-health-line-muted',
-                `Last checked: ${formatCheckedAt(project.health_snapshot?.checked_at)}`
+                'span',
+                `project-health-chip ${projectHealthClass(project.dependency_snapshot?.summary)}`,
+                `Deps ${projectHealthLabel(project.dependency_snapshot?.summary)}`
             )
         );
-        article.appendChild(healthPanel);
+        statusPanel.appendChild(statusChips);
+        if (project.public_summary) {
+            statusPanel.appendChild(el('p', 'project-card-copy', project.public_summary));
+        }
+        const statusList = el('div', 'project-status-list');
+        projectStatusSummary(project, hostSummary, hostSnapshot).forEach(line => {
+            statusList.appendChild(el('div', 'project-status-line', line));
+        });
+        if (project.health_public_url) {
+            statusList.appendChild(el('div', 'project-status-line', projectSurfaceHealthLine('public', project.health_snapshot)));
+        }
+        if (project.health_private_url) {
+            statusList.appendChild(el('div', 'project-status-line', projectSurfaceHealthLine('private', project.health_snapshot)));
+        }
+        statusPanel.appendChild(statusList);
+        article.appendChild(statusPanel);
 
         const actionBar = el('div', 'project-action-bar');
         const openBtn = el('button', 'project-action-btn project-action-btn-primary', 'Open');
@@ -1128,31 +1074,9 @@
             article.appendChild(panel);
         }
 
-        const configDetails = document.createElement('details');
-        configDetails.className = 'project-config-details';
-        configDetails.dataset.projectKey = fieldKey;
-        configDetails.open = !project.slug || state.openProjectConfigs.has(fieldKey);
-        configDetails.addEventListener('toggle', () => {
-            if (configDetails.open) {
-                state.openProjectConfigs.add(fieldKey);
-            } else {
-                state.openProjectConfigs.delete(fieldKey);
-            }
-        });
-        const configSummary = el('summary', 'project-config-summary');
-        configSummary.appendChild(el('span', 'project-config-summary-title', project.slug ? 'Configuration' : 'Create project'));
-        const configSummaryMeta = el(
-            'span',
-            'project-config-summary-meta',
-            project.updated_at ? `Updated ${project.updated_at}` : 'Draft project'
-        );
-        configSummary.appendChild(configSummaryMeta);
-        configSummary.appendChild(dirtyBadge);
-        configDetails.appendChild(configSummary);
-
         const configBody = el('div', 'project-config-body');
 
-        const publicSection = createProjectSection('Public', 'What portfolio can safely show.');
+        const publicSection = createProjectSection(fieldKey, 'public', 'Public', false);
         [
             slugField.field,
             titleField.field,
@@ -1162,9 +1086,9 @@
             primaryField.field,
             repoField.field
         ].forEach(node => publicSection.grid.appendChild(node));
-        configBody.appendChild(publicSection.section);
+        configBody.appendChild(publicSection.details);
 
-        const runtimeSection = createProjectSection('Runtime', 'Where the project lives and how HQ should think about it.');
+        const runtimeSection = createProjectSection(fieldKey, 'runtime', 'Runtime', false);
         [
             privateField.field,
             hostField.field,
@@ -1172,21 +1096,16 @@
             runtimeField.field,
             dependsOnField.field
         ].forEach(node => runtimeSection.grid.appendChild(node));
-        configBody.appendChild(runtimeSection.section);
+        configBody.appendChild(runtimeSection.details);
 
-        const healthSection = createProjectSection('Health', 'Optional public/private checks for the current deployment.');
+        const healthSection = createProjectSection(fieldKey, 'health', 'Health', false);
         [
             healthPublicField.field,
             healthPrivateField.field
         ].forEach(node => healthSection.grid.appendChild(node));
-        configBody.appendChild(healthSection.section);
+        configBody.appendChild(healthSection.details);
 
-        const actionMeta = el(
-            'div',
-            'project-action-meta',
-            project.runtime_path ? `Running in ${project.runtime_path}` : 'Runtime path not configured yet'
-        );
-        const actionsSection = createProjectSection('Actions', 'Host-local commands HQ can run for this project.');
+        const actionsSection = createProjectSection(fieldKey, 'actions', 'Actions', false);
         [
             deployField.field,
             startField.field,
@@ -1194,11 +1113,8 @@
             stopField.field,
             logsField.field
         ].forEach(node => actionsSection.grid.appendChild(node));
-        actionsSection.section.appendChild(actionMeta);
-        configBody.appendChild(actionsSection.section);
-
-        configDetails.appendChild(configBody);
-        article.appendChild(configDetails);
+        configBody.appendChild(actionsSection.details);
+        article.appendChild(configBody);
 
         const actions = el('div', 'project-editor-actions');
         const meta = el('div', 'project-editor-meta', project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
@@ -1214,6 +1130,7 @@
             await deleteProjectRecord(project);
         });
         actions.appendChild(meta);
+        actionsRight.appendChild(dirtyBadge);
         actionsRight.appendChild(deleteBtn);
         actionsRight.appendChild(saveBtn);
         actions.appendChild(actionsRight);
@@ -1243,12 +1160,7 @@
         const updateDirtyState = () => {
             const isDirty = JSON.stringify(normalizeProjectPayload(currentPayload())) !== savedSnapshot;
             dirtyBadge.classList.toggle('is-visible', isDirty);
-            meta.textContent = isDirty
-                ? 'Save required before this editor matches the stored project record.'
-                : (project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
-            configSummaryMeta.textContent = isDirty
-                ? 'Save required'
-                : (project.updated_at ? `Updated ${project.updated_at}` : 'Draft project');
+            meta.textContent = project.updated_at ? `Updated ${project.updated_at}` : 'Draft project';
             openBtn.disabled = !projectOpenUrl(currentPayload());
             healthBtn.disabled = !project.slug || (!healthPublicField.control.value.trim() && !healthPrivateField.control.value.trim());
         };
