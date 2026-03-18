@@ -1,5 +1,17 @@
 read_when: reviewing notable behavior/UI/documentation changes and validation status
 
+## 2026-03-18
+- Summary: Enabled the `aws` host as a real HTTP runner, configured RentPredictor in HQ with AWS deployment metadata/public health, and repaired live GitHub auth for `POST /projects/publish` on `srv`.
+- Affected files: `runtime/hosts/hosts.json`, `runtime/projects/projects.json`, `runtime/projects/projects.generated.json`, `docs/overview.md`, `docs/runtime.md`
+- Migration notes: `aws` now expects `HQ_ACTION_RUNNER_TOKEN_AWS` on the HQ server env and a running `hq-action-runner` service on the Lightsail host.
+- Validation status: live `POST /hosts/refresh-health` reports `aws` healthy, live `POST /projects/publish` returns `200`, and RentPredictor now reports healthy in `POST /projects/refresh-health`.
+
+## 2026-03-18
+- Summary: Changed private project health checks to route through the project's host runner when available, so HQ no longer reports false negatives for host-local services that are unreachable directly from the HQ container.
+- Affected files: `controller/controller_main.py`, `host_runner/server.py`, `tests/test_project_ops_api.py`
+- Migration notes: host runners now serve `POST /check-url` in addition to `GET /health` and `POST /run`; restart runner services after deploying this change.
+- Validation status: `python3 -m pytest tests/test_project_ops_api.py tests/test_projects_registry.py tests/test_hosts_registry.py tests/test_portfolio_publish.py`, `python3 -m py_compile controller/controller_main.py host_runner/server.py`, and live `POST /projects/refresh-health` showed `hermes` and `jobby` healthy after restarting the runners.
+
 ## 2026-03-17
 - Summary: Added a real host registry and multi-host runner routing so HQ can target one runner per host, show runner health in the dashboard, and route project actions by `deployment_host` instead of a single global runner setting.
 - Affected files: `controller/controller_main.py`, `controller/hosts_registry.py`, `controller/static/dashboard.css`, `controller/static/dashboard.js`, `controller/templates/dashboard.html`, `docs/controller.md`, `docs/projects.md`, `docs/runtime.md`, `runtime/hosts/hosts.json`, `tests/test_hosts_registry.py`, `tests/test_project_ops_api.py`

@@ -117,3 +117,6 @@ Host action runner
     - `runner_url: "http://<tailscale-ip>:8051"`
     - `token_env_var: "HQ_ACTION_RUNNER_TOKEN_<HOST>"`
   - Set that token in HQ's `.env` so the controller can authenticate to the remote runner.
+- Current known-good host examples:
+  - `desk` -> `http://100.104.120.10:8051`
+  - `aws` -> `http://100.69.114.39:8051`
