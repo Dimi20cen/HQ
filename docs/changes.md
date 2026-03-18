@@ -13,6 +13,12 @@ read_when: reviewing notable behavior/UI/documentation changes and validation st
 - Validation status: `node --check controller/static/dashboard.js` passed.
 
 ## 2026-03-18
+- Summary: Made repeated project action clicks collapse the currently visible result panel instead of rerunning the same action immediately.
+- Affected files: `controller/static/dashboard.js`
+- Migration notes: Applies to `Deploy`, `Restart`, and `Logs` action results.
+- Validation status: `node --check controller/static/dashboard.js` passed.
+
+## 2026-03-18
 - Summary: Restored lightweight scanability to collapsed project rows by showing public mode, deployment host, and last-checked time beneath each project title while keeping the simpler sidebar structure.
 - Affected files: `controller/static/dashboard.css`, `controller/static/dashboard.js`
 - Migration notes: No API or data-shape changes.

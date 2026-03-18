@@ -1001,6 +1001,12 @@
             })[action];
             button.disabled = !project.slug || !field.control.value.trim();
             button.addEventListener('click', async () => {
+                const currentProject = getProjectState(project.slug);
+                if (currentProject?.action_result?.action === action) {
+                    updateProjectState(project.slug, { action_result: null });
+                    setProjectsFeedback('');
+                    return;
+                }
                 await runProjectAction(project.slug, action, currentPayload());
             });
             actionBar.appendChild(button);
@@ -1239,6 +1245,10 @@
             return normalizeProjectRecord({ ...project, ...next });
         });
         renderProjects();
+    }
+
+    function getProjectState(slug) {
+        return state.projects.find(project => project.slug === slug) || null;
     }
 
     function mergeProjectUiState(nextProjects, options = {}) {
