@@ -152,6 +152,45 @@ def _run_command(payload: dict) -> tuple[int, dict]:
     return HTTPStatus.OK if completed.returncode == 0 else HTTPStatus.INTERNAL_SERVER_ERROR, payload
 
 
+def _check_url(payload: dict) -> tuple[int, dict]:
+    label = str(payload.get("label") or "private").strip() or "private"
+    url = str(payload.get("url") or "").strip()
+    timeout_seconds = payload.get("timeout_seconds")
+    try:
+        timeout = max(1, min(int(timeout_seconds), 3600)) if timeout_seconds is not None else 5
+    except (TypeError, ValueError):
+        timeout = 5
+
+    if not url:
+        return HTTPStatus.BAD_REQUEST, {"detail": "url is required."}
+
+    checked_at = _now_iso()
+    try:
+        from urllib import request as urllib_request
+        with urllib_request.urlopen(url, timeout=timeout) as response:
+            status_code = getattr(response, "status", 200)
+            healthy = 200 <= status_code < 400
+            return HTTPStatus.OK, {
+                "label": label,
+                "url": url,
+                "status": "healthy" if healthy else "down",
+                "ok": healthy,
+                "http_status": status_code,
+                "checked_at": checked_at,
+                "detail": f"HTTP {status_code}",
+            }
+    except Exception as exc:
+        return HTTPStatus.OK, {
+            "label": label,
+            "url": url,
+            "status": "down",
+            "ok": False,
+            "http_status": None,
+            "checked_at": checked_at,
+            "detail": str(exc),
+        }
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "HQActionRunner/0.1"
 
@@ -170,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/run":
+        if self.path not in {"/run", "/check-url"}:
             _not_found(self)
             return
         if not _check_auth(self):
@@ -187,7 +226,10 @@ class Handler(BaseHTTPRequestHandler):
             _bad_request(self, "Body must be a JSON object.")
             return
 
-        status, response = _run_command(payload)
+        if self.path == "/check-url":
+            status, response = _check_url(payload)
+        else:
+            status, response = _run_command(payload)
         _json_response(self, status, response)
 
     def log_message(self, format: str, *args) -> None:  # noqa: A003

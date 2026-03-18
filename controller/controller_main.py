@@ -222,6 +222,80 @@ def _default_health_check(label: str, url: str) -> dict:
     }
 
 
+def _check_health_target_via_runner(label: str, url: str, runner: dict) -> dict:
+    runner_socket = str(runner.get("runner_socket_path") or "").strip()
+    runner_url = str(runner.get("runner_url") or "").strip()
+    if not runner_socket and not runner_url:
+        return _check_health_target(label, url)
+
+    headers = {"Content-Type": "application/json"}
+    token = str(runner.get("token") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    payload = {"label": label, "url": url, "timeout_seconds": 5}
+
+    try:
+        if runner_socket:
+            class UnixHTTPConnection(http.client.HTTPConnection):
+                def __init__(self, socket_path: str):
+                    super().__init__("localhost")
+                    self._socket_path = socket_path
+
+                def connect(self):
+                    self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    self.sock.settimeout(self.timeout)
+                    self.sock.connect(self._socket_path)
+
+            connection = UnixHTTPConnection(runner_socket)
+            connection.timeout = 10
+            connection.request("POST", "/check-url", body=json.dumps(payload), headers=headers)
+            response = connection.getresponse()
+            raw_body = response.read().decode("utf-8")
+            status_code = response.status
+        else:
+            response = requests.post(
+                f"{runner_url.rstrip('/')}/check-url",
+                headers=headers,
+                json=payload,
+                timeout=10,
+            )
+            raw_body = response.text
+            status_code = response.status_code
+    except (requests.RequestException, OSError, http.client.HTTPException) as exc:
+        return {
+            "label": label,
+            "url": url,
+            "status": "down",
+            "ok": False,
+            "http_status": None,
+            "checked_at": _now_iso(),
+            "detail": f"Host runner health check failed: {exc}",
+        }
+
+    try:
+        data = json.loads(raw_body) if raw_body.strip() else {}
+    except ValueError:
+        data = {}
+
+    if not isinstance(data, dict):
+        data = {}
+    if "label" not in data:
+        data["label"] = label
+    if "url" not in data:
+        data["url"] = url
+    if "checked_at" not in data:
+        data["checked_at"] = _now_iso()
+    if status_code >= 400 and "ok" not in data:
+        data["ok"] = False
+    if "status" not in data:
+        data["status"] = "down"
+    if "http_status" not in data:
+        data["http_status"] = None
+    if "detail" not in data:
+        data["detail"] = f"HTTP {status_code}"
+    return data
+
+
 def _summarize_health(snapshot: dict) -> str:
     configured = [
         entry["status"]
@@ -242,9 +316,15 @@ def _summarize_health(snapshot: dict) -> str:
 
 
 def _project_health_snapshot(project: dict) -> dict:
+    private_url = str(project.get("health_private_url") or "")
+    private_runner = _host_runner_config(_resolve_project_host(project))
     checks = {
         "public": _check_health_target("public", str(project.get("health_public_url") or "")),
-        "private": _check_health_target("private", str(project.get("health_private_url") or "")),
+        "private": (
+            _check_health_target_via_runner("private", private_url, private_runner)
+            if private_url and private_runner
+            else _check_health_target("private", private_url)
+        ),
     }
     return {
         "slug": project["slug"],

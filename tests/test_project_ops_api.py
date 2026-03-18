@@ -418,18 +418,53 @@ class ProjectOpsApiTests(unittest.TestCase):
         os.environ["HQ_ACTION_RUNNER_TOKEN"] = "runner-token"
         responses = {
             "https://auth.dimy.dev/health": Mock(status_code=200),
-            "http://100.124.230.107:8100/health": Mock(status_code=200),
-            "http://100.124.230.107:8010/health": Mock(status_code=503),
-            "http://100.124.230.107:8001/health": Mock(status_code=200),
             "http://runner.local:8051/health": Mock(
                 status_code=200, text=json.dumps({"ok": True, "service": "hq-action-runner"})
             ),
+        }
+        runner_health = {
+            "http://100.124.230.107:8100/health": {
+                "label": "private",
+                "url": "http://100.124.230.107:8100/health",
+                "status": "healthy",
+                "ok": True,
+                "http_status": 200,
+                "checked_at": "2026-03-17T13:00:00Z",
+                "detail": "HTTP 200",
+            },
+            "http://100.124.230.107:8010/health": {
+                "label": "private",
+                "url": "http://100.124.230.107:8010/health",
+                "status": "down",
+                "ok": False,
+                "http_status": None,
+                "checked_at": "2026-03-17T13:00:00Z",
+                "detail": "timed out",
+            },
+            "http://100.124.230.107:8001/health": {
+                "label": "private",
+                "url": "http://100.124.230.107:8001/health",
+                "status": "healthy",
+                "ok": True,
+                "http_status": 200,
+                "checked_at": "2026-03-17T13:00:00Z",
+                "detail": "HTTP 200",
+            },
         }
 
         def fake_get(url, timeout=5, **kwargs):
             return responses[url]
 
-        with patch.object(self.main.requests, "get", side_effect=fake_get):
+        def fake_post(url, headers=None, json=None, timeout=10, **kwargs):
+            if url == "http://runner.local:8051/check-url":
+                return Mock(status_code=200, text=json_module.dumps(runner_health[json["url"]]))
+            raise AssertionError(f"Unexpected POST {url}")
+
+        json_module = json
+
+        with patch.object(self.main.requests, "get", side_effect=fake_get), patch.object(
+            self.main.requests, "post", side_effect=fake_post
+        ):
             response = self.main.refresh_projects_health()
 
         payload = self.read_payload(response)
@@ -438,6 +473,42 @@ class ProjectOpsApiTests(unittest.TestCase):
         self.assertEqual(by_slug["jobby"]["dependency_snapshot"]["summary"], "down")
         self.assertEqual(by_slug["jobby"]["ops_summary"], "degraded")
         self.assertEqual(by_slug["jobby"]["host_snapshot"]["status"], "healthy")
+
+    def test_private_health_uses_host_runner_when_available(self):
+        self.hosts_registry.update_host(
+            "srv",
+            {
+                "transport": "http",
+                "runner_url": "http://runner.local:8051",
+            },
+        )
+        os.environ["HQ_ACTION_RUNNER_TOKEN"] = "runner-token"
+
+        with patch.object(self.main.requests, "get", return_value=Mock(status_code=200)) as get_mock, patch.object(
+            self.main.requests,
+            "post",
+            return_value=Mock(
+                status_code=200,
+                text=json.dumps(
+                    {
+                        "label": "private",
+                        "url": "http://100.124.230.107:8010/health",
+                        "status": "healthy",
+                        "ok": True,
+                        "http_status": 200,
+                        "checked_at": "2026-03-17T13:00:00Z",
+                        "detail": "HTTP 200",
+                    }
+                ),
+            ),
+        ) as post_mock:
+            snapshot = self.main.check_project_health("hermes")
+
+        payload = self.read_payload(snapshot)
+        self.assertEqual(payload["summary"], "healthy")
+        self.assertEqual(payload["checks"]["private"]["status"], "healthy")
+        self.assertEqual(get_mock.call_count, 0)
+        self.assertEqual(post_mock.call_args.args[0], "http://runner.local:8051/check-url")
 
     def test_publish_project_catalog_returns_publish_payload(self):
         with patch.object(
