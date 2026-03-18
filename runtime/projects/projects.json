@@ -43,7 +43,7 @@
     "restart_command": "docker compose --env-file ../.env -f docker-compose.yml restart",
     "stop_command": "docker compose --env-file ../.env -f docker-compose.yml down",
     "logs_command": "docker compose --env-file ../.env -f docker-compose.yml logs --tail 100",
-    "updated_at": "2026-03-17T14:41:00Z"
+    "updated_at": "2026-03-17T17:28:38Z"
   },
   {
     "slug": "hq",
@@ -66,7 +66,7 @@
     "restart_command": "docker compose restart",
     "stop_command": "docker compose down",
     "logs_command": "docker compose logs --tail 100",
-    "updated_at": "2026-03-17T09:13:54Z"
+    "updated_at": "2026-03-17T17:28:48Z"
   },
   {
     "slug": "jobby",
@@ -115,7 +115,7 @@
     "restart_command": "systemctl --user restart hermes.service",
     "stop_command": "systemctl --user stop hermes.service",
     "logs_command": "journalctl --user -u hermes.service -n 100 --no-pager",
-    "updated_at": "2026-03-17T09:13:54Z"
+    "updated_at": "2026-03-17T17:28:18Z"
   },
   {
     "slug": "janus",

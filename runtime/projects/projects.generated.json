@@ -18,6 +18,15 @@
     "sort_order": 20
   },
   {
+    "slug": "hq",
+    "title": "HQ",
+    "public_summary": "Private control plane and dashboard for my personal projects, publishing rules, and host-local operations.",
+    "public_mode": "source",
+    "primary_url": "",
+    "repo_url": "https://github.com/Dimi20cen/HQ",
+    "sort_order": 30
+  },
+  {
     "slug": "jobby",
     "title": "Jobby",
     "public_summary": "Private job application manager with AI generation, Gmail thread linking, and browser-assisted capture workflows.",
@@ -42,6 +51,6 @@
     "public_mode": "source",
     "primary_url": "",
     "repo_url": "https://github.com/Dimi20cen/janus",
-    "sort_order": 50
+    "sort_order": 60
   }
 ]
