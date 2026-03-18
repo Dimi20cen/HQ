@@ -77,6 +77,19 @@ def _status_path_matches_export(path: str, export_relpath: str) -> bool:
     return bool(normalized) and export_relpath.startswith(f"{normalized}/")
 
 
+def _branch_ahead_behind(repo_dir: Path, branch: str) -> tuple[int, int]:
+    tracking_ref = f"origin/{branch}"
+    completed = _run_git(repo_dir, "rev-list", "--left-right", "--count", f"{tracking_ref}...HEAD")
+    raw = completed.stdout.strip()
+    parts = raw.split()
+    if len(parts) != 2:
+        raise ProjectValidationError(
+            f"Unable to determine branch sync status for {tracking_ref}: {raw or 'no output'}"
+        )
+    behind, ahead = (int(part) for part in parts)
+    return ahead, behind
+
+
 def _validate_repo(repo_dir: Path, export_path: Path, branch: str) -> dict:
     if not repo_dir.exists():
         raise ProjectValidationError(f"Portfolio repo path does not exist: {repo_dir}")
@@ -158,6 +171,32 @@ def publish_portfolio_catalog() -> dict:
         )
 
     if not any(_status_path_matches_export(path, repo_info["export_relpath"]) for path in dirty_paths):
+        ahead, behind = _branch_ahead_behind(repo_dir, branch)
+        if ahead > 0:
+            push_result = _run_git(repo_dir, "push", "origin", branch)
+            commit_sha = _run_git(repo_dir, "rev-parse", "HEAD").stdout.strip()
+            detail = "Pushed previously committed portfolio catalog to origin."
+            if behind > 0:
+                detail = (
+                    "Pushed local portfolio commits to origin, but the branch also differs from "
+                    f"origin/{branch}."
+                )
+            return {
+                "ok": True,
+                "detail": detail,
+                "repo_path": repo_info["repo_path"],
+                "branch": branch,
+                "origin_url": repo_info["origin_url"],
+                "export_path": repo_info["export_path"],
+                "export_relpath": repo_info["export_relpath"],
+                "hq_export_path": export_result["export_path"],
+                "count": export_result["count"],
+                "no_changes": False,
+                "commit_sha": commit_sha,
+                "commit_message": "",
+                "stdout": push_result.stdout.strip(),
+                "stderr": push_result.stderr.strip(),
+            }
         return {
             "ok": True,
             "detail": "Portfolio catalog already up to date.",

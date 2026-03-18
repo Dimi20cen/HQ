@@ -111,6 +111,27 @@ class PortfolioPublishTests(unittest.TestCase):
         self.assertTrue(second["no_changes"])
         self.assertEqual(second["commit_sha"], "")
 
+    def test_publish_pushes_existing_local_commit_when_repo_is_ahead(self):
+        first = self.publisher.publish_portfolio_catalog()
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(first["no_changes"])
+
+        self._git(self.repo_dir, "commit", "--allow-empty", "-m", "Local-only commit")
+
+        second = self.publisher.publish_portfolio_catalog()
+
+        self.assertTrue(second["ok"])
+        self.assertFalse(second["no_changes"])
+        self.assertEqual(
+            second["detail"],
+            "Pushed previously committed portfolio catalog to origin.",
+        )
+        self.assertEqual(
+            self._git(self.repo_dir, "rev-parse", "HEAD"),
+            self._git(self.origin_dir, "rev-parse", "main"),
+        )
+
     def test_publish_rejects_unrelated_dirty_repo(self):
         (self.repo_dir / "README.md").write_text("dirty\n", encoding="utf-8")
 
