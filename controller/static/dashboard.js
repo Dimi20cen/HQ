@@ -994,12 +994,14 @@
         });
         actionBar.appendChild(healthBtn);
 
-        ['deploy', 'restart', 'logs'].forEach(action => {
+        ['deploy', 'start', 'restart', 'stop', 'logs'].forEach(action => {
             const button = el('button', 'project-action-btn', projectActionLabel(action));
             button.type = 'button';
             const field = ({
                 deploy: deployField,
+                start: startField,
                 restart: restartField,
+                stop: stopField,
                 logs: logsField
             })[action];
             button.disabled = !project.slug || !field.control.value.trim();
