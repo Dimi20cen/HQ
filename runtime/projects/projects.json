@@ -35,7 +35,7 @@
     "private_url": "http://100.104.120.10:3000",
     "deployment_host": "desk",
     "deployment_location": "Personal workstation over Tailscale; public via Lightsail and Caddy",
-    "runtime_path": "/home/dim/Projects/oss/sakura/deploy",
+    "runtime_path": "/home/dim/Projects/sakura/deploy",
     "health_public_url": "https://api-sakura.dimy.dev/heartbeat",
     "health_private_url": "http://100.104.120.10:8090/heartbeat",
     "deploy_command": "docker compose --env-file ../.env -f docker-compose.yml pull && docker compose --env-file ../.env -f docker-compose.yml up -d",
